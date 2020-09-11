@@ -2,4 +2,4 @@
 
 > Work in progress
 
-Embedded logic scripting language.
+Embeddable logic scripting language.
