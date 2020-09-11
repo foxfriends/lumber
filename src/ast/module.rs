@@ -2,6 +2,7 @@ use super::*;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+/// A module within a Lumber program.
 #[derive(Debug)]
 pub struct Module {
     /// The path from which to resolve dependencies of this module. If this module was read from

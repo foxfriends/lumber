@@ -1,3 +1,4 @@
+/// A parser for the Lumber language.
 #[derive(pest_derive::Parser)]
 #[grammar = "./parser/lumber.pest"]
 pub struct Parser;

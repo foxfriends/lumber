@@ -1,11 +1,6 @@
 use super::*;
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-enum Arity {
-    Len(usize),
-    Name(Atom),
-}
-
+/// A handle to a predicate.
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Handle {
     /// The path and name of the predicate or function being described
