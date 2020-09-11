@@ -1,25 +1,27 @@
-source_file                =  { SOI ~ definitions ~ EOI }
+module                     =  { SOI ~ definitions ~ EOI }
 definitions                =  { definition* }
 definition                 =  { directive | clause }
 
 directive                  =  { ":-" ~ instruction }
 instruction                =  { native | mod_ | use_ | pub_ }
-native                     =  { "native" ~ "(" ~ predicate_descriptor ~ ")" }
+native                     =  { "native" ~ "(" ~ handle ~ ")" }
 mod_                       =  { "mod" ~ "(" ~ atom ~ ")" }
-use_                       =  { "use" ~ "(" ~ multi_predicate_descriptor ~ ")" }
-pub_                       =  { "pub" ~ "(" ~ predicate_descriptor ~ ")" }
+use_                       =  { "use" ~ "(" ~ handles ~ ")" }
+pub_                       =  { "pub" ~ "(" ~ handle ~ ")" }
 
-multi_predicate_descriptor = @{ scope ~ "::" ~ ("*" | "{" ~ predicate_descriptors ~ "}") }
-predicate_descriptors      =  { predicate_descriptor ~ ("," ~ predicate_descriptor)* }
-predicate_descriptor       = @{ (scope ~ "::")? ~ atom ~ field_descriptor+ }
-field_descriptor           = @{ "/" ~ integer_10 | ":" ~ atom }
+multi_handle               = @{ scope ~ "::" ~ ("*" | "{" ~ handles ~ "}") }
+handles                    =  { handle ~ ("," ~ handle)* }
+handle                     =  { scope ~ arity }
+scope                      = @{ ("^::"+ | "~::" | "@" ~ atom ~ "::")? ~ atom ~ ("::" ~ atom)* }
+arity                      = @{ "/" ~ integer_10 | ":" ~ atom }
 
 clause                     =  { fact | rule | function }
 fact                       =  { head ~ "." }
 rule                       =  { head ~ ":-" ~ body ~ "." }
-function                   =  { head ~ "<-" ~ evaluation ~ "." }
+function                   =  { function_head ~ "<-" ~ evaluation ~ "." }
 
 head                       =  { atom ~ ( "(" ~ fields ~ ")" )? }
+function_head              =  { atom ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 body                       =  { procession }
 evaluation                 =  { (assumption ~ ",")* ~ computation }
 
@@ -33,7 +35,6 @@ computation                =  { operation }
 operation                  =  { expression ~ (operator ~ expression)* }
 expression                 =  { value | "(" ~ operation ~ ")" }
 
-scope                      =  { atom ~ ("::" ~ atom)* }
 call                       =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 predicate                  =  { scope ~ ( "(" ~ fields ~ ")" )? }
 
@@ -46,16 +47,16 @@ atom                       = @{ bare_atom | quoted_atom }
 bare_atom                  =  { &XID_START ~ (LOWERCASE_LETTER | OTHER_LETTER) ~ XID_CONTINUE* }
 quoted_atom                =  { PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 
-operator                   = @{ "`" ~ scope ~ "`" | (!"_" ~ operator_symbol) ~ operator_symbol* }
-operator_symbol            =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!" | "^" | "&" | "|" | "@" | "#" | "_" | "\\" }
+operator                   = @{ "`" ~ scope ~ "`" | !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
+operator_symbol            =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
 variable                   = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "$" | "_") ~ XID_CONTINUE* }
 wildcard                   = @{ "_" }
 
-value                      =  { predicate | variable | literal | call }
-pattern                    =  { predicate | variable | literal | wildcard }
+value                      =  { literal | predicate | variable | list | call }
+pattern                    =  { literal | predicate | variable | list | wildcard }
 
-literal                    =  { integer | decimal | string | list | atom }
+literal                    =  { integer | decimal | string | atom }
 
 integer                    = @{ integer_10 | integer_2 | integer_16 }
 integer_10                 = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
