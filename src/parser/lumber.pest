@@ -1,75 +1,75 @@
-module                     =  { SOI ~ definitions ~ EOI }
-definitions                =  { definition* }
-definition                 =  { directive | clause }
+module          =  { SOI ~ definitions ~ EOI }
+definitions     =  { definition* }
+definition      =  { directive | clause }
 
-directive                  =  { ":-" ~ instruction }
-instruction                =  { native | mod_ | use_ | pub_ }
-native                     =  { "native" ~ "(" ~ handle ~ ")" }
-mod_                       =  { "mod" ~ "(" ~ atom ~ ")" }
-use_                       =  { "use" ~ "(" ~ handles ~ ")" }
-pub_                       =  { "pub" ~ "(" ~ handle ~ ")" }
+directive       =  { ":-" ~ instruction }
+instruction     =  { native | mod_ | use_ | pub_ }
+native          =  { "native" ~ "(" ~ handle ~ ")" }
+mod_            =  { "mod" ~ "(" ~ atom ~ ")" }
+use_            =  { "use" ~ "(" ~ handles ~ ")" }
+pub_            =  { "pub" ~ "(" ~ handle ~ ")" }
 
-multi_handle               = @{ scope ~ "::" ~ ("*" | "{" ~ handles ~ "}") }
-handles                    =  { handle ~ ("," ~ handle)* }
-handle                     =  { scope ~ arity }
-scope                      = @{ ("^::"+ | "~::" | "@" ~ atom ~ "::")? ~ atom ~ ("::" ~ atom)* }
-arity                      = @{ "/" ~ integer_10 | ":" ~ atom }
+multi_handle    = @{ scope ~ "::" ~ ("*" | "{" ~ handles ~ "}") }
+handles         =  { handle ~ ("," ~ handle)* }
+handle          =  { scope ~ arity }
+scope           = @{ ("^::"+ | "~::" | "@" ~ atom ~ "::")? ~ atom ~ ("::" ~ atom)* }
+arity           = @{ "/" ~ integer_10 | ":" ~ atom }
 
-clause                     =  { fact | rule | function }
-fact                       =  { head ~ "." }
-rule                       =  { head ~ ":-" ~ body ~ "." }
-function                   =  { function_head ~ "<-" ~ evaluation ~ "." }
+clause          =  { fact | rule | function }
+fact            =  { head ~ "." }
+rule            =  { head ~ ":-" ~ body ~ "." }
+function        =  { function_head ~ "<-" ~ evaluation ~ "." }
 
-head                       =  { atom ~ ( "(" ~ fields ~ ")" )? }
-function_head              =  { atom ~ "!" ~ ( "(" ~ fields ~ ")" )? }
-body                       =  { procession }
-evaluation                 =  { (assumption ~ ",")* ~ computation }
+head            =  { atom ~ ( "(" ~ fields ~ ")" )? }
+function_head   =  { atom ~ "!" ~ ( "(" ~ fields ~ ")" )? }
+body            =  { procession }
+evaluation      =  { (assumption ~ ",")* ~ computation }
 
-procession                 =  { disjunction ~ ("!" ~ disjunction)* }
-disjunction                =  { conjunction ~ (";" ~ conjunction)* }
-conjunction                =  { implication ~ ("," ~ implication)* }
-implication                =  { unification ~ ("->" ~ unification)* }
-unification                =  { assumption | predicate | "(" ~ procession ~ ")" }
-assumption                 =  { pattern ~ "<-" ~ computation }
-computation                =  { operation }
-operation                  =  { expression ~ (operator ~ expression)* }
-expression                 =  { value | "(" ~ operation ~ ")" }
+procession      =  { disjunction ~ ("!" ~ disjunction)* }
+disjunction     =  { conjunction ~ (";" ~ conjunction)* }
+conjunction     =  { implication ~ ("," ~ implication)* }
+implication     =  { unification ~ ("->" ~ unification)* }
+unification     =  { assumption | predicate | "(" ~ procession ~ ")" }
+assumption      =  { pattern ~ "<-" ~ computation }
+computation     =  { operation }
+operation       =  { expression ~ (operator ~ expression)* }
+expression      =  { value | "(" ~ operation ~ ")" }
 
-call                       =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
-predicate                  =  { scope ~ ( "(" ~ fields ~ ")" )? }
+call            =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
+predicate       =  { scope ~ ( "(" ~ fields ~ ")" )? }
 
-fields                     =  { field ~ ("," ~ field)* }
-field                      =  { named_field | bare_field }
-named_field                =  { atom ~ ":" ~ pattern }
-bare_field                 =  { pattern }
+fields          =  { field ~ ("," ~ field)* }
+field           =  { named_field | bare_field }
+named_field     =  { atom ~ ":" ~ pattern }
+bare_field      =  { pattern }
 
-atom                       = @{ bare_atom | quoted_atom }
-bare_atom                  =  { &XID_START ~ (LOWERCASE_LETTER | OTHER_LETTER) ~ XID_CONTINUE* }
-quoted_atom                =  { PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
+atom            = @{ bare_atom | quoted_atom }
+bare_atom       =  { &XID_START ~ (LOWERCASE_LETTER | OTHER_LETTER) ~ XID_CONTINUE* }
+quoted_atom     =  { PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 
-operator                   = @{ "`" ~ scope ~ "`" | !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
-operator_symbol            =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
+operator        = @{ "`" ~ scope ~ "`" | !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
+operator_symbol =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
-variable                   = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "$" | "_") ~ XID_CONTINUE* }
-wildcard                   = @{ "_" }
+variable        = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "$" | "_") ~ XID_CONTINUE* }
+wildcard        = @{ "_" }
 
-value                      =  { literal | predicate | variable | list | call }
-pattern                    =  { literal | predicate | variable | list | wildcard }
+value           =  { literal | predicate | variable | list | call }
+pattern         =  { literal | predicate | variable | list | wildcard }
 
-literal                    =  { integer | decimal | string | atom }
+literal         =  { integer | decimal | string | atom }
 
-integer                    = @{ integer_10 | integer_2 | integer_16 }
-integer_10                 = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
-integer_2                  = @{ "0b" ~ ASCII_BIN_DIGIT+ }
-integer_16                 = @{ "0x" ~ ASCII_HEX_DIGIT+ }
+integer         = @{ integer_10 | integer_2 | integer_16 }
+integer_10      = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
+integer_2       = @{ "0b" ~ ASCII_BIN_DIGIT+ }
+integer_16      = @{ "0x" ~ ASCII_HEX_DIGIT+ }
 
-decimal                    = @{ decimal_10 }
-decimal_10                 = @{ integer_10 ~ "." ~ integer_10 }
+decimal         = @{ decimal_10 }
+decimal_10      = @{ integer_10 ~ "." ~ integer_10 }
 
-string                     = @{ PUSH("#"*) ~ "\"" ~ (!"\"" ~ !PEEK ~ ANY)* ~ "\"" ~ POP }
+string          = @{ PUSH("#"*) ~ "\"" ~ (!"\"" ~ !PEEK ~ ANY)* ~ "\"" ~ POP }
 
-list                       =  { "[" ~ list_entries ~ ("|" ~ (list | variable | wildcard))? ~ "]" | "[" ~ "]" }
-list_entries               =  { pattern ~ ("," ~ pattern)* }
+list            =  { "[" ~ list_entries ~ ("|" ~ (list | variable | wildcard))? ~ "]" | "[" ~ "]" }
+list_entries    =  { pattern ~ ("," ~ pattern)* }
 
-WHITESPACE                 = _{ " " | "\t" | NEWLINE }
-COMMENT                    = _{ "//" ~ (!"\n" ~ ANY)* ~ NEWLINE | "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+WHITESPACE      = _{ " " | "\t" | NEWLINE }
+COMMENT         = _{ "//" ~ (!"\n" ~ ANY)* ~ NEWLINE | "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
