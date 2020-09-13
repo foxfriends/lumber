@@ -1,3 +1,7 @@
+#[macro_use]
+mod macros;
+
+mod alias;
 mod arity;
 mod atom;
 mod body;
@@ -10,10 +14,12 @@ mod implication;
 mod literal;
 mod module;
 mod pattern;
+mod program;
 mod query;
 mod scope;
 mod unification;
 
+pub use alias::Alias;
 pub use arity::Arity;
 pub use atom::Atom;
 pub use body::Body;
@@ -26,6 +32,14 @@ pub use implication::Implication;
 pub use literal::Literal;
 pub use module::Module;
 pub use pattern::Pattern;
+pub use program::Program;
 pub use query::Query;
 pub use scope::Scope;
 pub use unification::Unification;
+
+mod context;
+mod module_header;
+
+use atom::Atomizer;
+use context::Context;
+use module_header::ModuleHeader;
