@@ -12,7 +12,7 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub(crate) fn new<'i>(pair: crate::Pair<'i>, context: &mut Context<'i>) -> Option<Self> {
+    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::scope);
         let span = pair.as_span();
         let mut pairs = pair.into_inner();
@@ -71,5 +71,14 @@ impl Display for Scope {
             .collect::<Vec<_>>()
             .join("::")
             .fmt(f)
+    }
+}
+
+impl<'a> IntoIterator for &'a Scope {
+    type Item = &'a Atom;
+    type IntoIter = <&'a [Atom] as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.path).into_iter()
     }
 }

@@ -13,7 +13,7 @@ pub enum Arity {
 }
 
 impl Arity {
-    pub(crate) fn new<'i>(pair: crate::Pair<'i>, context: &mut Context<'i>) -> Self {
+    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::arity);
         let pair = just!(pair.into_inner());
         match pair.as_rule() {

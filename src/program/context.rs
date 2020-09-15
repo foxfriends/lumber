@@ -4,18 +4,18 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Default)]
-pub(crate) struct Context<'i> {
+pub(crate) struct Context {
     pub root_path: PathBuf,
-    pub atomizer: Atomizer<'i>,
+    pub atomizer: Atomizer,
     pub current_scope: Scope,
     pub modules: HashMap<Scope, ModuleHeader>,
     pub errors: HashMap<Scope, Vec<crate::Error>>,
 }
 
-impl Context<'_> {
+impl Context {
     pub fn compile(root_path: PathBuf, source: &str) -> crate::Result<Program> {
         let mut context = Self {
-            root_path,
+            root_path: root_path.clone(),
             atomizer: Atomizer::default(),
             current_scope: Scope::default(),
             modules: HashMap::default(),
@@ -24,6 +24,9 @@ impl Context<'_> {
         context
             .modules
             .insert(Scope::default(), ModuleHeader::default());
+
+        let _root_module = Module::new(root_path, source, &mut context)?;
+
         context.finish()
     }
 
@@ -35,13 +38,25 @@ impl Context<'_> {
         self.current_scope.pop();
     }
 
-    pub fn declare_module(&mut self, module: Atom) {
-        let scope = self.current_scope.join(module);
+    pub fn add_module(&mut self, module: Atom) -> crate::Result<Option<Module>> {
+        let scope = self.current_scope.join(module.clone());
         if self.modules.contains_key(&scope) {
             self.error_duplicate_module(scope);
-        } else {
-            self.modules.insert(scope, ModuleHeader::default());
+            return Ok(None);
         }
+        self.modules.insert(scope, ModuleHeader::default());
+        self.enter_module(module);
+        let mut module_path = self
+            .current_scope
+            .into_iter()
+            .fold(self.root_path.clone(), |path, atom| {
+                path.join(atom.as_ref())
+            });
+        module_path.set_extension(".lumber");
+        let source = std::fs::read_to_string(&module_path)?;
+        let module = Module::new(module_path, &source, self)?;
+        self.leave_module();
+        Ok(Some(module))
     }
 
     pub fn declare_export(&mut self, export: Handle) {
@@ -67,7 +82,7 @@ impl Context<'_> {
     }
 }
 
-impl<'i> Context<'i> {
+impl Context {
     fn current_errors(&mut self) -> &mut Vec<crate::Error> {
         self.errors.entry(self.current_scope.clone()).or_default()
     }
@@ -88,7 +103,7 @@ impl<'i> Context<'i> {
         });
     }
 
-    pub fn error_negative_scope(&mut self, span: Span<'i>) {
+    pub fn error_negative_scope(&mut self, span: Span) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
             message: format!("Scope {} goes above the main module.", span.as_str()),

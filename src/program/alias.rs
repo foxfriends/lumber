@@ -11,9 +11,9 @@ pub struct Alias {
 }
 
 impl Alias {
-    pub(crate) fn unpack_multiple<'i>(
-        pair: crate::Pair<'i>,
-        context: &mut Context<'i>,
+    pub(crate) fn unpack_multiple(
+        pair: crate::Pair,
+        context: &mut Context,
     ) -> Result<impl Iterator<Item = Alias>, Scope> {
         assert_eq!(pair.as_rule(), Rule::multi_handle);
         let mut pairs = pair.into_inner();

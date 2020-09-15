@@ -10,6 +10,8 @@ pub struct Module {
     /// file, this will be a path to the source file. Otherwise, if this module is from a
     /// non-filesystem location, this is simply a directory from which to search for more modules.
     path: PathBuf,
+    /// Modules declared in this module.
+    submodules: HashMap<Atom, Module>,
     /// Scopes (modules) from which to find implicit imports.
     implicits: HashSet<Scope>,
     /// Predicates which have been imported directly from other modules.
@@ -21,14 +23,15 @@ pub struct Module {
 }
 
 impl Module {
-    pub(crate) fn new<'i>(
+    pub(crate) fn new(
         path: PathBuf,
-        source_str: &'i str,
-        context: &mut Context<'i>,
+        source_str: &str,
+        context: &mut Context,
     ) -> crate::Result<Self> {
         let pairs = Parser::parse_module(source_str)?;
         let pairs = just!(Rule::module, pairs).into_inner();
 
+        let mut submodules = HashMap::new();
         let mut implicits = HashSet::new();
         let mut aliases = HashMap::new();
         let mut natives = HashSet::new();
@@ -43,7 +46,9 @@ impl Module {
                         Rule::mod_ => {
                             let atom = just!(Rule::atom, pair.into_inner());
                             let atom = context.atomizer.atomize(atom);
-                            context.declare_module(atom);
+                            if let Some(module) = context.add_module(atom.clone())? {
+                                submodules.insert(atom, module);
+                            }
                         }
                         Rule::pub_ => {
                             let handle = just!(Rule::handle, pair.into_inner());
@@ -109,6 +114,7 @@ impl Module {
 
         Ok(Self {
             path,
+            submodules,
             implicits,
             aliases,
             natives,

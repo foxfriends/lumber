@@ -19,14 +19,14 @@ impl Handle {
         Handle { scope, arity }
     }
 
-    pub(crate) fn new<'i>(pair: crate::Pair<'i>, context: &mut Context<'i>) -> Self {
+    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
         Self::new_in_scope(context.current_scope.clone(), pair, context)
     }
 
-    pub(crate) fn new_in_scope<'i>(
+    pub(crate) fn new_in_scope(
         mut scope: Scope,
-        pair: crate::Pair<'i>,
-        context: &mut Context<'i>,
+        pair: crate::Pair,
+        context: &mut Context,
     ) -> Self {
         assert_eq!(pair.as_rule(), Rule::handle);
         let mut pairs = pair.into_inner();

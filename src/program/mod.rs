@@ -40,8 +40,10 @@ pub use scope::Scope;
 pub use unification::Unification;
 
 mod context;
+mod fields;
 mod module_header;
 
 use atom::Atomizer;
 use context::Context;
+use fields::fields;
 use module_header::ModuleHeader;

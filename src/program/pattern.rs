@@ -17,11 +17,11 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub(crate) fn new<'i>(pair: crate::Pair<'i>, context: &mut Context<'i>) -> Self {
+    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::pattern);
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
-            Rule::struct_ => todo!(),
+            Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => todo!(),
             Rule::variable => todo!(),
             Rule::list => todo!(),

@@ -1,31 +1,32 @@
 use crate::parser::Rule;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
 #[derive(Default)]
-pub(crate) struct Atomizer<'i> {
-    atoms: HashMap<&'i str, Rc<String>>,
+pub(crate) struct Atomizer {
+    atoms: HashSet<Rc<String>>,
 }
 
-impl<'i> Atomizer<'i> {
-    pub fn atomize(&mut self, pair: crate::Pair<'i>) -> Atom {
+impl Atomizer {
+    pub fn atomize(&mut self, pair: crate::Pair) -> Atom {
         assert_eq!(pair.as_rule(), Rule::atom);
         let pair = just!(pair.into_inner());
         let string = match pair.as_rule() {
-            Rule::bare_atom => pair.as_str(),
+            Rule::bare_atom => pair.as_str().to_owned(),
             Rule::quoted_atom => {
                 let atom = pair.as_str().trim_matches('#');
-                &atom[1..atom.len() - 1]
+                atom[1..atom.len() - 1].to_owned()
             }
             _ => unreachable!(),
         };
-        let rc = self
-            .atoms
-            .entry(string)
-            .or_insert_with(|| Rc::new(string.to_owned()))
-            .clone();
-        Atom(rc)
+        if let Some(existing) = self.atoms.get(&string) {
+            Atom(existing.clone())
+        } else {
+            let rc = Rc::new(string);
+            self.atoms.insert(rc.clone());
+            Atom(rc)
+        }
     }
 }
 
