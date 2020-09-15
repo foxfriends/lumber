@@ -12,6 +12,13 @@ pub struct Handle {
 }
 
 impl Handle {
+    pub(crate) fn from_parts(scope: Scope, mut arity: Vec<Arity>) -> Self {
+        if arity.is_empty() {
+            arity.push(Arity::Len(0.into()));
+        }
+        Handle { scope, arity }
+    }
+
     pub(crate) fn new<'i>(pair: crate::Pair<'i>, context: &mut Context<'i>) -> Self {
         Self::new_in_scope(context.current_scope.clone(), pair, context)
     }
@@ -27,6 +34,19 @@ impl Handle {
         scope.push(atom);
         let arity = pairs.map(|pair| Arity::new(pair, context)).collect();
         Self { scope, arity }
+    }
+
+    pub(crate) fn extend_arity(&mut self, arity: Arity) {
+        match arity {
+            Arity::Name(..) => self.arity.push(arity),
+            Arity::Len(len) => {
+                if let Some(Arity::Len(prev)) = self.arity.last_mut() {
+                    *prev += len;
+                } else {
+                    self.arity.push(Arity::Len(len));
+                }
+            }
+        }
     }
 }
 

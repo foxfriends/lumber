@@ -1,4 +1,3 @@
-use super::*;
 use ramp::{int::Int, rational::Rational};
 
 /// A literal value, which cannot be further pattern matched.
@@ -10,6 +9,4 @@ pub enum Literal {
     Decimal(Rational),
     /// A string.
     String(String),
-    /// An atom.
-    Atom(Atom),
 }

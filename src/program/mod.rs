@@ -17,6 +17,7 @@ mod pattern;
 mod program;
 mod query;
 mod scope;
+mod r#struct;
 mod unification;
 
 pub use alias::Alias;
@@ -34,6 +35,7 @@ pub use module::Module;
 pub use pattern::Pattern;
 pub use program::Program;
 pub use query::Query;
+pub use r#struct::Struct;
 pub use scope::Scope;
 pub use unification::Unification;
 

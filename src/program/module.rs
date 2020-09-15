@@ -32,7 +32,7 @@ impl Module {
         let mut implicits = HashSet::new();
         let mut aliases = HashMap::new();
         let mut natives = HashSet::new();
-        let mut clauses = vec![];
+        let mut definitions = HashMap::<Handle, Definition>::new();
 
         for pair in pairs {
             match pair.as_rule() {
@@ -77,19 +77,42 @@ impl Module {
                         }
                         Rule::native => {
                             let pair = just!(Rule::handle, pair.into_inner());
-                            if let Some(handle) = natives.replace(Handle::new(pair, context)) {
+                            let handle = Handle::new(pair, context);
+                            context.declare_predicate(handle.clone());
+                            if let Some(handle) = natives.replace(handle) {
                                 context.error_duplicate_native(handle);
                             }
                         }
                         _ => unreachable!(),
                     }
                 }
-                Rule::clause => clauses.push(pair),
+                Rule::clause => {
+                    let pair = just!(pair.into_inner());
+                    let (head, body) = match pair.as_rule() {
+                        Rule::fact => {
+                            let query = Query::from_head(just!(pair.into_inner()), context);
+                            (query, Body::default())
+                        }
+                        Rule::rule => todo!(),
+                        Rule::function => todo!(),
+                        _ => unreachable!(),
+                    };
+                    definitions
+                        .entry(head.as_ref().clone())
+                        .or_default()
+                        .insert(head, body);
+                }
                 Rule::EOI => {}
                 _ => unreachable!(),
             }
         }
 
-        todo!()
+        Ok(Self {
+            path,
+            implicits,
+            aliases,
+            natives,
+            definitions,
+        })
     }
 }

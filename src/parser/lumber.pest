@@ -42,6 +42,7 @@ expression        =  { value | "(" ~ operation ~ ")" }
 
 call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 predicate         =  { scope ~ ( "(" ~ fields ~ ")" )? }
+struct_           =  { atom ~ ( "(" ~ fields ~ ")" )? }
 
 fields            =  { field ~ ("," ~ field)* }
 field             =  { named_field | bare_field }
@@ -60,10 +61,10 @@ operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!"
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "$" | "_") ~ XID_CONTINUE* }
 wildcard          = @{ "_" }
 
-value             =  { literal | predicate | variable | list | call }
-pattern           =  { literal | predicate | variable | list | wildcard }
+value             =  { literal | struct_ | variable | list | call }
+pattern           =  { literal | struct_ | variable | list | wildcard }
 
-literal           =  { integer | decimal | string | atom }
+literal           =  { integer | decimal | string }
 
 integer           = @{ integer_10 | integer_2 | integer_16 }
 integer_10        = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
