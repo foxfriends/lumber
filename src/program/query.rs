@@ -1,7 +1,7 @@
 use super::*;
 use crate::parser::Rule;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub struct Query {
     /// The shape of this query.
     handle: Handle,
@@ -37,10 +37,7 @@ impl Query {
         Query { handle, patterns }
     }
 
-    pub(crate) fn from_predicate(
-        pair: crate::Pair,
-        context: &mut Context,
-    ) -> Option<Self> {
+    pub(crate) fn from_predicate(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::predicate);
         Self::new_scoped(pair, context)
     }

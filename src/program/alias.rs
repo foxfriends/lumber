@@ -46,7 +46,6 @@ impl Alias {
                     .collect::<Vec<_>>();
                 Ok(Box::new(aliases.into_iter()))
             }
-            _ => unreachable!(),
         }
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 use crate::parser::Rule;
 
 /// A structured value.
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Struct {
     /// The tag of the struct
     name: Atom,

@@ -92,6 +92,7 @@ impl Module {
                     }
                 }
                 Rule::clause => {
+                    context.reset_environment();
                     let pair = just!(pair.into_inner());
                     let (head, body) = match pair.as_rule() {
                         Rule::fact => {

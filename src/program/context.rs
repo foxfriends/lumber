@@ -8,6 +8,8 @@ pub(crate) struct Context {
     pub root_path: PathBuf,
     pub atomizer: Atomizer,
     pub current_scope: Scope,
+    pub variables: Vec<String>,
+    pub current_environment: HashMap<String, usize>,
     pub modules: HashMap<Scope, ModuleHeader>,
     pub errors: HashMap<Scope, Vec<crate::Error>>,
 }
@@ -18,6 +20,8 @@ impl Context {
             root_path: root_path.clone(),
             atomizer: Atomizer::default(),
             current_scope: Scope::default(),
+            variables: vec![],
+            current_environment: HashMap::default(),
             modules: HashMap::default(),
             errors: HashMap::default(),
         };
@@ -36,6 +40,21 @@ impl Context {
 
     fn leave_module(&mut self) {
         self.current_scope.pop();
+    }
+
+    pub fn get_variable(&mut self, name: &str) -> Identifier {
+        if let Some(existing) = self.current_environment.get(name) {
+            Identifier::new(*existing)
+        } else {
+            let index = self.variables.len();
+            self.variables.push(name.to_owned());
+            self.current_environment.insert(name.to_owned(), index);
+            Identifier::new(index)
+        }
+    }
+
+    pub fn reset_environment(&mut self) {
+        self.current_environment.clear();
     }
 
     pub fn add_module(&mut self, module: Atom) -> crate::Result<Option<Module>> {

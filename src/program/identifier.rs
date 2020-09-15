@@ -4,3 +4,9 @@
 /// to the computation but is useful in output and debugging.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Identifier(usize);
+
+impl Identifier {
+    pub(crate) fn new(id: usize) -> Self {
+        Self(id)
+    }
+}
