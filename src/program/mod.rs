@@ -39,11 +39,16 @@ pub use r#struct::Struct;
 pub use scope::Scope;
 pub use unification::Unification;
 
+mod builtin;
+mod computation;
 mod context;
 mod fields;
 mod module_header;
+mod prec_climber;
 
 use atom::Atomizer;
+use computation::computation;
 use context::Context;
 use fields::fields;
 use module_header::ModuleHeader;
+use prec_climber::{Operator, PrecClimber};

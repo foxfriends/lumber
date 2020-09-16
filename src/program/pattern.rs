@@ -23,7 +23,7 @@ impl Pattern {
         Self::new_inner(pair, context)
     }
 
-    fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
+    pub(crate) fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
         match pair.as_rule() {
             Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => Self::Literal(Literal::new(pair)),

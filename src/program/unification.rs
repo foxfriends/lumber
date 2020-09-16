@@ -27,6 +27,10 @@ impl Unification {
         assert_eq!(pair.as_rule(), Rule::assumption);
         let mut pairs = pair.into_inner();
         let output = Pattern::new(pairs.next().unwrap(), context);
-        let computation = todo!();
+        Some(Self::Body(Body::new_evaluation(computation(
+            pairs.next().unwrap(),
+            context,
+            output,
+        )?)))
     }
 }

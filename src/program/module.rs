@@ -111,11 +111,11 @@ impl Module {
                         }
                         Rule::function => {
                             let mut pairs = pair.into_inner();
-                            let output = context.fresh_variable();
+                            let output = Pattern::Variable(context.fresh_variable());
                             let head = Query::from_function_head(
                                 pairs.next().unwrap(),
                                 context,
-                                Pattern::Variable(output),
+                                output.clone(),
                             );
                             let mut pairs = just!(Rule::evaluation, pairs).into_inner();
                             let mut unifications = vec![];
@@ -129,7 +129,10 @@ impl Module {
                                 };
                                 unifications.push(unification);
                             }
-                            unifications.push(todo!("Rule::computation"));
+                            match computation(pairs.next().unwrap(), context, output) {
+                                Some(computation) => unifications.extend(computation),
+                                None => continue,
+                            }
                             (head, Body::new_evaluation(unifications))
                         }
                         _ => unreachable!(),

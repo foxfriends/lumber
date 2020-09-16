@@ -19,7 +19,6 @@ alias             =  { "alias" ~ "(" ~ handle ~ "," ~ "as" ~ ":" ~ handle ~ ")" 
 handle            =  { atom ~ arity+ }
 arity             = @{ "/" ~ integer_10 | ":" ~ atom }
 
-
 clause            =  { fact | rule | function }
 fact              =  { head ~ "." }
 rule              =  { head ~ ":-" ~ body ~ "." }
@@ -56,9 +55,9 @@ quoted_atom       = @{ PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 operator          =  { named_operator | symbolic_operator }
 named_operator    = @{ "`" ~ scope ~ "`" }
 symbolic_operator = @{ !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
-operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
+operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
-variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "$" | "_") ~ XID_CONTINUE* }
+variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "_") ~ XID_CONTINUE* }
 wildcard          = @{ "_" }
 
 value             =  { literal | struct_ | variable | list | call }

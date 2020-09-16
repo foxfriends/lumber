@@ -1,5 +1,3 @@
-#![feature(generators, generator_trait)]
-
 mod parser;
 mod program;
 
