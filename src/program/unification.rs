@@ -16,7 +16,7 @@ impl Unification {
         let pair = just!(pair.into_inner());
         let unification = match pair.as_rule() {
             Rule::assumption => Self::from_assumption(pair, context)?,
-            Rule::unification => Self::Query(Query::from_predicate(pair, context)?),
+            Rule::predicate => Self::Query(Query::from_predicate(pair, context)?),
             Rule::procession => Self::Body(Body::new_inner(pair, context)?),
             _ => unreachable!(),
         };

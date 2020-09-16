@@ -82,12 +82,12 @@ mod test {
         full_parse!(Rule::handle, "hello:to/2:from");
         full_parse!(Rule::handle, "hello:to/2:from/2");
 
-        full_parse!(Rule::handle, "hello::world/0");
-        full_parse!(Rule::handle, "hello::world/2");
-        full_parse!(Rule::handle, "hello::world:to");
-        full_parse!(Rule::handle, "hello::world:to:from");
-        full_parse!(Rule::handle, "hello::world:to:from/2");
-        full_parse!(Rule::handle, "hello::world:to/2:from");
-        full_parse!(Rule::handle, "hello::world:to/2:from/2");
+        no_parse!(Rule::handle, "hello::world/0");
+        no_parse!(Rule::handle, "hello::world/2");
+        no_parse!(Rule::handle, "hello::world:to");
+        no_parse!(Rule::handle, "hello::world:to:from");
+        no_parse!(Rule::handle, "hello::world:to:from/2");
+        no_parse!(Rule::handle, "hello::world:to/2:from");
+        no_parse!(Rule::handle, "hello::world:to/2:from/2");
     }
 }

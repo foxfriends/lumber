@@ -36,8 +36,11 @@ impl Query {
     fn new_unscoped(pair: crate::Pair, context: &mut Context) -> Self {
         let mut pairs = pair.into_inner();
         let atom = context.atomizer.atomize(pairs.next().unwrap());
-        let (arity, patterns) = fields(pairs.next().unwrap(), context);
         let scope = context.current_scope.join(atom);
+        let (arity, patterns) = pairs
+            .next()
+            .map(|pair| fields(pair, context))
+            .unwrap_or((vec![], vec![]));
         let handle = Handle::from_parts(scope, arity);
         Query { handle, patterns }
     }
@@ -62,7 +65,10 @@ impl Query {
     fn new_scoped(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         let mut pairs = pair.into_inner();
         let scope = Scope::new(pairs.next().unwrap(), context)?;
-        let (arity, patterns) = fields(pairs.next().unwrap(), context);
+        let (arity, patterns) = pairs
+            .next()
+            .map(|pair| fields(pair, context))
+            .unwrap_or((vec![], vec![]));
         let handle = Handle::from_parts(scope, arity);
         Some(Query { handle, patterns })
     }

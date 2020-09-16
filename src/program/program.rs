@@ -41,9 +41,6 @@ mod test {
     fn program_from_str() {
         Program::from_str(
             r#"// Hello this is the program. Let's go
-:- mod(parser).
-:- mod(program).
-:- mod(error).
 :- pub(program:from_file/1).
 :- pub(program:from_source/1).
 

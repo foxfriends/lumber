@@ -12,12 +12,12 @@ multi_handle      =  { scope ~ ("(" ~ handles ~ ")")? }
 scope             =  { ((up ~ ("::" ~ up)* | root | lib) ~ "::")? ~ atom ~ ("::" ~ atom)* }
     up            =  { "^" }
     root          =  { "~" }
-    lib           = @{ "@" ~ atom }
+    lib           = ${ "@" ~ atom }
 
 handles           =  { (handle | alias) ~ ("," ~ (handle | alias))* }
 alias             =  { "alias" ~ "(" ~ handle ~ "," ~ "as" ~ ":" ~ handle ~ ")" }
 handle            =  { atom ~ arity+ }
-arity             = @{ "/" ~ integer_10 | ":" ~ atom }
+arity             = ${ "/" ~ integer_10 | ":" ~ atom }
 
 clause            =  { fact | rule | function }
 fact              =  { head ~ "." }
@@ -53,8 +53,8 @@ bare_atom         = @{ &XID_START ~ (LOWERCASE_LETTER | OTHER_LETTER) ~ XID_CONT
 quoted_atom       = @{ PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 
 operator          =  { named_operator | symbolic_operator }
-named_operator    = @{ "`" ~ scope ~ "`" }
-symbolic_operator = @{ !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
+named_operator    = ${ "`" ~ scope ~ "`" }
+symbolic_operator = ${ !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
 operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "_") ~ XID_CONTINUE* }
@@ -65,13 +65,13 @@ pattern           =  { literal | struct_ | variable | list | wildcard }
 
 literal           =  { integer | decimal | string }
 
-integer           = @{ integer_10 | integer_2 | integer_16 }
+integer           =  { integer_10 | integer_2 | integer_16 }
 integer_10        = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
 integer_2         = @{ "0b" ~ ASCII_BIN_DIGIT+ }
 integer_16        = @{ "0x" ~ ASCII_HEX_DIGIT+ }
 
-decimal           = @{ decimal_10 }
-decimal_10        = @{ integer_10 ~ "." ~ integer_10 }
+decimal           =  { decimal_10 }
+decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 
 string            = @{ PUSH("#"*) ~ "\"" ~ (!"\"" ~ !PEEK ~ ANY)* ~ "\"" ~ POP }
 
