@@ -53,6 +53,10 @@ impl Context {
         }
     }
 
+    pub fn fresh_variable(&mut self) -> Identifier {
+        self.get_variable(&format!("#{}", self.variables.len()))
+    }
+
     pub fn reset_environment(&mut self) {
         self.current_environment.clear();
     }

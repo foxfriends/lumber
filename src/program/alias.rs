@@ -5,9 +5,9 @@ use crate::parser::Rule;
 #[derive(Clone, Debug)]
 pub struct Alias {
     /// The original handle, in its source scope.
-    pub(crate) input: Handle,
+    pub(super) input: Handle,
     /// The exposed handle, in the new scope.
-    pub(crate) output: Handle,
+    pub(super) output: Handle,
 }
 
 impl Alias {

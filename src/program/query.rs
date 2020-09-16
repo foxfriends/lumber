@@ -21,10 +21,15 @@ impl Query {
         Self::new_unscoped(pair, context)
     }
 
-    pub(crate) fn from_function_head(pair: crate::Pair, context: &mut Context) -> Self {
+    pub(crate) fn from_function_head(
+        pair: crate::Pair,
+        context: &mut Context,
+        output: Pattern,
+    ) -> Self {
         assert_eq!(pair.as_rule(), Rule::function_head);
         let mut query = Self::new_unscoped(pair, context);
         query.handle.extend_arity(Arity::Len(1.into()));
+        query.patterns.push(output);
         query
     }
 
@@ -42,10 +47,15 @@ impl Query {
         Self::new_scoped(pair, context)
     }
 
-    pub(crate) fn from_call(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub(crate) fn from_call(
+        pair: crate::Pair,
+        context: &mut Context,
+        output: Pattern,
+    ) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::predicate);
         let mut query = Self::new_scoped(pair, context)?;
         query.handle.extend_arity(Arity::Len(1.into()));
+        query.patterns.push(output);
         Some(query)
     }
 

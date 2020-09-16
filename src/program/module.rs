@@ -96,11 +96,42 @@ impl Module {
                     let pair = just!(pair.into_inner());
                     let (head, body) = match pair.as_rule() {
                         Rule::fact => {
-                            let query = Query::from_head(just!(pair.into_inner()), context);
+                            let pair = just!(pair.into_inner());
+                            let query = Query::from_head(pair, context);
                             (query, Body::default())
                         }
-                        Rule::rule => todo!(),
-                        Rule::function => todo!(),
+                        Rule::rule => {
+                            let mut pairs = pair.into_inner();
+                            let head = Query::from_head(pairs.next().unwrap(), context);
+                            if let Some(body) = Body::new(pairs.next().unwrap(), context) {
+                                (head, body)
+                            } else {
+                                continue;
+                            }
+                        }
+                        Rule::function => {
+                            let mut pairs = pair.into_inner();
+                            let output = context.fresh_variable();
+                            let head = Query::from_function_head(
+                                pairs.next().unwrap(),
+                                context,
+                                Pattern::Variable(output),
+                            );
+                            let mut pairs = just!(Rule::evaluation, pairs).into_inner();
+                            let mut unifications = vec![];
+                            while pairs.peek().unwrap().as_rule() == Rule::assumption {
+                                let unification = match Unification::from_assumption(
+                                    pairs.next().unwrap(),
+                                    context,
+                                ) {
+                                    None => continue,
+                                    Some(unification) => unification,
+                                };
+                                unifications.push(unification);
+                            }
+                            unifications.push(todo!("Rule::computation"));
+                            (head, Body::new_evaluation(unifications))
+                        }
                         _ => unreachable!(),
                     };
                     definitions
