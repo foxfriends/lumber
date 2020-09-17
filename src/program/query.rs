@@ -16,6 +16,12 @@ impl AsRef<Handle> for Query {
 }
 
 impl Query {
+    pub(crate) fn new(handle: Handle, patterns: Vec<Pattern>) -> Self {
+        Self { handle, patterns }
+    }
+}
+
+impl Query {
     pub(crate) fn from_head(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::head);
         Self::new_unscoped(pair, context)

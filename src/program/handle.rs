@@ -19,6 +19,10 @@ impl Handle {
         Handle { scope, arity }
     }
 
+    pub(crate) fn binop(scope: Scope) -> Self {
+        Self::from_parts(scope, vec![Arity::Len(3.into())])
+    }
+
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
         Self::new_in_scope(context.current_scope.clone(), pair, context)
     }

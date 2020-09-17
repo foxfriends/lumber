@@ -9,6 +9,20 @@ pub(crate) struct Atomizer {
 }
 
 impl Atomizer {
+    fn atomize_string(&mut self, string: String) -> Atom {
+        if let Some(existing) = self.atoms.get(&string) {
+            Atom(existing.clone())
+        } else {
+            let rc = Rc::new(string);
+            self.atoms.insert(rc.clone());
+            Atom(rc)
+        }
+    }
+
+    pub fn atomize_str(&mut self, s: &str) -> Atom {
+        self.atomize_string(s.to_owned())
+    }
+
     pub fn atomize(&mut self, pair: crate::Pair) -> Atom {
         assert_eq!(pair.as_rule(), Rule::atom);
         let pair = just!(pair.into_inner());
@@ -20,13 +34,7 @@ impl Atomizer {
             }
             _ => unreachable!(),
         };
-        if let Some(existing) = self.atoms.get(&string) {
-            Atom(existing.clone())
-        } else {
-            let rc = Rc::new(string);
-            self.atoms.insert(rc.clone());
-            Atom(rc)
-        }
+        self.atomize_string(string)
     }
 }
 

@@ -14,7 +14,7 @@ pub(crate) struct Operator<'s> {
 }
 
 impl<'s> Operator<'s> {
-    pub fn new(symbol: &'s str, assoc: Assoc) -> Self {
+    pub const fn new(symbol: &'s str, assoc: Assoc) -> Self {
         Operator {
             symbol,
             assoc,
@@ -101,31 +101,31 @@ impl<'s> PrecClimber<'s> {
     {
         while pairs.peek().is_some() {
             let token = pairs.peek().unwrap().as_str();
-            if let Some(&(prec, _)) = self.ops.get(&token) {
-                if prec >= min_prec {
-                    let op = pairs.next().unwrap();
-                    let mut rhs = primary(pairs.next().expect(
-                        "infix operator must be followed by \
-                         a primary expression",
-                    ));
+            let &(prec, _) = self
+                .ops
+                .get(&token)
+                .unwrap_or(&(u32::max_value(), Assoc::Left));
+            if prec >= min_prec {
+                let op = pairs.next().unwrap();
+                let mut rhs = primary(pairs.next().expect(
+                    "infix operator must be followed by \
+                     a primary expression",
+                ));
 
-                    while pairs.peek().is_some() {
-                        let token = pairs.peek().unwrap().as_str();
-                        if let Some(&(new_prec, assoc)) = self.ops.get(&token) {
-                            if new_prec > prec || assoc == Assoc::Right && new_prec == prec {
-                                rhs = self.climb_rec(rhs, new_prec, pairs, primary, infix);
-                            } else {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
+                while pairs.peek().is_some() {
+                    let token = pairs.peek().unwrap().as_str();
+                    let &(new_prec, assoc) = self
+                        .ops
+                        .get(&token)
+                        .unwrap_or(&(u32::max_value(), Assoc::Left));
+                    if new_prec > prec || assoc == Assoc::Right && new_prec == prec {
+                        rhs = self.climb_rec(rhs, new_prec, pairs, primary, infix);
+                    } else {
+                        break;
                     }
-
-                    lhs = infix(lhs, op, rhs);
-                } else {
-                    break;
                 }
+
+                lhs = infix(lhs, op, rhs);
             } else {
                 break;
             }

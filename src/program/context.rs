@@ -157,4 +157,12 @@ impl Context {
             source: None,
         });
     }
+
+    pub fn error_unrecognized_operator(&mut self, token: &str) {
+        self.current_errors().push(crate::Error {
+            kind: crate::ErrorKind::Parse,
+            message: format!("Unrecognied operator `{}`.", token),
+            source: None,
+        });
+    }
 }

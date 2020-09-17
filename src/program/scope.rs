@@ -12,6 +12,13 @@ pub struct Scope {
 }
 
 impl Scope {
+    pub(crate) fn builtin(name: &'static str, context: &mut Context) -> Self {
+        Self {
+            lib: Some(context.atomizer.atomize_str("core")),
+            path: vec![context.atomizer.atomize_str(name)],
+        }
+    }
+
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::scope);
         let span = pair.as_span();
