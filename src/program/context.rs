@@ -29,9 +29,9 @@ impl Context {
             .modules
             .insert(Scope::default(), ModuleHeader::default());
 
-        let _root_module = Module::new(root_path, source, &mut context)?;
-
-        context.finish()
+        let mut root_module = Module::new(root_path, source, &mut context)?;
+        root_module.resolve_scopes(&mut context);
+        todo!()
     }
 
     fn enter_module(&mut self, module: Atom) {
@@ -93,6 +93,28 @@ impl Context {
         }
     }
 
+    pub fn declare_alias(&mut self, alias: Handle, source: Handle) {
+        let alias = self
+            .modules
+            .get_mut(&self.current_scope)
+            .unwrap()
+            .insert_alias(alias, source);
+        if let Some((alias, source)) = alias {
+            self.error_duplicate_import(alias, source);
+        }
+    }
+
+    pub fn import_glob(&mut self, module: Scope) {
+        let module = self
+            .modules
+            .get_mut(&self.current_scope)
+            .unwrap()
+            .insert_glob(module);
+        if let Some(module) = module {
+            self.error_duplicate_glob(module);
+        }
+    }
+
     pub fn declare_predicate(&mut self, predicate: Handle) {
         self.modules
             .get_mut(&self.current_scope)
@@ -100,8 +122,56 @@ impl Context {
             .insert(predicate);
     }
 
-    fn finish(self) -> crate::Result<Program> {
-        todo!();
+    pub fn resolve_scopes(&mut self, module: &mut Module, name: Atom) {
+        self.enter_module(name);
+        module.resolve_scopes(self);
+        self.leave_module();
+    }
+
+    pub fn resolve_handle(&mut self, handle: &Handle) -> Option<Handle> {
+        let module = handle.module();
+        if module == self.current_scope {
+            if self.modules.get(&module).unwrap().declares(handle) {
+                return None;
+            }
+        }
+        self.resolve_inner(handle)
+    }
+
+    fn resolve_inner(&mut self, handle: &Handle) -> Option<Handle> {
+        let module = handle.module();
+        let module = self
+            .modules
+            .get(&module)
+            .filter(|module| module.exports(handle));
+        match module {
+            None => {
+                self.error_unresolved_handle(handle);
+                None
+            }
+            Some(module) => {
+                if module.declares(handle) {
+                    None
+                } else if let Some(alias) = module.aliases(handle).cloned() {
+                    Some(self.resolve_inner(&alias)?)
+                } else {
+                    let candidates = module
+                        .globbed_modules()
+                        .map(|module| self.modules.get(module).unwrap())
+                        .filter_map(|module| module.exports_like(handle))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if candidates.len() == 0 {
+                        None
+                    } else if candidates.len() == 1 {
+                        Some(self.resolve_inner(&candidates[0])?)
+                    } else {
+                        self.error_ambiguous_reference(handle, candidates);
+                        None
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -113,7 +183,7 @@ impl Context {
     pub fn error_duplicate_module(&mut self, module: Scope) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
-            message: format!("Module {} declared multiple times", module),
+            message: format!("Module {} declared multiple times.", module),
             source: None,
         });
     }
@@ -121,7 +191,7 @@ impl Context {
     pub fn error_duplicate_export(&mut self, handle: Handle) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
-            message: format!("{} exported multiple times", handle),
+            message: format!("{} exported multiple times.", handle),
             source: None,
         });
     }
@@ -134,10 +204,10 @@ impl Context {
         });
     }
 
-    pub fn error_duplicate_import(&mut self, import: &Handle, from: &Handle) {
+    pub fn error_duplicate_import(&mut self, import: Handle, from: Handle) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
-            message: format!("{} already imported from {}", import, from),
+            message: format!("{} already imported from {}.", import, from),
             source: None,
         });
     }
@@ -145,7 +215,7 @@ impl Context {
     pub fn error_duplicate_glob(&mut self, module: Scope) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
-            message: format!("Module {} imported multiple times", module),
+            message: format!("Module {} imported multiple times.", module),
             source: None,
         });
     }
@@ -153,7 +223,7 @@ impl Context {
     pub fn error_duplicate_native(&mut self, handle: Handle) {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
-            message: format!("Native function {} declared multiple times", handle),
+            message: format!("Native function {} declared multiple times.", handle),
             source: None,
         });
     }
@@ -162,6 +232,30 @@ impl Context {
         self.current_errors().push(crate::Error {
             kind: crate::ErrorKind::Parse,
             message: format!("Unrecognied operator `{}`.", token),
+            source: None,
+        });
+    }
+
+    pub fn error_unresolved_handle(&mut self, handle: &Handle) {
+        self.current_errors().push(crate::Error {
+            kind: crate::ErrorKind::Parse,
+            message: format!("Unresolved predicate {}.", handle),
+            source: None,
+        });
+    }
+
+    pub fn error_ambiguous_reference(&mut self, handle: &Handle, candidates: Vec<Handle>) {
+        self.current_errors().push(crate::Error {
+            kind: crate::ErrorKind::Parse,
+            message: format!(
+                "Ambiguous reference {}. Could be referring to any of:\n{}",
+                handle,
+                candidates
+                    .iter()
+                    .map(|candidate| format!("\t{}", candidate))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
             source: None,
         });
     }

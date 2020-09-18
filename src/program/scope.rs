@@ -65,6 +65,20 @@ impl Scope {
         assert!(!self.path.is_empty(), "Attempted to pop an empty scope");
         self.path.pop();
     }
+
+    pub(crate) fn drop(&self) -> Self {
+        let mut scope = self.clone();
+        scope.pop();
+        scope
+    }
+
+    pub(crate) fn head(&self) -> Atom {
+        assert!(
+            !self.path.is_empty(),
+            "Attempted to get the head of an empty scope"
+        );
+        self.path.last().unwrap().clone()
+    }
 }
 
 impl Display for Scope {

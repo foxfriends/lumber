@@ -1,21 +1,17 @@
 use super::*;
 use crate::parser::{Parser, Rule};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 /// A module within a Lumber program.
 #[derive(Clone, Debug)]
 pub struct Module {
     /// The path from which to resolve dependencies of this module. If this module was read from
-    /// file, this will be a path to the source file. Otherwise, if this module is from a
+    /// file, this will be a path to the resolved file. Otherwise, if this module is from a
     /// non-filesystem location, this is simply a directory from which to search for more modules.
     path: PathBuf,
     /// Modules declared in this module.
     submodules: HashMap<Atom, Module>,
-    /// Scopes (modules) from which to find implicit imports.
-    implicits: HashSet<Scope>,
-    /// Predicates which have been imported directly from other modules.
-    aliases: HashMap<Handle, Handle>,
     /// Native predicates and functions bound to this module.
     natives: HashSet<Handle>,
     /// All predicates and functions defined in this module.
@@ -32,8 +28,6 @@ impl Module {
         let pairs = just!(Rule::module, pairs).into_inner();
 
         let mut submodules = HashMap::new();
-        let mut implicits = HashSet::new();
-        let mut aliases = HashMap::new();
         let mut natives = HashSet::new();
         let mut definitions = HashMap::<Handle, Definition>::new();
 
@@ -60,24 +54,10 @@ impl Module {
                             match Alias::unpack_multiple(handle, context) {
                                 Ok(unpacked) => {
                                     for Alias { input, output } in unpacked {
-                                        match aliases.entry(output) {
-                                            Entry::Occupied(entry) => {
-                                                context.error_duplicate_import(
-                                                    entry.key(),
-                                                    entry.get(),
-                                                );
-                                            }
-                                            Entry::Vacant(entry) => {
-                                                entry.insert(input);
-                                            }
-                                        }
+                                        context.declare_alias(output.clone(), input.clone());
                                     }
                                 }
-                                Err(module) => {
-                                    if let Some(module) = implicits.replace(module) {
-                                        context.error_duplicate_glob(module);
-                                    }
-                                }
+                                Err(module) => context.import_glob(module),
                             }
                         }
                         Rule::native => {
@@ -150,10 +130,24 @@ impl Module {
         Ok(Self {
             path,
             submodules,
-            implicits,
-            aliases,
             natives,
             definitions,
         })
+    }
+
+    pub(crate) fn resolve_scopes(&mut self, context: &mut Context) {
+        for (name, module) in self.submodules.iter_mut() {
+            context.resolve_scopes(module, name.clone());
+        }
+
+        for definition in self.definitions.values_mut() {
+            for body in definition.bodies_mut() {
+                for handle in body.handles_mut() {
+                    if let Some(resolved) = context.resolve_handle(handle) {
+                        *handle = resolved;
+                    }
+                }
+            }
+        }
     }
 }

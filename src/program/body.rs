@@ -35,4 +35,9 @@ impl Body {
         let step = Disjunction { cases: vec![case] };
         Body { steps: vec![step] }
     }
+
+    pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+        todo!();
+        std::iter::empty()
+    }
 }

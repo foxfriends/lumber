@@ -7,7 +7,11 @@ use std::collections::HashMap;
 pub struct Definition(HashMap<Query, Body>);
 
 impl Definition {
-    pub fn insert(&mut self, query: Query, body: Body) {
+    pub(crate) fn insert(&mut self, query: Query, body: Body) {
         self.0.insert(query, body);
+    }
+
+    pub(crate) fn bodies_mut(&mut self) -> impl Iterator<Item = &mut Body> {
+        self.0.values_mut()
     }
 }

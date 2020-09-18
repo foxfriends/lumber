@@ -1,3 +1,4 @@
+mod core;
 mod parser;
 mod program;
 

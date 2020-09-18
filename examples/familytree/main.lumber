@@ -1,0 +1,48 @@
+male(brian).
+male(cameron).
+male(george).
+male(peter).
+female(evelyn).
+female(dayna).
+female(felicia).
+female(mary).
+parent(felicia, evelyn).
+parent(george, evelyn).
+parent(mary, brian).
+parent(peter, brian).
+parent(evelyn, cameron).
+parent(brian, cameron).
+parent(evelyn, dayna).
+parent(brian, dayna).
+
+mother(A, B) :-
+    female(A),
+    parent(A, B).
+
+father(A, B) :-
+    male(A),
+    parent(A, B).
+
+son(A, B) :-
+    male(A),
+    parent(B, A).
+
+daughter(A, B) :-
+    female(A),
+    parent(B, A).
+
+sibling(A, B) :-
+    parent(A, P),
+    parent(B, P).
+
+brother(A, B) :-
+    male(A),
+    sibling(A, B).
+
+sister(A, B) :-
+    female(A),
+    sibling(A, B).
+
+grandparent(A, B) :-
+    parent(A, C),
+    parent(C, B).

@@ -17,7 +17,10 @@ impl Struct {
         assert_eq!(pair.as_rule(), Rule::struct_);
         let mut pairs = pair.into_inner();
         let name = context.atomizer.atomize(pairs.next().unwrap());
-        let (arity, patterns) = fields(pairs.next().unwrap(), context);
+        let (arity, patterns) = pairs
+            .next()
+            .map(|pair| fields(pair, context))
+            .unwrap_or((vec![Arity::Len(0.into())], vec![]));
         Self {
             name,
             arity,

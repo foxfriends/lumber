@@ -11,7 +11,7 @@ struct NativeFunction {
 }
 
 /// A full Lumber program, ready to have queries run against it.
-#[derive(Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Program {
     database: HashMap<Scope, Definition>,
 }

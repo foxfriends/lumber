@@ -22,6 +22,13 @@ impl Arity {
             _ => unreachable!(),
         }
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Len(len) => len.into(),
+            Self::Name(..) => 1,
+        }
+    }
 }
 
 impl Display for Arity {
