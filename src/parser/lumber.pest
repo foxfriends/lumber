@@ -1,11 +1,13 @@
 module            =  { SOI ~ (directive | clause)* ~ EOI }
 
 directive         =  { ":-" ~ instruction ~ "." }
-instruction       =  { native | mod_ | use_ | pub_ }
-native            =  { "native" ~ "(" ~ handle ~ ")" }
+instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc }
+nat               =  { "nat" ~ "(" ~ handle ~ ")" }
 mod_              =  { "mod" ~ "(" ~ atom ~ ")" }
 use_              =  { "use" ~ "(" ~ multi_handle ~ ")" }
 pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
+mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
+inc               =  { "inc" ~ "(" ~ handle ~ ")" }
 
 multi_handle      =  { scope ~ ("(" ~ handles ~ ")")? }
 

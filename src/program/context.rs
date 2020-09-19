@@ -30,6 +30,7 @@ impl Context {
             .insert(Scope::default(), ModuleHeader::default());
 
         let mut root_module = Module::new(root_path, source, &mut context)?;
+        context.validate_headers();
         root_module.resolve_scopes(&mut context);
         todo!()
     }
@@ -85,25 +86,37 @@ impl Context {
         Ok(Some(module))
     }
 
+    fn current_module_mut(&mut self) -> &mut ModuleHeader {
+        self.modules.get_mut(&self.current_scope).unwrap()
+    }
+
     pub fn declare_export(&mut self, export: Handle) {
-        let export = self
-            .modules
-            .get_mut(&self.current_scope)
-            .unwrap()
-            .insert_public(export);
+        let export = self.current_module_mut().insert_public(export);
         if let Some(export) = export {
             self.error_duplicate_export(export);
         }
     }
 
+    pub fn declare_mutable(&mut self, handle: Handle) {
+        let handle = self.current_module_mut().insert_mutable(handle);
+        if let Some(handle) = handle {
+            self.error_duplicate_mutable(handle);
+        }
+    }
+
     pub fn declare_alias(&mut self, alias: Handle, source: Handle) {
-        let alias = self
-            .modules
-            .get_mut(&self.current_scope)
-            .unwrap()
-            .insert_alias(alias, source);
+        let alias = self.current_module_mut().insert_alias(alias, source);
         if let Some((alias, source)) = alias {
             self.error_duplicate_import(alias, source);
+        }
+    }
+
+    pub fn declare_incomplete(&mut self, handle: Handle) {
+        let (export, incomplete) = self.current_module_mut().insert_incomplete(handle);
+        if let Some(incomplete) = incomplete {
+            self.error_duplicate_incomplete(incomplete);
+        } else if let Some(export) = export {
+            self.error_duplicate_export(export);
         }
     }
 
@@ -123,6 +136,13 @@ impl Context {
             .get_mut(&self.current_scope)
             .unwrap()
             .insert(predicate);
+    }
+
+    fn validate_headers(&mut self) {
+        for (scope, module) in &self.modules {
+            let errors = module.errors(self);
+            self.errors.entry(scope.clone()).or_default().extend(errors);
+        }
     }
 
     pub fn resolve_scopes(&mut self, module: &mut Module, name: Atom) {
@@ -179,87 +199,89 @@ impl Context {
 }
 
 impl Context {
-    fn current_errors(&mut self) -> &mut Vec<crate::Error> {
+    fn current_errors_mut(&mut self) -> &mut Vec<crate::Error> {
         self.errors.entry(self.current_scope.clone()).or_default()
     }
 
     pub fn error_duplicate_module(&mut self, module: Scope) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Module {} declared multiple times.", module),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Module {} declared multiple times.",
+            module
+        )));
     }
 
     pub fn error_duplicate_export(&mut self, handle: Handle) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("{} exported multiple times.", handle),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "{} exported multiple times.",
+            handle
+        )));
+    }
+
+    pub fn error_duplicate_incomplete(&mut self, handle: Handle) {
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "{} decared as incomplete multiple times.",
+            handle
+        )));
+    }
+
+    pub fn error_duplicate_mutable(&mut self, handle: Handle) {
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "{} set as mutable multiple times.",
+            handle
+        )));
     }
 
     pub fn error_negative_scope(&mut self, span: Span) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Scope {} goes above the main module.", span.as_str()),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Scope {} goes above the main module.",
+            span.as_str()
+        )));
     }
 
     pub fn error_duplicate_import(&mut self, import: Handle, from: Handle) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("{} already imported from {}.", import, from),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "{} already imported from {}.",
+            import, from
+        )));
     }
 
     pub fn error_duplicate_glob(&mut self, module: Scope) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Module {} imported multiple times.", module),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Module {} imported multiple times.",
+            module
+        )));
     }
 
     pub fn error_duplicate_native(&mut self, handle: Handle) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Native function {} declared multiple times.", handle),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Native function {} declared multiple times.",
+            handle
+        )));
     }
 
     pub fn error_unrecognized_operator(&mut self, token: &str) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Unrecognied operator `{}`.", token),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Unrecognied operator `{}`.",
+            token
+        )));
     }
 
     pub fn error_unresolved_handle(&mut self, handle: &Handle) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!("Unresolved predicate {}.", handle),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Unresolved predicate {}.",
+            handle
+        )));
     }
 
     pub fn error_ambiguous_reference(&mut self, handle: &Handle, candidates: Vec<Handle>) {
-        self.current_errors().push(crate::Error {
-            kind: crate::ErrorKind::Parse,
-            message: format!(
-                "Ambiguous reference {}. Could be referring to any of:\n{}",
-                handle,
-                candidates
-                    .iter()
-                    .map(|candidate| format!("\t{}", candidate))
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            ),
-            source: None,
-        });
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Ambiguous reference {}. Could be referring to any of:\n{}",
+            handle,
+            candidates
+                .iter()
+                .map(|candidate| format!("\t{}", candidate))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )));
     }
 }

@@ -13,6 +13,19 @@ pub struct Error {
     pub(crate) source: Option<Box<dyn std::error::Error + 'static>>,
 }
 
+impl Error {
+    pub(crate) fn parse<S: ToOwned<Owned = String>>(message: S) -> Self
+    where
+        String: std::borrow::Borrow<S>,
+    {
+        Self {
+            kind: ErrorKind::Parse,
+            message: message.to_owned(),
+            source: None,
+        }
+    }
+}
+
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.source.as_ref().map(|err| err.as_ref())

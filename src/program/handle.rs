@@ -16,6 +16,13 @@ impl Handle {
         self.scope.drop()
     }
 
+    pub fn head(&self) -> Self {
+        Self {
+            scope: Scope::default().join(self.scope.head()),
+            arity: self.arity.clone(),
+        }
+    }
+
     pub fn like(&self, other: &Self) -> bool {
         self.scope.head() == other.scope.head() && self.arity == other.arity
     }

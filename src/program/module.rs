@@ -60,7 +60,17 @@ impl Module {
                                 Err(module) => context.import_glob(module),
                             }
                         }
-                        Rule::native => {
+                        Rule::mut_ => {
+                            let handle = just!(Rule::handle, pair.into_inner());
+                            let handle = Handle::new(handle, context);
+                            context.declare_mutable(handle);
+                        }
+                        Rule::inc => {
+                            let handle = just!(Rule::handle, pair.into_inner());
+                            let handle = Handle::new(handle, context);
+                            context.declare_incomplete(handle);
+                        }
+                        Rule::nat => {
                             let pair = just!(Rule::handle, pair.into_inner());
                             let handle = Handle::new(pair, context);
                             context.declare_predicate(handle.clone());
