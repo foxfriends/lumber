@@ -68,14 +68,17 @@ impl Context {
             return Ok(None);
         }
         self.modules.insert(scope, ModuleHeader::default());
-        self.enter_module(module);
+        self.enter_module(module.clone());
         let mut module_path = self
             .current_scope
             .into_iter()
             .fold(self.root_path.clone(), |path, atom| {
                 path.join(atom.as_ref())
-            });
-        module_path.set_extension(".lumber");
+            })
+            .with_extension("lumber");
+        if !module_path.exists() {
+            module_path = module_path.with_file_name(format!("{}/mod.lumber", module.as_ref()));
+        }
         let source = std::fs::read_to_string(&module_path)?;
         let module = Module::new(module_path, &source, self)?;
         self.leave_module();

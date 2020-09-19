@@ -15,6 +15,12 @@ impl AsRef<Handle> for Query {
     }
 }
 
+impl AsMut<Handle> for Query {
+    fn as_mut(&mut self) -> &mut Handle {
+        &mut self.handle
+    }
+}
+
 impl Query {
     pub(crate) fn new(handle: Handle, patterns: Vec<Pattern>) -> Self {
         Self { handle, patterns }

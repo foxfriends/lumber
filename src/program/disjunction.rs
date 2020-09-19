@@ -17,4 +17,8 @@ impl Disjunction {
             .collect::<Option<_>>()?;
         Some(Self { cases })
     }
+
+    pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+        self.cases.iter_mut().flat_map(|case| case.handles_mut())
+    }
 }

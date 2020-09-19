@@ -33,4 +33,11 @@ impl Unification {
             output,
         )?)))
     }
+
+    pub(crate) fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
+        match self {
+            Self::Query(query) => Box::new(std::iter::once(query.as_mut())),
+            Self::Body(body) => Box::new(body.handles_mut()),
+        }
+    }
 }

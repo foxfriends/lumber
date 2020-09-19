@@ -37,7 +37,6 @@ impl Body {
     }
 
     pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
-        todo!();
-        std::iter::empty()
+        self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }
 }

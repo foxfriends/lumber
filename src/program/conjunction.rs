@@ -17,4 +17,8 @@ impl Conjunction {
             .collect::<Option<_>>()?;
         Some(Self { terms })
     }
+
+    pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+        self.terms.iter_mut().flat_map(|term| term.handles_mut())
+    }
 }

@@ -17,4 +17,8 @@ impl Implication {
             .collect::<Option<_>>()?;
         Some(Self { conditions })
     }
+
+    pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+        self.conditions.iter_mut().flat_map(|unification| unification.handles_mut())
+    }
 }
