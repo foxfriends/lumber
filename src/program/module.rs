@@ -149,7 +149,6 @@ impl Module {
         for (name, module) in self.submodules.iter_mut() {
             context.resolve_scopes(module, name.clone());
         }
-
         for definition in self.definitions.values_mut() {
             for body in definition.bodies_mut() {
                 for handle in body.handles_mut() {
@@ -159,5 +158,15 @@ impl Module {
                 }
             }
         }
+        let definitions = std::mem::take(&mut self.definitions);
+        self.definitions = definitions
+            .into_iter()
+            .map(|(handle, definition)| {
+                (
+                    context.resolve_handle(&handle).unwrap_or(handle),
+                    definition,
+                )
+            })
+            .collect();
     }
 }

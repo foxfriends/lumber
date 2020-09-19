@@ -14,6 +14,7 @@ struct NativeFunction {
 #[derive(Default, Clone, Debug)]
 pub struct Program {
     database: HashMap<Scope, Definition>,
+    aliases: HashMap<Handle, Handle>,
 }
 
 impl Program {

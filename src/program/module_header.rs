@@ -126,6 +126,30 @@ impl ModuleHeader {
                 }
             }
         }
+        let mut reported: HashSet<Handle> = HashSet::new();
+        for alias in self.aliases.values() {
+            if reported.contains(alias) {
+                continue;
+            }
+            let aliases = self
+                .aliases
+                .iter()
+                .filter(|&(_, value)| alias == value)
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+            if aliases.len() != 1 {
+                reported.insert(alias.clone());
+                errors.push(crate::Error::parse(format!(
+                    "{} is aliased multiple times, as:\n\t{}",
+                    alias,
+                    aliases
+                        .into_iter()
+                        .map(|alias| format!("\t{}", alias))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )));
+            }
+        }
         errors.into_iter()
     }
 }
