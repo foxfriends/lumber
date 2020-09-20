@@ -1,20 +1,11 @@
 use super::*;
 use std::collections::HashMap;
 use std::path::Path;
-use std::rc::Rc;
-
-// TODO: figure out the parameter/return type of this function
-#[derive(Clone)]
-struct NativeFunction {
-    handle: Handle,
-    function: Rc<Box<dyn Fn()>>,
-}
 
 /// A full Lumber program, ready to have queries run against it.
 #[derive(Default, Clone, Debug)]
 pub struct Program {
-    database: HashMap<Scope, Definition>,
-    aliases: HashMap<Handle, Handle>,
+    database: Database,
 }
 
 impl Program {

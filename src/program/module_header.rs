@@ -7,6 +7,8 @@ use std::collections::{HashMap, HashSet};
 pub(crate) struct ModuleHeader {
     /// Modules from which imports are globbed.
     globs: HashSet<Scope>,
+    /// Native functions bound to this module.
+    natives: HashSet<Handle>,
     /// Publicly available predicates.
     exports: HashSet<Handle>,
     /// Predicates that are modifyable at runtime.
@@ -26,6 +28,10 @@ impl ModuleHeader {
 
     pub fn insert_public(&mut self, handle: Handle) -> Option<Handle> {
         self.exports.replace(handle)
+    }
+
+    pub fn insert_native(&mut self, handle: Handle) -> Option<Handle> {
+        self.natives.replace(handle)
     }
 
     pub fn insert_mutable(&mut self, handle: Handle) -> Option<Handle> {
@@ -71,13 +77,36 @@ impl ModuleHeader {
         self.globs.iter()
     }
 
-    pub fn errors(&self, context: &Context) -> impl Iterator<Item = crate::Error> {
+    pub fn errors(&self, context: &Context) -> Vec<crate::Error> {
         let mut errors = vec![];
         for module in &self.globs {
             if !context.modules.contains_key(module) {
                 errors.push(crate::Error::parse(format!(
                     "Unresolved module {} in glob import.",
                     module,
+                )));
+            }
+        }
+        for native in &self.natives {
+            if self.definitions.contains(native) {
+                errors.push(crate::Error::parse(format!(
+                    "Native function {} cannot also be implemented.",
+                    native,
+                )));
+            } else if self.aliases.contains_key(native) {
+                errors.push(crate::Error::parse(format!(
+                    "Native function {} cannot also be imported.",
+                    native,
+                )));
+            } else if self.mutables.contains(native) {
+                errors.push(crate::Error::parse(format!(
+                    "Native function {} cannot be set as mutable.",
+                    native,
+                )));
+            } else if self.incompletes.contains(native) {
+                errors.push(crate::Error::parse(format!(
+                    "Native function {} cannot be set as incomplete.",
+                    native,
                 )));
             }
         }
@@ -150,6 +179,6 @@ impl ModuleHeader {
                 )));
             }
         }
-        errors.into_iter()
+        errors
     }
 }

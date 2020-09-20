@@ -42,13 +42,17 @@ pub use unification::Unification;
 mod builtin;
 mod computation;
 mod context;
+mod database;
 mod fields;
 mod module_header;
+mod native_function;
 mod prec_climber;
 
 use atom::Atomizer;
 use computation::computation;
 use context::Context;
+use database::Database;
 use fields::fields;
 use module_header::ModuleHeader;
+use native_function::NativeFunction;
 use prec_climber::{Operator, PrecClimber};

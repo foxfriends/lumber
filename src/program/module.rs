@@ -12,8 +12,6 @@ pub struct Module {
     path: PathBuf,
     /// Modules declared in this module.
     submodules: HashMap<Atom, Module>,
-    /// Native predicates and functions bound to this module.
-    natives: HashSet<Handle>,
     /// All predicates and functions defined in this module.
     definitions: HashMap<Handle, Definition>,
 }
@@ -28,7 +26,6 @@ impl Module {
         let pairs = just!(Rule::module, pairs).into_inner();
 
         let mut submodules = HashMap::new();
-        let mut natives = HashSet::new();
         let mut definitions = HashMap::<Handle, Definition>::new();
 
         for pair in pairs {
@@ -73,10 +70,7 @@ impl Module {
                         Rule::nat => {
                             let pair = just!(Rule::handle, pair.into_inner());
                             let handle = Handle::new(pair, context);
-                            context.declare_predicate(handle.clone());
-                            if let Some(handle) = natives.replace(handle) {
-                                context.error_duplicate_native(handle);
-                            }
+                            context.declare_native(handle.clone());
                         }
                         _ => unreachable!(),
                     }
@@ -127,6 +121,7 @@ impl Module {
                         }
                         _ => unreachable!(),
                     };
+                    context.declare_predicate(head.as_ref().clone());
                     definitions
                         .entry(head.as_ref().clone())
                         .or_default()
@@ -140,7 +135,6 @@ impl Module {
         Ok(Self {
             path,
             submodules,
-            natives,
             definitions,
         })
     }

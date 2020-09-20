@@ -1,9 +1,12 @@
-use std::fmt::{self, Display, Formatter};
+use crate::program::Scope;
+use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter, Write};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ErrorKind {
     Io,
     Parse,
+    Multiple,
 }
 
 #[derive(Debug)]
@@ -21,6 +24,27 @@ impl Error {
         Self {
             kind: ErrorKind::Parse,
             message: message.to_owned(),
+            source: None,
+        }
+    }
+
+    pub(crate) fn multiple_by_module(errors: HashMap<Scope, Vec<Self>>) -> Self {
+        Self {
+            kind: ErrorKind::Multiple,
+            message: errors
+                .into_iter()
+                .map(|(scope, errors)| {
+                    let mut message = String::new();
+                    if errors.is_empty() {
+                        return message;
+                    }
+                    write!(message, "-- {} errors in module {} --", errors.len(), scope).unwrap();
+                    for error in &errors {
+                        write!(message, "\n\n{}", error).unwrap();
+                    }
+                    message
+                })
+                .collect::<String>(),
             source: None,
         }
     }

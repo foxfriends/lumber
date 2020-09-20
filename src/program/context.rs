@@ -31,7 +31,13 @@ impl Context {
 
         let mut root_module = Module::new(root_path, source, &mut context)?;
         context.validate_headers();
+        if !context.errors.is_empty() {
+            return Err(crate::Error::multiple_by_module(context.errors));
+        }
         root_module.resolve_scopes(&mut context);
+        if !context.errors.is_empty() {
+            return Err(crate::Error::multiple_by_module(context.errors));
+        }
         todo!()
     }
 
@@ -121,27 +127,29 @@ impl Context {
     }
 
     pub fn import_glob(&mut self, module: Scope) {
-        let module = self
-            .modules
-            .get_mut(&self.current_scope)
-            .unwrap()
-            .insert_glob(module);
+        let module = self.current_module_mut().insert_glob(module);
         if let Some(module) = module {
             self.error_duplicate_glob(module);
         }
     }
 
+    pub fn declare_native(&mut self, predicate: Handle) {
+        let native = self.current_module_mut().insert_native(predicate);
+        if let Some(native) = native {
+            self.error_duplicate_native(native);
+        }
+    }
+
     pub fn declare_predicate(&mut self, predicate: Handle) {
-        self.modules
-            .get_mut(&self.current_scope)
-            .unwrap()
-            .insert(predicate);
+        self.current_module_mut().insert(predicate);
     }
 
     fn validate_headers(&mut self) {
         for (scope, module) in &self.modules {
             let errors = module.errors(self);
-            self.errors.entry(scope.clone()).or_default().extend(errors);
+            if !errors.is_empty() {
+                self.errors.entry(scope.clone()).or_default().extend(errors);
+            }
         }
     }
 
