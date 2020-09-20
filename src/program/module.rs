@@ -1,6 +1,6 @@
 use super::*;
 use crate::parser::{Parser, Rule};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// A module within a Lumber program.
@@ -162,5 +162,16 @@ impl Module {
                 )
             })
             .collect();
+    }
+
+    pub(crate) fn into_definitions(self) -> Box<dyn Iterator<Item = (Handle, Definition)>> {
+        Box::new(
+            self.definitions.into_iter().chain(
+                self.submodules
+                    .into_iter()
+                    .map(|(_, value)| value)
+                    .flat_map(Self::into_definitions),
+            ),
+        )
     }
 }

@@ -15,7 +15,11 @@ pub(crate) struct Context {
 }
 
 impl Context {
-    pub fn compile(root_path: PathBuf, source: &str) -> crate::Result<Program> {
+    pub fn compile<'p>(
+        root_path: PathBuf,
+        source: &str,
+        natives: HashMap<Handle, NativeFunction<'p>>,
+    ) -> crate::Result<Program<'p>> {
         let mut context = Self {
             root_path: root_path.clone(),
             atomizer: Atomizer::default(),
@@ -30,7 +34,8 @@ impl Context {
             .insert(Scope::default(), ModuleHeader::default());
 
         let mut root_module = Module::new(root_path, source, &mut context)?;
-        context.validate_headers();
+        let native_handles: Vec<_> = natives.keys().collect();
+        context.validate_headers(native_handles.as_slice());
         if !context.errors.is_empty() {
             return Err(crate::Error::multiple_by_module(context.errors));
         }
@@ -38,7 +43,11 @@ impl Context {
         if !context.errors.is_empty() {
             return Err(crate::Error::multiple_by_module(context.errors));
         }
-        todo!()
+        let mut database: Database = root_module.into_definitions().collect();
+        for header in context.modules.values() {
+            database.apply_header(header);
+        }
+        Ok(Program::build(database))
     }
 
     fn enter_module(&mut self, module: Atom) {
@@ -144,9 +153,9 @@ impl Context {
         self.current_module_mut().insert(predicate);
     }
 
-    fn validate_headers(&mut self) {
+    fn validate_headers(&mut self, natives: &[&Handle]) {
         for (scope, module) in &self.modules {
-            let errors = module.errors(self);
+            let errors = module.errors(self, natives);
             if !errors.is_empty() {
                 self.errors.entry(scope.clone()).or_default().extend(errors);
             }

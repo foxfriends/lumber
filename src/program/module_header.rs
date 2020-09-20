@@ -6,19 +6,19 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default, Debug)]
 pub(crate) struct ModuleHeader {
     /// Modules from which imports are globbed.
-    globs: HashSet<Scope>,
+    pub(crate) globs: HashSet<Scope>,
     /// Native functions bound to this module.
-    natives: HashSet<Handle>,
+    pub(crate) natives: HashSet<Handle>,
     /// Publicly available predicates.
-    exports: HashSet<Handle>,
+    pub(crate) exports: HashSet<Handle>,
     /// Predicates that are modifyable at runtime.
-    mutables: HashSet<Handle>,
+    pub(crate) mutables: HashSet<Handle>,
     /// Predicates which are not completely defined in this module.
-    incompletes: HashSet<Handle>,
+    pub(crate) incompletes: HashSet<Handle>,
     /// All (private and public) predicates.
-    definitions: HashSet<Handle>,
+    pub(crate) definitions: HashSet<Handle>,
     /// Imported predicates, and their alises.
-    aliases: HashMap<Handle, Handle>,
+    pub(crate) aliases: HashMap<Handle, Handle>,
 }
 
 impl ModuleHeader {
@@ -77,7 +77,7 @@ impl ModuleHeader {
         self.globs.iter()
     }
 
-    pub fn errors(&self, context: &Context) -> Vec<crate::Error> {
+    pub fn errors(&self, context: &Context, native_handles: &[&Handle]) -> Vec<crate::Error> {
         let mut errors = vec![];
         for module in &self.globs {
             if !context.modules.contains_key(module) {
@@ -88,6 +88,12 @@ impl ModuleHeader {
             }
         }
         for native in &self.natives {
+            if !native_handles.contains(&native) {
+                errors.push(crate::Error::parse(format!(
+                    "Native function {} is not bound.",
+                    native,
+                )));
+            }
             if self.definitions.contains(native) {
                 errors.push(crate::Error::parse(format!(
                     "Native function {} cannot also be implemented.",
