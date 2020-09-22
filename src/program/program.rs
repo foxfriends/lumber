@@ -72,29 +72,3 @@ impl<'p> Program<'p> {
         Self { database }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn program_from_str() {
-        Program::from_str(
-            r#"// Hello this is the program. Let's go
-:- pub(program:from_file/1).
-:- pub(program:from_source/1).
-
-program(from_file: F, P) :-
-    read_file(F, S),
-    program(F, S, P).
-
-program(from_source: S, P) :-
-    current_dir(D),
-    program(D, S, P).
-
-program(F, S, P) :- todo.
-"#,
-        )
-        .unwrap();
-    }
-}
