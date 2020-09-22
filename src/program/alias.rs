@@ -17,7 +17,7 @@ impl Alias {
     ) -> Result<impl Iterator<Item = Alias>, Scope> {
         assert_eq!(pair.as_rule(), Rule::multi_handle);
         let mut pairs = pair.into_inner();
-        let scope = match Scope::new(pairs.next().unwrap(), context) {
+        let scope = match Scope::new_module_path(pairs.next().unwrap(), context) {
             Some(scope) => scope,
             None => return Ok(Box::new(std::iter::empty()) as Box<dyn Iterator<Item = Alias>>),
         };

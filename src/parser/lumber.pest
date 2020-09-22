@@ -9,12 +9,15 @@ pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
 
-multi_handle      =  { scope ~ ("(" ~ handles ~ ")")? }
+multi_handle      =  { module_path ~ ("(" ~ handles ~ ")")? }
+module_path       =  { scope | scope_prefix }
 
-scope             =  { ((up ~ ("::" ~ up)* | root | lib) ~ "::")? ~ atom ~ ("::" ~ atom)* }
+scope_prefix      =  { (up ~ ("::" ~ up)* | root | lib)  }
     up            =  { "^" }
     root          =  { "~" }
     lib           = ${ "@" ~ atom }
+
+scope             =  { (scope_prefix ~ "::")? ~ atom ~ ("::" ~ atom)* }
 
 handles           =  { (handle | alias) ~ ("," ~ (handle | alias))* }
 alias             =  { "alias" ~ "(" ~ handle ~ "," ~ "as" ~ ":" ~ handle ~ ")" }
@@ -59,15 +62,15 @@ named_operator    = ${ "`" ~ scope ~ "`" }
 symbolic_operator = ${ !"!" ~ !"->" ~ !"<-" ~ (operator_symbol+) }
 operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
-variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER | "_") ~ XID_CONTINUE* }
+variable          = @{ (&XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) | "_") ~ XID_CONTINUE* }
 wildcard          = @{ "_" }
 
-value             =  { literal | struct_ | variable | list | call }
+value             =  { literal | call | struct_ | variable | list }
 pattern           =  { literal | struct_ | variable | list | wildcard }
 
-literal           =  { integer | decimal | string }
+literal           =  { decimal | integer | string }
 
-integer           =  { integer_10 | integer_2 | integer_16 }
+integer           =  { integer_2 | integer_16 | integer_10 }
 integer_10        = @{ ASCII_NONZERO_DIGIT ~ (ASCII_DIGIT)* | "0" }
 integer_2         = @{ "0b" ~ ASCII_BIN_DIGIT+ }
 integer_16        = @{ "0x" ~ ASCII_HEX_DIGIT+ }
@@ -75,7 +78,7 @@ integer_16        = @{ "0x" ~ ASCII_HEX_DIGIT+ }
 decimal           =  { decimal_10 }
 decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 
-string            = @{ PUSH("#"*) ~ "\"" ~ (!"\"" ~ !PEEK ~ ANY)* ~ "\"" ~ POP }
+string            = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
 
 list              =  { "[" ~ list_entries ~ ("|" ~ (list | variable | wildcard))? ~ "]" | "[" ~ "]" }
 list_entries      =  { pattern ~ ("," ~ pattern)* }

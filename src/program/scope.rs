@@ -21,31 +21,51 @@ impl Scope {
 
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::scope);
-        let span = pair.as_span();
         let mut pairs = pair.into_inner();
         let mut scope = match pairs.peek().unwrap().as_rule() {
-            Rule::lib => Scope {
-                lib: Some(context.atomizer.atomize(pairs.next().unwrap())),
-                ..Scope::default()
-            },
-            Rule::root => Scope::default(),
-            _ => {
-                let mut scope = context.current_scope.clone();
-                while let Rule::up = pairs.peek().unwrap().as_rule() {
-                    if scope.path.is_empty() {
-                        context.error_negative_scope(span);
-                        return None;
-                    }
-                    scope.pop();
-                }
-                scope
-            }
+            Rule::scope_prefix => Scope::new_prefix(pairs.next().unwrap(), context)?,
+            Rule::atom => context.current_scope.clone(),
+            _ => unreachable!(),
         };
         for pair in pairs {
             let atom = context.atomizer.atomize(pair);
             scope.push(atom);
         }
         Some(scope)
+    }
+
+    fn new_prefix(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        let span = pair.as_span();
+        let mut pairs = pair.into_inner();
+        match pairs.peek().unwrap().as_rule() {
+            Rule::lib => Some(Scope {
+                lib: Some(context.atomizer.atomize(pairs.next().unwrap())),
+                ..Scope::default()
+            }),
+            Rule::root => Some(Scope::default()),
+            Rule::up => {
+                let mut scope = context.current_scope.clone();
+                while pairs.next().is_some() {
+                    if scope.path.is_empty() {
+                        context.error_negative_scope(span);
+                        return None;
+                    }
+                    scope.pop();
+                }
+                Some(scope)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn new_module_path(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        assert_eq!(pair.as_rule(), Rule::module_path);
+        let pair = just!(pair.into_inner());
+        match pair.as_rule() {
+            Rule::scope => Self::new(pair, context),
+            Rule::scope_prefix => Self::new_prefix(pair, context),
+            _ => unreachable!(),
+        }
     }
 
     pub(crate) fn join(&self, atom: Atom) -> Self {
