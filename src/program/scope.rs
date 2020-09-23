@@ -1,14 +1,42 @@
 use super::*;
 use crate::parser::Rule;
+use std::cmp::{Ordering, PartialOrd};
 use std::fmt::{self, Display, Formatter};
 
 /// A path to a defined rule.
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug, Default)]
 pub struct Scope {
     /// The library the rule is defined in, if not defined by the user.
     lib: Option<Atom>,
     /// The path to this rule, relative to the library root.
     path: Vec<Atom>,
+}
+
+impl PartialOrd for Scope {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.lib != other.lib {
+            return None;
+        }
+        if self.path.len() < other.path.len() {
+            let all_equal = self.path.iter().zip(other.path.iter()).all(|(a, b)| a == b);
+            if all_equal {
+                Some(Ordering::Greater)
+            } else {
+                None
+            }
+        } else if self.path.len() > other.path.len() {
+            let all_equal = other.path.iter().zip(self.path.iter()).all(|(a, b)| a == b);
+            if all_equal {
+                Some(Ordering::Less)
+            } else {
+                None
+            }
+        } else if self.path == other.path {
+            Some(Ordering::Equal)
+        } else {
+            None
+        }
+    }
 }
 
 impl Scope {
@@ -106,12 +134,16 @@ impl Display for Scope {
         if let Some(lib) = &self.lib {
             write!(f, "@{}::", lib)?;
         }
-        self.path
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join("::")
-            .fmt(f)
+        if self.path.is_empty() {
+            "~".fmt(f)
+        } else {
+            self.path
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("::")
+                .fmt(f)
+        }
     }
 }
 

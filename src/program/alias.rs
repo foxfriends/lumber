@@ -24,7 +24,6 @@ impl Alias {
         match pairs.next() {
             None => Err(scope),
             Some(pair) => {
-                let pair = just!(Rule::handles, pair.into_inner());
                 let aliases = pair
                     .into_inner()
                     .map(|pair| match pair.as_rule() {

@@ -31,7 +31,7 @@ impl Context {
         };
         context
             .modules
-            .insert(Scope::default(), ModuleHeader::default());
+            .insert(Scope::default(), ModuleHeader::new(Scope::default()));
 
         let mut root_module = Module::new(root_path, source, &mut context)?;
         let native_handles: Vec<_> = natives.keys().collect();
@@ -83,8 +83,9 @@ impl Context {
             self.error_duplicate_module(scope);
             return Ok(None);
         }
-        self.modules.insert(scope, ModuleHeader::default());
         self.enter_module(module.clone());
+        self.modules
+            .insert(scope, ModuleHeader::new(self.current_scope.clone()));
         let mut module_path = self
             .current_scope
             .into_iter()
@@ -171,43 +172,68 @@ impl Context {
     pub fn resolve_handle(&mut self, handle: &Handle) -> Option<Handle> {
         let module = handle.module();
         if module == self.current_scope {
-            if self.modules.get(&module).unwrap().declares(handle) {
+            let current_module = self.modules.get(&module).unwrap();
+            if current_module.declares(handle) {
                 return None;
+            }
+            if let Some(alias) = current_module.aliases(handle).cloned() {
+                return self.resolve_inner(&alias);
             }
         }
         self.resolve_inner(handle)
     }
 
     fn resolve_inner(&mut self, handle: &Handle) -> Option<Handle> {
+        match self.try_resolve_handle(handle, &self.current_scope) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                self.current_errors_mut().push(error);
+                None
+            }
+        }
+    }
+
+    pub(crate) fn try_resolve_handle(
+        &self,
+        handle: &Handle,
+        in_scope: &Scope,
+    ) -> crate::Result<Option<Handle>> {
         let module = handle.module();
         let module = self
             .modules
             .get(&module)
-            .filter(|module| module.exports(handle));
+            .filter(|module| module.exports(handle, in_scope));
         match module {
-            None => {
-                self.error_unresolved_handle(handle);
-                None
-            }
+            None => Err(crate::Error::parse(format!(
+                "Unresolved predicate {} in scope {}.",
+                handle, in_scope,
+            ))),
             Some(module) => {
                 if module.declares(handle) {
-                    None
+                    Ok(None)
                 } else if let Some(alias) = module.aliases(handle).cloned() {
-                    Some(self.resolve_inner(&alias)?)
+                    self.try_resolve_handle(&alias, &alias.module())
                 } else {
                     let candidates = module
                         .globbed_modules()
                         .map(|module| self.modules.get(module).unwrap())
-                        .filter_map(|module| module.exports_like(handle))
+                        .filter_map(|module| module.exports_like(handle, &self.current_scope))
                         .cloned()
                         .collect::<Vec<_>>();
                     if candidates.len() == 0 {
-                        None
+                        Ok(None)
                     } else if candidates.len() == 1 {
-                        Some(self.resolve_inner(&candidates[0])?)
+                        self.try_resolve_handle(&candidates[0], &candidates[0].module())
                     } else {
-                        self.error_ambiguous_reference(handle, candidates);
-                        None
+                        Err(crate::Error::parse(format!(
+                            "Ambiguous reference {}. Could be referring to any of:\n{}",
+                            handle,
+                            candidates
+                                .iter()
+                                .map(|candidate| format!("\t{}", candidate))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )))
                     }
                 }
             }
@@ -278,7 +304,7 @@ impl Context {
 
     pub fn error_unrecognized_operator(&mut self, token: &str) {
         self.current_errors_mut().push(crate::Error::parse(format!(
-            "Unrecognied operator `{}`.",
+            "Unrecognized operator `{}`.",
             token
         )));
     }

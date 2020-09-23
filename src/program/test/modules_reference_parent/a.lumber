@@ -1,0 +1,3 @@
+:- use(^(test/2)).
+
+hello :- test(a, b).

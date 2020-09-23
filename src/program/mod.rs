@@ -1,6 +1,9 @@
 #[macro_use]
 mod macros;
 
+#[cfg(test)]
+mod test;
+
 mod alias;
 mod arity;
 mod atom;

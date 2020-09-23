@@ -3,8 +3,10 @@ use std::collections::{HashMap, HashSet};
 
 /// Lists the predicates and exports of the module, but does not bind them to any
 /// actual definitions.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub(crate) struct ModuleHeader {
+    /// The path to this module.
+    pub(crate) scope: Scope,
     /// Modules from which imports are globbed.
     pub(crate) globs: HashSet<Scope>,
     /// Native functions bound to this module.
@@ -22,6 +24,19 @@ pub(crate) struct ModuleHeader {
 }
 
 impl ModuleHeader {
+    pub fn new(scope: Scope) -> Self {
+        Self {
+            scope,
+            globs: Default::default(),
+            natives: Default::default(),
+            exports: Default::default(),
+            mutables: Default::default(),
+            incompletes: Default::default(),
+            definitions: Default::default(),
+            aliases: Default::default(),
+        }
+    }
+
     pub fn insert_glob(&mut self, module: Scope) -> Option<Scope> {
         self.globs.replace(module)
     }
@@ -57,16 +72,35 @@ impl ModuleHeader {
             .map(|source| (alias, source))
     }
 
-    pub fn exports(&self, handle: &Handle) -> bool {
-        self.exports.contains(handle)
+    pub fn exports(&self, handle: &Handle, to_scope: &Scope) -> bool {
+        if self.scope >= *to_scope {
+            self.definitions.contains(handle)
+                || self.aliases.contains_key(handle)
+                || self.natives.contains(handle)
+        } else {
+            self.exports.contains(handle)
+        }
     }
 
-    pub fn exports_like(&self, handle: &Handle) -> Option<&Handle> {
-        self.exports.iter().find(|export| export.like(handle))
+    pub fn exports_like(&self, handle: &Handle, to_scope: &Scope) -> Option<&Handle> {
+        if self.scope > *to_scope {
+            self.definitions
+                .iter()
+                .find(|export| export.like(handle))
+                .or_else(|| {
+                    self.aliases
+                        .iter()
+                        .find(|(key, _)| key.like(handle))
+                        .map(|(_, value)| value)
+                })
+                .or_else(|| self.natives.iter().find(|native| native.like(handle)))
+        } else {
+            self.exports.iter().find(|export| export.like(handle))
+        }
     }
 
     pub fn declares(&self, handle: &Handle) -> bool {
-        self.definitions.contains(handle)
+        self.definitions.contains(handle) || self.natives.contains(handle)
     }
 
     pub fn aliases(&self, handle: &Handle) -> Option<&Handle> {
@@ -165,6 +199,10 @@ impl ModuleHeader {
         for alias in self.aliases.values() {
             if reported.contains(alias) {
                 continue;
+            }
+            match context.try_resolve_handle(alias, &alias.module()) {
+                Ok(..) => {}
+                Err(error) => errors.push(error),
             }
             let aliases = self
                 .aliases

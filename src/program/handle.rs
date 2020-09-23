@@ -3,7 +3,7 @@ use crate::parser::Rule;
 use std::fmt::{self, Display, Formatter};
 
 /// A handle to a predicate.
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Handle {
     /// The path and name of the predicate or function being described
     scope: Scope,

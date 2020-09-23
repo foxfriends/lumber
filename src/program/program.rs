@@ -36,6 +36,14 @@ impl<'p> ProgramBuilder<'p> {
         let source_dir = std::env::current_dir()?;
         Program::new(source_dir, source, self.natives)
     }
+
+    pub fn build_from_str_with_root<P, S>(self, root: P, source: S) -> crate::Result<Program<'p>>
+    where
+        P: AsRef<Path>,
+        S: AsRef<str>,
+    {
+        Program::new(root, source, self.natives)
+    }
 }
 
 /// A full Lumber program, ready to have queries run against it.
