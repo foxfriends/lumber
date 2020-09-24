@@ -40,9 +40,13 @@ conjunction       =  { implication ~ ("," ~ implication)* }
 implication       =  { unification ~ ("->" ~ unification)* }
 unification       =  { assumption | predicate | "(" ~ procession ~ ")" }
 assumption        =  { pattern ~ "<-" ~ computation }
-computation       =  { operation }
+computation       =  { operation | aggregation }
 operation         =  { expression ~ (operator ~ expression)* }
 expression        =  { value | "(" ~ operation ~ ")" }
+aggregation       =  { set_aggregation | list_aggregation }
+set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
+list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
+aggregation_body  =  { pattern ~ "|" ~ procession }
 
 call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 predicate         =  { scope ~ ( "(" ~ fields ~ ")" )? }

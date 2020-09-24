@@ -113,8 +113,10 @@ impl Module {
                                 };
                                 unifications.push(unification);
                             }
-                            match computation(pairs.next().unwrap(), context, output) {
-                                Some(computation) => unifications.extend(computation),
+                            match Computation::new(pairs.next().unwrap(), context) {
+                                Some(computation) => {
+                                    unifications.push(Unification::Assumption(output, computation))
+                                }
                                 None => continue,
                             }
                             (head, Body::new_evaluation(unifications))

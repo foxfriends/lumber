@@ -8,6 +8,8 @@ pub enum Unification {
     Query(Query),
     /// An entire sub-rule of unifications to be made.
     Body(Body),
+    /// An assumption, where a pattern assumes a value.
+    Assumption(Pattern, Computation),
 }
 
 impl Unification {
@@ -27,17 +29,17 @@ impl Unification {
         assert_eq!(pair.as_rule(), Rule::assumption);
         let mut pairs = pair.into_inner();
         let output = Pattern::new(pairs.next().unwrap(), context);
-        Some(Self::Body(Body::new_evaluation(computation(
-            pairs.next().unwrap(),
-            context,
+        Some(Self::Assumption(
             output,
-        )?)))
+            Computation::new(pairs.next().unwrap(), context)?,
+        ))
     }
 
     pub(crate) fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
         match self {
             Self::Query(query) => Box::new(std::iter::once(query.as_mut())),
             Self::Body(body) => Box::new(body.handles_mut()),
+            Self::Assumption(_, computation) => computation.handles_mut(),
         }
     }
 }

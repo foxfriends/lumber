@@ -15,12 +15,6 @@ macro_rules! op_2 {
     };
 }
 
-pub(crate) fn unify(lhs: Pattern, rhs: Pattern, context: &mut Context) -> Unification {
-    let scope = Scope::builtin("unify", context);
-    let handle = Handle::from_parts(scope, vec![Arity::Len(2.into())]);
-    Unification::Query(Query::new(handle, vec![lhs, rhs]))
-}
-
 op_2!(add);
 op_2!(sub);
 op_2!(mul);

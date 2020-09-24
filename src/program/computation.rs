@@ -3,7 +3,65 @@ use crate::parser::Rule;
 use pest::prec_climber::Assoc;
 use std::cell::RefCell;
 
-fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Vec<Unification>, Pattern)> {
+const fn left(token: &'static str) -> Operator {
+    Operator::new(token, Assoc::Left)
+}
+
+const fn right(token: &'static str) -> Operator {
+    Operator::new(token, Assoc::Right)
+}
+
+#[derive(Clone, Debug)]
+pub enum Computation {
+    Operation(Pattern, Vec<Unification>),
+    SetAggregation(Pattern, Body),
+    ListAggregation(Pattern, Body),
+}
+
+impl Computation {
+    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        assert_eq!(Rule::computation, pair.as_rule());
+        let pair = just!(pair.into_inner());
+        match pair.as_rule() {
+            Rule::operation => Self::new_operation(pair, context),
+            Rule::aggregation => Self::new_aggregation(pair, context),
+            _ => unreachable!(),
+        }
+    }
+
+    fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        assert_eq!(Rule::operation, pair.as_rule());
+        let (result, work) = operation(pair, context)?;
+        Some(Self::Operation(result, work))
+    }
+
+    fn new_aggregation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        let pair = just!(pair.into_inner());
+        let constructor = match pair.as_rule() {
+            Rule::set_aggregation => Self::SetAggregation,
+            Rule::list_aggregation => Self::ListAggregation,
+            _ => unreachable!(),
+        };
+        let pair = just!(Rule::aggregation_body, pair.into_inner());
+        let mut pairs = pair.into_inner();
+        let output = Pattern::new(pairs.next().unwrap(), context);
+        let body = Body::new_inner(pairs.next().unwrap(), context)?;
+        Some(constructor(output, body))
+    }
+
+    pub(crate) fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
+        match self {
+            Self::Operation(.., unifications) => {
+                Box::new(unifications.iter_mut().flat_map(Unification::handles_mut))
+            }
+            Self::SetAggregation(.., body) | Self::ListAggregation(.., body) => {
+                Box::new(body.handles_mut())
+            }
+        }
+    }
+}
+
+fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
     assert_eq!(Rule::expression, pair.as_rule());
     let pair = just!(pair.into_inner());
     match pair.as_rule() {
@@ -13,33 +71,17 @@ fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Vec<Unificati
                 Rule::call => {
                     let output = Pattern::Variable(context.fresh_variable());
                     let query = Query::from_call(pair, context, output.clone())?;
-                    Some((vec![Unification::Query(query)], output))
+                    Some((output, vec![Unification::Query(query)]))
                 }
-                _ => Some((vec![], Pattern::new_inner(pair, context))),
+                _ => Some((Pattern::new_inner(pair, context), vec![])),
             }
         }
-        Rule::operation => {
-            let output = Pattern::Variable(context.fresh_variable());
-            Some((operation(pair, context, output.clone())?, output))
-        }
+        Rule::operation => operation(pair, context),
         _ => unreachable!(),
     }
 }
 
-const fn left(token: &'static str) -> Operator {
-    Operator::new(token, Assoc::Left)
-}
-
-const fn right(token: &'static str) -> Operator {
-    Operator::new(token, Assoc::Right)
-}
-
-fn operation(
-    pair: crate::Pair,
-    context: &mut Context,
-    output: Pattern,
-) -> Option<Vec<Unification>> {
-    assert_eq!(Rule::operation, pair.as_rule());
+fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
     let prec_climber = PrecClimber::new(vec![
         left("||"),
         left("&&"),
@@ -52,15 +94,14 @@ fn operation(
         left("*") | left("/") | left("%"),
         right("**"),
     ]);
-
     let context = RefCell::new(context);
-    let (mut work, result) = prec_climber.climb(
+    prec_climber.climb(
         pair.into_inner(),
         |pair| expression(pair, *context.borrow_mut()),
         |lhs, op, rhs| {
             let context = &mut *context.borrow_mut();
-            let (mut lwork, lhs) = lhs?;
-            let (mut rwork, rhs) = rhs?;
+            let (lhs, mut lwork) = lhs?;
+            let (rhs, mut rwork) = rhs?;
             let output = Pattern::Variable(context.fresh_variable());
             let operation = match op.as_str() {
                 "+" => builtin::add(lhs, rhs, output.clone(), context),
@@ -97,18 +138,7 @@ fn operation(
             };
             lwork.append(&mut rwork);
             lwork.push(operation);
-            Some((lwork, output))
+            Some((output, lwork))
         },
-    )?;
-    work.push(builtin::unify(output, result, context.into_inner()));
-    Some(work)
-}
-
-pub(crate) fn computation(
-    pair: crate::Pair,
-    context: &mut Context,
-    output: Pattern,
-) -> Option<Vec<Unification>> {
-    assert_eq!(Rule::computation, pair.as_rule());
-    operation(just!(Rule::operation, pair.into_inner()), context, output)
+    )
 }
