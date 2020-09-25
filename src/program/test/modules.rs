@@ -7,6 +7,14 @@ yes! {
 }
 
 yes! {
+    modules_multiple => r#"
+    :- mod(a).
+    :- mod(b).
+    test(A) :- a::test(A), b::test(A).
+    "#
+}
+
+yes! {
     modules_reference_parent => r#"
     :- mod(a).
     test(a, b).
@@ -31,5 +39,12 @@ no! {
 no! {
     modules_undefined => r#"
     :- mod(a).
+    "#
+}
+
+no! {
+    modules_reference_undefined => r#"
+    :- mod(a).
+    hello :- a::test(a).
     "#
 }

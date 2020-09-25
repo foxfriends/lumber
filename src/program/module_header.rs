@@ -72,39 +72,96 @@ impl ModuleHeader {
             .map(|source| (alias, source))
     }
 
-    pub fn exports(&self, handle: &Handle, to_scope: &Scope) -> bool {
-        if self.scope >= *to_scope {
-            self.definitions.contains(handle)
-                || self.aliases.contains_key(handle)
-                || self.natives.contains(handle)
+    pub fn resolve<'a>(
+        &'a self,
+        handle: &'a Handle,
+        from_scope: &Scope,
+        context: &'a Context,
+    ) -> crate::Result<&'a Handle> {
+        let resolved = if self.definitions.contains(handle) || self.natives.contains(handle) {
+            handle
+        } else if let Some(alias) = self.aliases.get(handle) {
+            context
+                .modules
+                .get(&alias.module())
+                .unwrap()
+                .resolve(alias, &self.scope, context)?
         } else {
-            self.exports.contains(handle)
+            let candidates = self
+                .globbed_modules()
+                .map(|scope| context.modules.get(scope).unwrap())
+                .flat_map(|module| module.resolve_like(handle, from_scope, context))
+                .collect::<Vec<_>>();
+
+            match candidates.as_slice() {
+                &[] => {
+                    return Err(crate::Error::parse(format!(
+                        "Unresolved predicate {} in scope {}.",
+                        handle, from_scope
+                    )))
+                }
+                &[handle] => handle,
+                _ => {
+                    return Err(crate::Error::parse(format!(
+                        "Ambiguous reference {}. Could be referring to any of:\n{}",
+                        handle,
+                        candidates
+                            .iter()
+                            .map(|candidate| format!("\t{}", candidate))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    )))
+                }
+            }
+        };
+
+        if self.scope >= *from_scope || self.exports.contains(handle) {
+            Ok(resolved)
+        } else {
+            Err(crate::Error::parse(format!(
+                "Predicate {} is not visible from scope {}.",
+                handle, from_scope
+            )))
         }
     }
 
-    pub fn exports_like(&self, handle: &Handle, to_scope: &Scope) -> Option<&Handle> {
-        if self.scope > *to_scope {
-            self.definitions
-                .iter()
-                .find(|export| export.like(handle))
-                .or_else(|| {
-                    self.aliases
-                        .iter()
-                        .find(|(key, _)| key.like(handle))
-                        .map(|(_, value)| value)
-                })
-                .or_else(|| self.natives.iter().find(|native| native.like(handle)))
+    pub fn resolve_like<'a>(
+        &'a self,
+        handle: &'a Handle,
+        from_scope: &Scope,
+        context: &'a Context,
+    ) -> Vec<&'a Handle> {
+        let resolved = if let Some(definition) =
+            self.definitions.iter().find(|def| def.like(handle))
+        {
+            vec![definition]
+        } else if let Some((_, alias)) = self.aliases.iter().find(|(alias, _)| alias.like(handle)) {
+            let resolved =
+                context
+                    .modules
+                    .get(&alias.module())
+                    .unwrap()
+                    .resolve(alias, &self.scope, context);
+            match resolved {
+                Ok(resolved) => vec![resolved],
+                Err(..) => vec![],
+            }
+        } else if let Some(native) = self.natives.iter().find(|native| native.like(handle)) {
+            vec![native]
         } else {
-            self.exports.iter().find(|export| export.like(handle))
+            self.globbed_modules()
+                .map(|scope| context.modules.get(scope).unwrap())
+                .flat_map(|module| module.resolve_like(handle, from_scope, context).into_iter())
+                .collect()
+        };
+        if self.scope >= *from_scope {
+            resolved
+        } else {
+            resolved
+                .into_iter()
+                .filter(|resolved| self.exports.iter().any(|export| export.like(resolved)))
+                .collect()
         }
-    }
-
-    pub fn declares(&self, handle: &Handle) -> bool {
-        self.definitions.contains(handle) || self.natives.contains(handle)
-    }
-
-    pub fn aliases(&self, handle: &Handle) -> Option<&Handle> {
-        self.aliases.get(handle)
     }
 
     pub fn globbed_modules(&self) -> impl Iterator<Item = &Scope> {
@@ -151,9 +208,9 @@ impl ModuleHeader {
             }
         }
         for export in &self.exports {
-            if !self.definitions.contains(export) && !self.aliases.contains_key(export) {
+            if !self.resolve(export, &self.scope, context).is_ok() {
                 errors.push(crate::Error::parse(format!(
-                    "Exported predicate {} has no definition.",
+                    "Exported predicate {} cannot be found.",
                     export.head(),
                 )));
             }
@@ -200,7 +257,12 @@ impl ModuleHeader {
             if reported.contains(alias) {
                 continue;
             }
-            match context.try_resolve_handle(alias, &alias.module()) {
+            match context
+                .modules
+                .get(&alias.module())
+                .unwrap()
+                .resolve(alias, &self.scope, context)
+            {
                 Ok(..) => {}
                 Err(error) => errors.push(error),
             }

@@ -169,73 +169,26 @@ impl Context {
         self.leave_module();
     }
 
-    pub fn resolve_handle(&mut self, handle: &Handle) -> Option<Handle> {
-        let module = handle.module();
-        if module == self.current_scope {
-            let current_module = self.modules.get(&module).unwrap();
-            if current_module.declares(handle) {
-                return None;
-            }
-            if let Some(alias) = current_module.aliases(handle).cloned() {
-                return self.resolve_inner(&alias);
-            }
-        }
-        self.resolve_inner(handle)
+    pub fn resolve_handle<'a>(&'a mut self, handle: &'a Handle) -> Option<Handle> {
+        self.resolve_handle_in_scope(handle, &self.current_scope.clone())
     }
 
-    fn resolve_inner(&mut self, handle: &Handle) -> Option<Handle> {
-        match self.try_resolve_handle(handle, &self.current_scope) {
-            Ok(resolved) => resolved,
+    pub fn resolve_handle_in_scope<'a>(
+        &'a mut self,
+        handle: &'a Handle,
+        in_scope: &Scope,
+    ) -> Option<Handle> {
+        let module = handle.module();
+        let resolved = self
+            .modules
+            .get(&module)
+            .unwrap()
+            .resolve(handle, in_scope, self);
+        match resolved {
+            Ok(resolved) => return Some(resolved.clone()),
             Err(error) => {
                 self.current_errors_mut().push(error);
                 None
-            }
-        }
-    }
-
-    pub(crate) fn try_resolve_handle(
-        &self,
-        handle: &Handle,
-        in_scope: &Scope,
-    ) -> crate::Result<Option<Handle>> {
-        let module = handle.module();
-        let module = self
-            .modules
-            .get(&module)
-            .filter(|module| module.exports(handle, in_scope));
-        match module {
-            None => Err(crate::Error::parse(format!(
-                "Unresolved predicate {} in scope {}.",
-                handle, in_scope,
-            ))),
-            Some(module) => {
-                if module.declares(handle) {
-                    Ok(None)
-                } else if let Some(alias) = module.aliases(handle).cloned() {
-                    self.try_resolve_handle(&alias, &alias.module())
-                } else {
-                    let candidates = module
-                        .globbed_modules()
-                        .map(|module| self.modules.get(module).unwrap())
-                        .filter_map(|module| module.exports_like(handle, &self.current_scope))
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    if candidates.len() == 0 {
-                        Ok(None)
-                    } else if candidates.len() == 1 {
-                        self.try_resolve_handle(&candidates[0], &candidates[0].module())
-                    } else {
-                        Err(crate::Error::parse(format!(
-                            "Ambiguous reference {}. Could be referring to any of:\n{}",
-                            handle,
-                            candidates
-                                .iter()
-                                .map(|candidate| format!("\t{}", candidate))
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        )))
-                    }
-                }
             }
         }
     }

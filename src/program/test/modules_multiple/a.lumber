@@ -1,0 +1,3 @@
+:- pub(test/1).
+
+test(a).

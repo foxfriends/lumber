@@ -149,7 +149,7 @@ impl Module {
             for body in definition.bodies_mut() {
                 for handle in body.handles_mut() {
                     if let Some(resolved) = context.resolve_handle(handle) {
-                        *handle = resolved;
+                        *handle = resolved.clone();
                     }
                 }
             }
