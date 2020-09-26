@@ -65,6 +65,13 @@ impl Database<'_> {
                     DatabaseEntry::new(DatabaseDefinition::Static(Definition::default()))
                 });
         }
+        for mutable in &header.mutables {
+            self.definitions
+                .entry(mutable.clone())
+                .or_insert_with(|| {
+                    DatabaseEntry::new(DatabaseDefinition::Static(Definition::default()))
+                });
+        }
         for export in &header.exports {
             self.definitions.get_mut(export).unwrap().set_public();
         }

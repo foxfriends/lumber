@@ -1,0 +1,2 @@
+:- mut(test/1).
+test(a).
