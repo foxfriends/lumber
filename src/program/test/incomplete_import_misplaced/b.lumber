@@ -1,0 +1,2 @@
+:- use(^::a(test/1)).
+test(b).

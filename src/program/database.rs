@@ -58,6 +58,13 @@ impl Database<'_> {
                 DatabaseEntry::new(DatabaseDefinition::Native(None)),
             );
         }
+        for incomplete in &header.incompletes {
+            self.definitions
+                .entry(incomplete.clone())
+                .or_insert_with(|| {
+                    DatabaseEntry::new(DatabaseDefinition::Static(Definition::default()))
+                });
+        }
         for export in &header.exports {
             self.definitions.get_mut(export).unwrap().set_public();
         }
