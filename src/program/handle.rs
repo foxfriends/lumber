@@ -34,6 +34,13 @@ impl Handle {
         self.scope.head() == other.scope.head() && self.arity == other.arity
     }
 
+    pub(crate) fn can_alias(&self, other: &Self) -> bool {
+        self.arity
+            .iter()
+            .zip(other.arity.iter())
+            .all(|(a, b)| a.can_alias(b))
+    }
+
     pub(crate) fn from_parts(scope: Scope, mut arity: Vec<Arity>) -> Self {
         if arity.is_empty() {
             arity.push(Arity::Len(0.into()));

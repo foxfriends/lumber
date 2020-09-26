@@ -1,0 +1,5 @@
+:- pub(one/1).
+one(a).
+
+:- pub(two/2).
+two(a, b).

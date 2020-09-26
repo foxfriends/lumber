@@ -262,22 +262,10 @@ impl Context {
         )));
     }
 
-    pub fn error_unresolved_handle(&mut self, handle: &Handle) {
+    pub fn error_invalid_alias_arity(&mut self, input: &Handle, output: &Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
-            "Unresolved predicate {}.",
-            handle
-        )));
-    }
-
-    pub fn error_ambiguous_reference(&mut self, handle: &Handle, candidates: Vec<Handle>) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
-            "Ambiguous reference {}. Could be referring to any of:\n{}",
-            handle,
-            candidates
-                .iter()
-                .map(|candidate| format!("\t{}", candidate))
-                .collect::<Vec<_>>()
-                .join("\n"),
+            "Cannot change arity of {} when aliasing to {}.",
+            input, output,
         )));
     }
 }

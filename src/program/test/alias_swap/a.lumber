@@ -1,0 +1,4 @@
+:- pub(test/1).
+:- pub(hello/1).
+test(a).
+hello(b).

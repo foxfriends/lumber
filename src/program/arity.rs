@@ -23,6 +23,14 @@ impl Arity {
         }
     }
 
+    pub(crate) fn can_alias(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Len(a), Self::Len(b)) => a == b,
+            (Self::Name(..), Self::Name(..)) => true,
+            _ => false,
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Self::Len(len) => len.into(),

@@ -29,15 +29,17 @@ impl Alias {
                     .map(|pair| match pair.as_rule() {
                         Rule::handle => {
                             let input = Handle::new_in_scope(scope.clone(), pair.clone(), context);
-                            let output = Handle::new(pair.clone(), context);
+                            let output = Handle::new(pair, context);
                             Alias { input, output }
                         }
                         Rule::alias => {
                             let mut pairs = pair.into_inner();
                             let input =
                                 Handle::new_in_scope(scope.clone(), pairs.next().unwrap(), context);
-                            let output =
-                                Handle::new_in_scope(scope.clone(), pairs.next().unwrap(), context);
+                            let output = Handle::new(pairs.next().unwrap(), context);
+                            if !output.can_alias(&input) {
+                                context.error_invalid_alias_arity(&input, &output);
+                            }
                             Alias { input, output }
                         }
                         _ => unreachable!(),

@@ -1,0 +1,2 @@
+:- pub(test:from/1:to/1).
+test(from: SX, SY, to: DX, DY).

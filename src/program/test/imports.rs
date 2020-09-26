@@ -7,6 +7,20 @@ yes! {
     "#
 }
 
+yes! {
+    import_multiple => r#"
+    :- mod(a).
+    :- use(a(one/1, two/2)).
+    "#
+}
+
+no! {
+    import_same_multiple => r#"
+    :- mod(a).
+    :- use(a(one/1, one/1)).
+    "#
+}
+
 no! {
     import_private_from_child => r#"
     :- mod(a).

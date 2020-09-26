@@ -27,6 +27,7 @@ macro_rules! no {
     };
 }
 
+mod aliases;
 mod definitions;
 mod exports;
 mod globs;
