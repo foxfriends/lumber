@@ -78,28 +78,60 @@ impl ModuleHeader {
         from_scope: &Scope,
         context: &'a Context,
     ) -> crate::Result<&'a Handle> {
-        let resolved = if self.definitions.contains(handle) || self.natives.contains(handle) {
-            handle
+        match self.resolve_inner(handle, from_scope, context, &mut vec![])? {
+            None => Err(crate::Error::parse(format!(
+                "Unresolved predicate {} in scope {}.",
+                handle, from_scope
+            ))),
+            Some(resolved) => Ok(resolved),
+        }
+    }
+
+    fn resolve_inner<'a: 'b, 'b>(
+        &'a self,
+        handle: &'b Handle,
+        from_scope: &Scope,
+        context: &'a Context,
+        path: &mut Vec<&'b Handle>,
+    ) -> crate::Result<Option<&'a Handle>> {
+        if path.contains(&handle) {
+            path.push(handle);
+            return Err(crate::Error::parse(format!(
+                "Alias loop detected: {}",
+                path.into_iter()
+                    .map(|handle| handle.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" -> "),
+            )));
+        }
+        path.push(handle);
+        let resolved = if let Some(resolved) = self.definitions.get(handle) {
+            resolved
+        } else if let Some(resolved) = self.natives.get(handle) {
+            resolved
         } else if let Some(alias) = self.aliases.get(handle) {
-            context
+            match context
                 .modules
                 .get(&alias.module())
                 .unwrap()
-                .resolve(alias, &self.scope, context)?
+                .resolve_inner(alias, &self.scope, context, path)?
+            {
+                Some(resolved) => resolved,
+                None => return Ok(None),
+            }
         } else {
             let candidates = self
                 .globbed_modules()
                 .map(|scope| context.modules.get(scope).unwrap())
-                .flat_map(|module| module.resolve_like(handle, from_scope, context))
-                .collect::<Vec<_>>();
+                .filter_map(|module| {
+                    module
+                        .resolve_like(handle, from_scope, context, path)
+                        .transpose()
+                })
+                .collect::<crate::Result<Vec<_>>>()?;
 
             match candidates.as_slice() {
-                &[] => {
-                    return Err(crate::Error::parse(format!(
-                        "Unresolved predicate {} in scope {}.",
-                        handle, from_scope
-                    )))
-                }
+                &[] => return Ok(None),
                 &[handle] => handle,
                 _ => {
                     return Err(crate::Error::parse(format!(
@@ -116,7 +148,7 @@ impl ModuleHeader {
         };
 
         if self.scope >= *from_scope || self.exports.contains(handle) {
-            Ok(resolved)
+            Ok(Some(resolved))
         } else {
             Err(crate::Error::parse(format!(
                 "Predicate {} is not visible from scope {}.",
@@ -125,43 +157,15 @@ impl ModuleHeader {
         }
     }
 
-    pub fn resolve_like<'a>(
+    fn resolve_like<'a, 'b>(
         &'a self,
-        handle: &'a Handle,
+        handle: &Handle,
         from_scope: &Scope,
         context: &'a Context,
-    ) -> Vec<&'a Handle> {
-        let resolved = if let Some(definition) =
-            self.definitions.iter().find(|def| def.like(handle))
-        {
-            vec![definition]
-        } else if let Some((_, alias)) = self.aliases.iter().find(|(alias, _)| alias.like(handle)) {
-            let resolved =
-                context
-                    .modules
-                    .get(&alias.module())
-                    .unwrap()
-                    .resolve(alias, &self.scope, context);
-            match resolved {
-                Ok(resolved) => vec![resolved],
-                Err(..) => vec![],
-            }
-        } else if let Some(native) = self.natives.iter().find(|native| native.like(handle)) {
-            vec![native]
-        } else {
-            self.globbed_modules()
-                .map(|scope| context.modules.get(scope).unwrap())
-                .flat_map(|module| module.resolve_like(handle, from_scope, context).into_iter())
-                .collect()
-        };
-        if self.scope >= *from_scope {
-            resolved
-        } else {
-            resolved
-                .into_iter()
-                .filter(|resolved| self.exports.iter().any(|export| export.like(resolved)))
-                .collect()
-        }
+        path: &Vec<&'b Handle>,
+    ) -> crate::Result<Option<&'a Handle>> {
+        let handle = handle.relocate(&self.scope);
+        self.resolve_inner(&handle, from_scope, context, &mut path.clone())
     }
 
     pub fn globbed_modules(&self) -> impl Iterator<Item = &Scope> {

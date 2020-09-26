@@ -80,3 +80,10 @@ yes! {
     test :- a::test.
     "#
 }
+
+no! {
+    glob_recursive => r#"
+    :- mod(a).
+    :- mod(b).
+    "#
+}

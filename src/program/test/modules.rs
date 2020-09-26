@@ -48,3 +48,9 @@ no! {
     hello :- a::test(a).
     "#
 }
+
+yes! {
+    modules_nested => r#"
+    :- mod(a).
+    "#
+}

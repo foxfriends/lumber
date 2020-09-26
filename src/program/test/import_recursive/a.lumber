@@ -1,0 +1,2 @@
+:- use(^::b(test/1)).
+:- pub(test/1).
