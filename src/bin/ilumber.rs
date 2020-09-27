@@ -8,10 +8,6 @@ struct Opts {
     /// May be supplied multiple times.
     #[structopt(short, long)]
     query: Vec<String>,
-    /// Path to additional libraries to be made available to the program.
-    /// May be supplied multiple times.
-    #[structopt(short, long)]
-    library: Vec<String>,
     /// The main module of your program. Otherwise, opens the REPL with only standard definitions.
     module: Option<PathBuf>,
 }

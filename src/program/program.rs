@@ -17,8 +17,8 @@ impl<'p> ProgramBuilder<'p> {
         }
     }
 
-    pub fn no_core(mut self) -> Self {
-        self.core = false;
+    pub fn core(mut self, core: bool) -> Self {
+        self.core = core;
         self
     }
 

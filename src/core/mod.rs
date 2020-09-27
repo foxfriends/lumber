@@ -8,7 +8,7 @@ fn nop3() {}
 thread_local! {
     #[rustfmt::skip]
     pub(crate) static LIB: Program<'static> = Program::builder()
-        .no_core()
+        .core(false)
         .bind("add/3", nop3).unwrap()
         .bind("sub/3", nop3).unwrap()
         .bind("mul/3", nop3).unwrap()
