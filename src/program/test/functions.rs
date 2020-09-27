@@ -45,6 +45,12 @@ no! {
 }
 
 yes! {
+    function_return_struct => r#"
+    test!(A, B) <- test(A, B).
+    "#
+}
+
+yes! {
     function_call => r#"
     test!(A) <- A + 2.
     test!(A, B) <- test!(A) + test!(B).

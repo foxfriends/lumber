@@ -30,6 +30,7 @@ macro_rules! no {
 }
 
 mod aliases;
+mod comments;
 mod definitions;
 mod exports;
 mod functions;

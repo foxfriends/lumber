@@ -89,4 +89,6 @@ set               =  { "{" ~ list_entries ~ ("|" ~ (set | variable | wildcard))?
 list_entries      =  { pattern ~ ("," ~ pattern)* }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }
-COMMENT           = _{ "//" ~ (!"\n" ~ ANY)* ~ NEWLINE | "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+COMMENT           = _{ line_comment | block_comment }
+line_comment      = _{ "//" ~ (!"\n" ~ ANY)* ~ NEWLINE }
+block_comment     = _{ "/*" ~ (block_comment | !"*/" ~ ANY)* ~ "*/" }
