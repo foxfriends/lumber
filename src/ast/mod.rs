@@ -1,9 +1,6 @@
 #[macro_use]
 mod macros;
 
-#[cfg(test)]
-mod test;
-
 mod alias;
 mod arity;
 mod atom;
@@ -53,3 +50,6 @@ pub(crate) use context::Context;
 pub(crate) use fields::fields;
 pub(crate) use module_header::ModuleHeader;
 pub(crate) use prec_climber::{Operator, PrecClimber};
+
+#[cfg(test)]
+mod test;

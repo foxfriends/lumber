@@ -1,8 +1,5 @@
 use pest::Parser as _;
 
-#[cfg(test)]
-mod test;
-
 /// A parser for the Lumber language.
 #[derive(pest_derive::Parser)]
 #[grammar = "./parser/lumber.pest"]
@@ -17,3 +14,6 @@ impl Parser {
         Ok(Self::parse(Rule::external_handle, source_code)?)
     }
 }
+
+#[cfg(test)]
+mod test;
