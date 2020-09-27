@@ -1,6 +1,7 @@
+//! Handles parsing of Lumber source files.
 use pest::Parser as _;
 
-/// A parser for the Lumber language.
+/// A PEG parser for the Lumber language.
 #[derive(pest_derive::Parser)]
 #[grammar = "./parser/lumber.pest"]
 pub(crate) struct Parser;

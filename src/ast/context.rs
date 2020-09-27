@@ -18,6 +18,15 @@ pub struct Context<'p> {
 }
 
 impl<'p> Context<'p> {
+    pub(crate) fn with_core() -> Self {
+        let mut context = Self::default();
+        crate::core::LIB.with(|lib| {
+            let core = context.atomizer.atomize_str("core");
+            context.libraries.insert(core, lib.clone());
+        });
+        context
+    }
+
     pub(crate) fn compile(
         mut self,
         root_path: PathBuf,
@@ -25,10 +34,13 @@ impl<'p> Context<'p> {
         natives: HashMap<Handle, NativeFunction<'p>>,
     ) -> crate::Result<Lumber<'p>> {
         self.root_path = root_path;
+        if self.root_path.exists() && std::fs::metadata(&self.root_path)?.is_file() {
+            self.root_path.pop();
+        }
         self.modules
             .insert(Scope::default(), ModuleHeader::new(Scope::default()));
 
-        let mut root_module = Module::new(self.root_path.clone(), source, &mut self)?;
+        let mut root_module = Module::new(source, &mut self)?;
         let native_handles: Vec<_> = natives.keys().collect();
         self.validate_headers(native_handles.as_slice());
         if !self.errors.is_empty() {
@@ -92,11 +104,13 @@ impl<'p> Context<'p> {
                 path.join(atom.as_ref())
             })
             .with_extension("lumber");
+        println!("{}", module_path.display());
         if !module_path.exists() {
             module_path = module_path.with_file_name(format!("{}/mod.lumber", module.as_ref()));
+            println!("{}", module_path.display());
         }
         let source = std::fs::read_to_string(&module_path)?;
-        let module = Module::new(module_path, &source, self)?;
+        let module = Module::new(&source, self)?;
         self.leave_module();
         Ok(Some(module))
     }

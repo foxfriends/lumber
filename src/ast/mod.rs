@@ -1,3 +1,4 @@
+//! Internal representations of all components of a Lumber source file/program.
 #[macro_use]
 mod macros;
 

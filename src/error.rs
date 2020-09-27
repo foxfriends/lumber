@@ -2,13 +2,20 @@ use crate::ast::Scope;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter, Write};
 
+/// The kind of error that has occurred.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ErrorKind {
+    /// The error occurred while interacting with the file system.
     Io,
+    /// An error was encountered in the source file, preventing the program from being created.
+    /// This error likely cannot be handled programmatically.
     Parse,
+    /// Contains multiple errors of various sources. This error can be printed to the user to
+    /// help with debugging. This error likely cannot be handled programmatically.
     Multiple,
 }
 
+/// An error that has occurred within Lumber.
 #[derive(Debug)]
 pub struct Error {
     pub(crate) kind: ErrorKind,

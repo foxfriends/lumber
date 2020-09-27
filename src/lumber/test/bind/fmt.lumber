@@ -1,0 +1,2 @@
+:- nat(print/1).
+:- pub(print/1).

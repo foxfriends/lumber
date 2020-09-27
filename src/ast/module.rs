@@ -1,15 +1,10 @@
 use super::*;
 use crate::parser::{Parser, Rule};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// A module within a Lumber program.
 #[derive(Clone, Debug)]
 pub(crate) struct Module {
-    /// The path from which to resolve dependencies of this module. If this module was read from
-    /// file, this will be a path to the resolved file. Otherwise, if this module is from a
-    /// non-filesystem location, this is simply a directory from which to search for more modules.
-    path: PathBuf,
     /// Modules declared in this module.
     submodules: HashMap<Atom, Module>,
     /// All predicates and functions defined in this module.
@@ -18,7 +13,6 @@ pub(crate) struct Module {
 
 impl Module {
     pub fn new(
-        path: PathBuf,
         source_str: &str,
         context: &mut Context,
     ) -> crate::Result<Self> {
@@ -136,7 +130,6 @@ impl Module {
         }
 
         Ok(Self {
-            path,
             submodules,
             definitions,
         })
