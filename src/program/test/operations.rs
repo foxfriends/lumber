@@ -36,6 +36,14 @@ yes! {
     "#
 }
 
+yes! {
+    operation_incorrect_value_types => r#"
+    test! <- {} + 3.
+    test! <- atom + 3.
+    test! <- "hello" / 2.
+    "#
+}
+
 no! {
     operation_named_operator_wrong_arity => r#"
     in(A, { A | _ }).
