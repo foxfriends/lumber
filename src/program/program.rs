@@ -34,7 +34,7 @@ impl<'p> ProgramBuilder<'p> {
         Ok(self)
     }
 
-    pub fn link<S, F>(mut self, name: S, program: Program<'p>) -> Self
+    pub fn link<S>(mut self, name: S, program: Program<'p>) -> Self
     where
         S: AsRef<str>,
     {
@@ -78,6 +78,7 @@ impl<'p> ProgramBuilder<'p> {
 /// A full Lumber program, ready to have queries run against it.
 #[derive(Default, Clone, Debug)]
 pub struct Program<'p> {
+    libraries: HashMap<Atom, Program<'p>>,
     database: Database<'p>,
 }
 
@@ -107,7 +108,7 @@ impl<'p> Program<'p> {
     }
 
     fn new<P: AsRef<Path>, S: AsRef<str>>(
-        context: Context,
+        context: Context<'p>,
         source_file: P,
         source_code: S,
         natives: HashMap<Handle, NativeFunction<'p>>,
@@ -116,8 +117,11 @@ impl<'p> Program<'p> {
         context.compile(source_file.as_ref().to_owned(), source_str, natives)
     }
 
-    pub(crate) fn build(database: Database<'p>) -> Self {
-        Self { database }
+    pub(crate) fn build(libraries: HashMap<Atom, Program<'p>>, database: Database<'p>) -> Self {
+        Self {
+            libraries,
+            database,
+        }
     }
 
     pub(crate) fn exports(&self, handle: &Handle) -> bool {

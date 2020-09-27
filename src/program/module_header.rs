@@ -110,6 +110,9 @@ impl ModuleHeader {
         } else if let Some(resolved) = self.natives.get(handle) {
             resolved
         } else if let Some(alias) = self.aliases.get(handle) {
+            if alias.library().is_some() {
+                return Ok(Some(alias));
+            }
             match context
                 .modules
                 .get(&alias.module())
@@ -261,32 +264,50 @@ impl ModuleHeader {
             if reported.contains(alias) {
                 continue;
             }
-            match context
-                .modules
-                .get(&alias.module())
-                .unwrap()
-                .resolve(alias, &self.scope, context)
-            {
-                Ok(..) => {}
-                Err(error) => errors.push(error),
-            }
-            let aliases = self
-                .aliases
-                .iter()
-                .filter(|&(_, value)| alias == value)
-                .map(|(key, _)| key)
-                .collect::<Vec<_>>();
-            if aliases.len() != 1 {
-                reported.insert(alias.clone());
-                errors.push(crate::Error::parse(format!(
-                    "{} is aliased multiple times, as:\n\t{}",
-                    alias,
-                    aliases
-                        .into_iter()
-                        .map(|alias| format!("\t{}", alias))
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                )));
+            match alias.library() {
+                Some(library) => match context.libraries.get(&library) {
+                    None => {
+                        errors.push(crate::Error::parse(format!(
+                            "Referencing predicate {} from unlinked library {}.",
+                            alias, library,
+                        )));
+                    }
+                    Some(lib) if lib.exports(alias) => continue,
+                    Some(..) => {
+                        errors.push(crate::Error::parse(format!(
+                            "No predicate {} is exported by the library {}.",
+                            alias, library,
+                        )));
+                    }
+                },
+                None => {
+                    match context.modules.get(&alias.module()).unwrap().resolve(
+                        alias,
+                        &self.scope,
+                        context,
+                    ) {
+                        Ok(..) => {}
+                        Err(error) => errors.push(error),
+                    }
+                    let aliases = self
+                        .aliases
+                        .iter()
+                        .filter(|&(_, value)| alias == value)
+                        .map(|(key, _)| key)
+                        .collect::<Vec<_>>();
+                    if aliases.len() != 1 {
+                        reported.insert(alias.clone());
+                        errors.push(crate::Error::parse(format!(
+                            "{} is aliased multiple times, as:\n\t{}",
+                            alias,
+                            aliases
+                                .into_iter()
+                                .map(|alias| format!("\t{}", alias))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )));
+                    }
+                }
             }
         }
         errors

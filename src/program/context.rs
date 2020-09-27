@@ -15,8 +15,8 @@ pub struct Context<'p> {
     pub(crate) errors: HashMap<Scope, Vec<crate::Error>>,
 }
 
-impl Context<'_> {
-    pub fn compile<'p>(
+impl<'p> Context<'p> {
+    pub fn compile(
         mut self,
         root_path: PathBuf,
         source: &str,
@@ -40,7 +40,7 @@ impl Context<'_> {
         for header in self.modules.values() {
             database.apply_header(header);
         }
-        Ok(Program::build(database))
+        Ok(Program::build(self.libraries, database))
     }
 
     fn enter_module(&mut self, module: Atom) {

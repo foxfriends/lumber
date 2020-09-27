@@ -1,0 +1,4 @@
+:- pub(world/0).
+
+internal.
+world :- internal.

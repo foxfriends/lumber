@@ -74,7 +74,11 @@ impl Scope {
         let mut pairs = pair.into_inner();
         match pairs.peek().unwrap().as_rule() {
             Rule::lib => Some(Scope {
-                lib: Some(context.atomizer.atomize(pairs.next().unwrap())),
+                lib: Some(
+                    context
+                        .atomizer
+                        .atomize(just!(pairs.next().unwrap().into_inner())),
+                ),
                 ..Scope::default()
             }),
             Rule::root => Some(Scope::default()),
