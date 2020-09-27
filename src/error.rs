@@ -1,4 +1,4 @@
-use crate::program::Scope;
+use crate::ast::Scope;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter, Write};
 

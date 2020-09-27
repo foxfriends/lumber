@@ -1,14 +1,15 @@
-use super::*;
+use crate::ast::*;
+use crate::program::*;
 use std::collections::HashMap;
 use std::path::Path;
 
-pub struct ProgramBuilder<'p> {
+pub struct LumberBuilder<'p> {
     core: bool,
     context: Context<'p>,
     natives: HashMap<Handle, NativeFunction<'p>>,
 }
 
-impl<'p> ProgramBuilder<'p> {
+impl<'p> LumberBuilder<'p> {
     fn new() -> Self {
         Self {
             core: true,
@@ -34,7 +35,7 @@ impl<'p> ProgramBuilder<'p> {
         Ok(self)
     }
 
-    pub fn link<S>(mut self, name: S, program: Program<'p>) -> Self
+    pub fn link<S>(mut self, name: S, program: Lumber<'p>) -> Self
     where
         S: AsRef<str>,
     {
@@ -44,7 +45,7 @@ impl<'p> ProgramBuilder<'p> {
         self
     }
 
-    pub fn build_from_file<S>(self, source: S) -> crate::Result<Program<'p>>
+    pub fn build_from_file<S>(self, source: S) -> crate::Result<Lumber<'p>>
     where
         S: AsRef<Path>,
     {
@@ -52,7 +53,7 @@ impl<'p> ProgramBuilder<'p> {
         self.build(source, source_code)
     }
 
-    pub fn build_from_str<S>(self, source: S) -> crate::Result<Program<'p>>
+    pub fn build_from_str<S>(self, source: S) -> crate::Result<Lumber<'p>>
     where
         S: AsRef<str>,
     {
@@ -60,7 +61,7 @@ impl<'p> ProgramBuilder<'p> {
         self.build(source_dir, source)
     }
 
-    pub fn build<P, S>(mut self, root: P, source: S) -> crate::Result<Program<'p>>
+    pub fn build<P, S>(mut self, root: P, source: S) -> crate::Result<Lumber<'p>>
     where
         P: AsRef<Path>,
         S: AsRef<str>,
@@ -71,18 +72,18 @@ impl<'p> ProgramBuilder<'p> {
                 self.context.libraries.insert(core, lib.clone());
             });
         }
-        Program::new(self.context, root, source, self.natives)
+        Lumber::new(self.context, root, source, self.natives)
     }
 }
 
 /// A full Lumber program, ready to have queries run against it.
 #[derive(Default, Clone, Debug)]
-pub struct Program<'p> {
-    libraries: HashMap<Atom, Program<'p>>,
+pub struct Lumber<'p> {
+    libraries: HashMap<Atom, Lumber<'p>>,
     database: Database<'p>,
 }
 
-impl<'p> Program<'p> {
+impl<'p> Lumber<'p> {
     pub fn from_file<P: AsRef<Path>>(source_file: P) -> crate::Result<Self> {
         let source_code = std::fs::read_to_string(&source_file)?;
         Self::new(
@@ -103,8 +104,8 @@ impl<'p> Program<'p> {
         )
     }
 
-    pub fn builder() -> ProgramBuilder<'p> {
-        ProgramBuilder::new()
+    pub fn builder() -> LumberBuilder<'p> {
+        LumberBuilder::new()
     }
 
     fn new<P: AsRef<Path>, S: AsRef<str>>(
@@ -117,7 +118,7 @@ impl<'p> Program<'p> {
         context.compile(source_file.as_ref().to_owned(), source_str, natives)
     }
 
-    pub(crate) fn build(libraries: HashMap<Atom, Program<'p>>, database: Database<'p>) -> Self {
+    pub(crate) fn build(libraries: HashMap<Atom, Lumber<'p>>, database: Database<'p>) -> Self {
         Self {
             libraries,
             database,

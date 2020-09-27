@@ -1,4 +1,4 @@
-use super::*;
+use crate::Lumber;
 use std::path::PathBuf;
 
 macro_rules! yes {
@@ -7,9 +7,9 @@ macro_rules! yes {
         fn $name() {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.join(stringify!($name));
-            Program::builder()
+            Lumber::builder()
                 $(.bind($handle, || {}).unwrap())*
-                $(.link(stringify!($lib), Program::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
+                $(.link(stringify!($lib), Lumber::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
                 .build(path, $src)
                 .unwrap();
         }
@@ -22,9 +22,9 @@ macro_rules! no {
         fn $name() {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.parent().unwrap().join(stringify!($name));
-            assert!(Program::builder()
+            assert!(Lumber::builder()
                 $(.bind($handle, || {}).unwrap())*
-                $(.link(stringify!($lib), Program::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
+                $(.link(stringify!($lib), Lumber::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
                 .build(path, $src)
                 .is_err());
         }

@@ -11,15 +11,12 @@ pub struct Handle {
     arity: Vec<Arity>,
 }
 
-pub trait AsHandle: AsHandleInner {}
-
-#[doc(hidden)]
-pub trait AsHandleInner {
+pub trait AsHandle {
+    #[doc(hidden)]
     fn as_handle(&self, context: &mut Context) -> crate::Result<Handle>;
 }
 
-impl AsHandle for &str {}
-impl AsHandleInner for &str {
+impl AsHandle for &str {
     fn as_handle(&self, context: &mut Context) -> crate::Result<Handle> {
         let pair = just!(
             Rule::external_handle,

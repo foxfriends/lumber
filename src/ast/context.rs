@@ -1,11 +1,13 @@
 use super::*;
+use crate::program::*;
+use crate::Lumber;
 use pest::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Default)]
 pub struct Context<'p> {
-    pub(crate) libraries: HashMap<Atom, Program<'p>>,
+    pub(crate) libraries: HashMap<Atom, Lumber<'p>>,
     pub(crate) root_path: PathBuf,
     pub(crate) atomizer: Atomizer,
     pub(crate) current_scope: Scope,
@@ -21,7 +23,7 @@ impl<'p> Context<'p> {
         root_path: PathBuf,
         source: &str,
         natives: HashMap<Handle, NativeFunction<'p>>,
-    ) -> crate::Result<Program<'p>> {
+    ) -> crate::Result<Lumber<'p>> {
         self.root_path = root_path;
         self.modules
             .insert(Scope::default(), ModuleHeader::new(Scope::default()));
@@ -40,7 +42,7 @@ impl<'p> Context<'p> {
         for header in self.modules.values() {
             database.apply_header(header);
         }
-        Ok(Program::build(self.libraries, database))
+        Ok(Lumber::build(self.libraries, database))
     }
 
     fn enter_module(&mut self, module: Atom) {

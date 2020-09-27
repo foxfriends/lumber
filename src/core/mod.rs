@@ -1,13 +1,13 @@
 //! Implementation of the Lumber @core library, containing important built-in functions required
 //! for the language to operate.
 
-use crate::Program;
+use crate::Lumber;
 
 fn nop3() {}
 
 thread_local! {
     #[rustfmt::skip]
-    pub(crate) static LIB: Program<'static> = Program::builder()
+    pub(crate) static LIB: Lumber<'static> = Lumber::builder()
         .core(false)
         .bind("add/3", nop3).unwrap()
         .bind("sub/3", nop3).unwrap()

@@ -1,4 +1,4 @@
-use lumber::Program;
+use lumber::Lumber;
 use std::path::PathBuf;
 
 /// Interactive Lumber (REPL)
@@ -15,8 +15,8 @@ struct Opts {
 #[paw::main]
 pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
     let program = match opts.module {
-        Some(path) => Program::from_file(path)?,
-        None => Program::default(),
+        Some(path) => Lumber::from_file(path)?,
+        None => Lumber::default(),
     };
     println!("{:?}", program);
     Ok(())
