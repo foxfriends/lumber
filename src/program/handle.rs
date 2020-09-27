@@ -11,6 +11,34 @@ pub struct Handle {
     arity: Vec<Arity>,
 }
 
+pub trait AsHandle: AsHandleInner {}
+
+#[doc(hidden)]
+pub trait AsHandleInner {
+    fn as_handle(&self, context: &mut Context) -> crate::Result<Handle>;
+}
+
+impl AsHandle for &str {}
+impl AsHandleInner for &str {
+    fn as_handle(&self, context: &mut Context) -> crate::Result<Handle> {
+        let pair = just!(
+            Rule::external_handle,
+            crate::parser::Parser::parse_handle(self)?
+        );
+        let mut pairs = pair.into_inner();
+        let mut scope = Scope::default();
+        let mut arity = vec![];
+        while Rule::atom == pairs.peek().unwrap().as_rule() {
+            scope.push(context.atomizer.atomize(pairs.next().unwrap()));
+        }
+        while Rule::arity == pairs.peek().unwrap().as_rule() {
+            arity.push(Arity::new(pairs.next().unwrap(), context));
+        }
+        assert_eq!(Rule::EOI, pairs.next().unwrap().as_rule());
+        Ok(Handle { scope, arity })
+    }
+}
+
 impl Handle {
     pub(crate) fn library(&self) -> Option<Atom> {
         self.scope.library()

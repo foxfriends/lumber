@@ -4,47 +4,39 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Default)]
-pub(crate) struct Context {
-    pub root_path: PathBuf,
-    pub atomizer: Atomizer,
-    pub current_scope: Scope,
-    pub variables: Vec<String>,
-    pub current_environment: HashMap<String, usize>,
-    pub modules: HashMap<Scope, ModuleHeader>,
-    pub errors: HashMap<Scope, Vec<crate::Error>>,
+pub struct Context {
+    pub(crate) root_path: PathBuf,
+    pub(crate) atomizer: Atomizer,
+    pub(crate) current_scope: Scope,
+    pub(crate) variables: Vec<String>,
+    pub(crate) current_environment: HashMap<String, usize>,
+    pub(crate) modules: HashMap<Scope, ModuleHeader>,
+    pub(crate) errors: HashMap<Scope, Vec<crate::Error>>,
 }
 
 impl Context {
     pub fn compile<'p>(
+        mut self,
         root_path: PathBuf,
         source: &str,
         natives: HashMap<Handle, NativeFunction<'p>>,
     ) -> crate::Result<Program<'p>> {
-        let mut context = Self {
-            root_path: root_path.clone(),
-            atomizer: Atomizer::default(),
-            current_scope: Scope::default(),
-            variables: vec![],
-            current_environment: HashMap::default(),
-            modules: HashMap::default(),
-            errors: HashMap::default(),
-        };
-        context
-            .modules
+        self.root_path = root_path;
+        self.modules
             .insert(Scope::default(), ModuleHeader::new(Scope::default()));
 
-        let mut root_module = Module::new(root_path, source, &mut context)?;
+        let mut root_module = Module::new(self.root_path.clone(), source, &mut self)?;
         let native_handles: Vec<_> = natives.keys().collect();
-        context.validate_headers(native_handles.as_slice());
-        if !context.errors.is_empty() {
-            return Err(crate::Error::multiple_by_module(context.errors));
+        self.validate_headers(native_handles.as_slice());
+        if !self.errors.is_empty() {
+            return Err(crate::Error::multiple_by_module(self.errors));
         }
-        root_module.resolve_scopes(&mut context);
-        if !context.errors.is_empty() {
-            return Err(crate::Error::multiple_by_module(context.errors));
+        root_module.resolve_scopes(&mut self);
+        if !self.errors.is_empty() {
+            return Err(crate::Error::multiple_by_module(self.errors));
         }
         let mut database: Database = root_module.into_definitions().collect();
-        for header in context.modules.values() {
+        for header in self.modules.values() {
             database.apply_header(header);
         }
         Ok(Program::build(database))

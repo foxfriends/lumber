@@ -32,7 +32,7 @@ pub use conjunction::Conjunction;
 pub use definition::Definition;
 pub use disjunction::Disjunction;
 pub use expression::Expression;
-pub use handle::Handle;
+pub use handle::{AsHandle, Handle};
 pub use identifier::Identifier;
 pub use implication::Implication;
 pub use literal::Literal;
