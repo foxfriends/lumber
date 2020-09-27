@@ -8,7 +8,7 @@ yes! {
 
 yes! {
     value_string => r#"
-    test(A) :- A <- "helo".
+    test(A) :- A <- "hello".
     "#
 }
 

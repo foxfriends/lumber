@@ -30,11 +30,13 @@ macro_rules! no {
 mod aliases;
 mod definitions;
 mod exports;
+mod functions;
 mod globs;
 mod imports;
 mod incompletes;
 mod modules;
 mod mutables;
+mod operations;
 mod predicates;
 mod values;
 mod variables;

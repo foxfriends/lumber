@@ -9,7 +9,7 @@ pub enum Unification {
     /// An entire sub-rule of unifications to be made.
     Body(Body),
     /// An assumption, where a pattern assumes a value.
-    Assumption(Pattern, Computation),
+    Assumption(Pattern, Expression),
 }
 
 impl Unification {
@@ -31,7 +31,7 @@ impl Unification {
         let output = Pattern::new(pairs.next().unwrap(), context);
         Some(Self::Assumption(
             output,
-            Computation::new(pairs.next().unwrap(), context)?,
+            Expression::new_operation(pairs.next().unwrap(), context)?,
         ))
     }
 
@@ -39,7 +39,7 @@ impl Unification {
         match self {
             Self::Query(query) => Box::new(std::iter::once(query.as_mut())),
             Self::Body(body) => Box::new(body.handles_mut()),
-            Self::Assumption(_, computation) => computation.handles_mut(),
+            Self::Assumption(_, expression) => expression.handles_mut(),
         }
     }
 
@@ -47,8 +47,8 @@ impl Unification {
         match self {
             Self::Query(query) => Box::new(query.identifiers()),
             Self::Body(body) => Box::new(body.identifiers()),
-            Self::Assumption(pattern, computation) => {
-                Box::new(pattern.identifiers().chain(computation.identifiers()))
+            Self::Assumption(pattern, expression) => {
+                Box::new(pattern.identifiers().chain(expression.identifiers()))
             }
         }
     }

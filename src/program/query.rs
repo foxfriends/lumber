@@ -67,7 +67,7 @@ impl Query {
         context: &mut Context,
         output: Pattern,
     ) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::predicate);
+        assert_eq!(pair.as_rule(), Rule::call);
         let mut query = Self::new_scoped(pair, context)?;
         query.handle.extend_arity(Arity::Len(1.into()));
         query.patterns.push(output);

@@ -12,6 +12,10 @@ pub struct Handle {
 }
 
 impl Handle {
+    pub(crate) fn library(&self) -> Option<Atom> {
+        self.scope.library()
+    }
+
     pub(crate) fn module(&self) -> Scope {
         self.scope.drop()
     }

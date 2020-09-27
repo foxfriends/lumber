@@ -113,9 +113,9 @@ impl Module {
                                 };
                                 unifications.push(unification);
                             }
-                            match Computation::new(pairs.next().unwrap(), context) {
-                                Some(computation) => {
-                                    unifications.push(Unification::Assumption(output, computation))
+                            match Expression::new_operation(pairs.next().unwrap(), context) {
+                                Some(expression) => {
+                                    unifications.push(Unification::Assumption(output, expression))
                                 }
                                 None => continue,
                             }

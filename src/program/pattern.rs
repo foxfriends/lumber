@@ -10,8 +10,10 @@ pub enum Pattern {
     Variable(Identifier),
     /// A literal value (unifies only with itself).
     Literal(Literal),
-    /// A list of patterns (unifies with a list of the same length where the paterns each unify).
+    /// A list of patterns (unifies with a list of the same length where the patterns each unify in order).
     List(Vec<Pattern>, Option<Box<Pattern>>),
+    /// A set of patterns (unifies with a set containing the same elements disregarding order and duplicates).
+    Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
 }
@@ -31,7 +33,7 @@ impl Pattern {
             Rule::list => {
                 let mut pairs = pair.into_inner();
                 let head = match pairs.next() {
-                    Some(head) => just!(Rule::list_entries, head.into_inner())
+                    Some(head) => head
                         .into_inner()
                         .map(|pair| Self::new(pair, context))
                         .collect(),
@@ -42,6 +44,20 @@ impl Pattern {
                     .map(|pair| Box::new(Pattern::new_inner(pair, context)));
                 Self::List(head, tail)
             }
+            Rule::set => {
+                let mut pairs = pair.into_inner();
+                let head = match pairs.next() {
+                    Some(head) => head
+                        .into_inner()
+                        .map(|pair| Self::new(pair, context))
+                        .collect(),
+                    None => return Self::Set(vec![], None),
+                };
+                let tail = pairs
+                    .next()
+                    .map(|pair| Box::new(Pattern::new_inner(pair, context)));
+                Self::Set(head, tail)
+            }
             Rule::wildcard => Self::Wildcard,
             _ => unreachable!(),
         }
@@ -51,7 +67,7 @@ impl Pattern {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
             Self::Variable(identifier) => Box::new(std::iter::once(*identifier)),
-            Self::List(head, tail) => Box::new(
+            Self::List(head, tail) | Self::Set(head, tail) => Box::new(
                 head.iter()
                     .flat_map(|pattern| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),

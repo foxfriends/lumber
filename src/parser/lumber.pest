@@ -32,21 +32,20 @@ function          =  { function_head ~ "<-" ~ evaluation ~ "." }
 head              =  { atom ~ ( "(" ~ fields ~ ")" )? }
 function_head     =  { atom ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 body              =  { procession }
-evaluation        =  { (assumption ~ ",")* ~ computation }
+evaluation        =  { (assumption ~ ",")* ~ operation }
 
 procession        =  { disjunction ~ ("!" ~ disjunction)* }
 disjunction       =  { conjunction ~ (";" ~ conjunction)* }
 conjunction       =  { implication ~ ("," ~ implication)* }
 implication       =  { unification ~ ("->" ~ unification)* }
 unification       =  { assumption | predicate | "(" ~ procession ~ ")" }
-assumption        =  { pattern ~ "<-" ~ computation }
-computation       =  { operation | aggregation }
+assumption        =  { pattern ~ "<-" ~ operation }
+expression        =  { value | aggregation | "(" ~ operation ~ ")" }
 operation         =  { expression ~ (operator ~ expression)* }
-expression        =  { value | "(" ~ operation ~ ")" }
 aggregation       =  { set_aggregation | list_aggregation }
 set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
-aggregation_body  =  { pattern ~ "|" ~ procession }
+aggregation_body  =  { pattern ~ ":" ~ procession }
 
 call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 predicate         =  { scope ~ ( "(" ~ fields ~ ")" )? }
@@ -69,8 +68,8 @@ operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$"
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_CONTINUE* }
 wildcard          = @{ "_" ~ XID_CONTINUE* }
 
-value             =  { literal | call | struct_ | variable | list }
-pattern           =  { literal | struct_ | variable | list | wildcard }
+value             =  { literal | call | struct_ | variable | list | set }
+pattern           =  { literal | struct_ | variable | list | set | wildcard }
 
 literal           =  { decimal | integer | string }
 
@@ -85,6 +84,7 @@ decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 string            = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
 
 list              =  { "[" ~ list_entries ~ ("|" ~ (list | variable | wildcard))? ~ "]" | "[" ~ "]" }
+set               =  { "{" ~ list_entries ~ ("|" ~ (set | variable | wildcard))? ~ "}" | "{" ~ "}" }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }

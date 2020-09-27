@@ -12,30 +12,48 @@ const fn right(token: &'static str) -> Operator {
 }
 
 #[derive(Clone, Debug)]
-pub enum Computation {
+pub enum Expression {
     Operation(Pattern, Vec<Unification>),
+    Value(Pattern),
     SetAggregation(Pattern, Body),
     ListAggregation(Pattern, Body),
 }
 
-impl Computation {
+impl Expression {
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(Rule::computation, pair.as_rule());
+        assert_eq!(Rule::expression, pair.as_rule());
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
             Rule::operation => Self::new_operation(pair, context),
+            Rule::value => Self::new_value(pair, context),
             Rule::aggregation => Self::new_aggregation(pair, context),
             _ => unreachable!(),
         }
     }
 
-    fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub(crate) fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::operation, pair.as_rule());
         let (result, work) = operation(pair, context)?;
         Some(Self::Operation(result, work))
     }
 
+    fn new_value(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        assert_eq!(Rule::value, pair.as_rule());
+        let pair = just!(pair.into_inner());
+        match pair.as_rule() {
+            Rule::call => {
+                let output = Pattern::Variable(context.fresh_variable());
+                Some(Self::Operation(
+                    output.clone(),
+                    vec![Unification::Query(Query::from_call(pair, context, output)?)],
+                ))
+            }
+            _ => Some(Self::Value(Pattern::new_inner(pair, context))),
+        }
+    }
+
     fn new_aggregation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        assert_eq!(Rule::aggregation, pair.as_rule());
         let pair = just!(pair.into_inner());
         let constructor = match pair.as_rule() {
             Rule::set_aggregation => Self::SetAggregation,
@@ -54,6 +72,7 @@ impl Computation {
             Self::Operation(.., unifications) => {
                 Box::new(unifications.iter_mut().flat_map(Unification::handles_mut))
             }
+            Self::Value(..) => Box::new(std::iter::empty()),
             Self::SetAggregation(.., body) | Self::ListAggregation(.., body) => {
                 Box::new(body.handles_mut())
             }
@@ -67,6 +86,7 @@ impl Computation {
                     .identifiers()
                     .chain(steps.iter().flat_map(|step| step.identifiers())),
             ),
+            Self::Value(pattern) => pattern.identifiers(),
             Self::SetAggregation(pattern, body) | Self::ListAggregation(pattern, body) => {
                 Box::new(pattern.identifiers().chain(body.identifiers()))
             }
@@ -75,22 +95,17 @@ impl Computation {
 }
 
 fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
-    assert_eq!(Rule::expression, pair.as_rule());
-    let pair = just!(pair.into_inner());
-    match pair.as_rule() {
-        Rule::value => {
-            let pair = just!(pair.into_inner());
-            match pair.as_rule() {
-                Rule::call => {
-                    let output = Pattern::Variable(context.fresh_variable());
-                    let query = Query::from_call(pair, context, output.clone())?;
-                    Some((output, vec![Unification::Query(query)]))
-                }
-                _ => Some((Pattern::new_inner(pair, context), vec![])),
-            }
+    let expression = Expression::new(pair, context)?;
+    match expression {
+        Expression::Value(value) => Some((value, vec![])),
+        Expression::Operation(output, steps) => Some((output, steps)),
+        aggregation => {
+            let output = Pattern::Variable(context.fresh_variable());
+            Some((
+                output.clone(),
+                vec![Unification::Assumption(output, aggregation)],
+            ))
         }
-        Rule::operation => operation(pair, context),
-        _ => unreachable!(),
     }
 }
 
@@ -136,8 +151,9 @@ fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<U
                 "^" => builtin::bitxor(lhs, rhs, output.clone(), context),
                 token => match op.into_inner().next() {
                     Some(pair) => {
+                        assert_eq!(Rule::named_operator, pair.as_rule());
+                        let pair = just!(pair.into_inner());
                         let scope = Scope::new(pair, context)?;
-                        // TODO: can we check that `scope` is in scope here?
                         Unification::Query(Query::new(
                             Handle::binop(scope),
                             vec![lhs, rhs, output.clone()],

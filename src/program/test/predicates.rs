@@ -108,3 +108,9 @@ yes! {
     test :- a, b! (c -> A <- "C"; e -> A <- "E")! d(A).
     "#
 }
+
+no! {
+    predicate_left_arrow => r#"
+    test <- 3.
+    "#
+}

@@ -48,7 +48,7 @@ impl Scope {
     }
 
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::scope);
+        assert_eq!(Rule::scope, pair.as_rule());
         let mut pairs = pair.into_inner();
         let mut scope = match pairs.peek().unwrap().as_rule() {
             Rule::scope_prefix => Scope::new_prefix(pairs.next().unwrap(), context)?,
@@ -87,7 +87,7 @@ impl Scope {
     }
 
     pub(crate) fn new_module_path(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::module_path);
+        assert_eq!(Rule::module_path, pair.as_rule());
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
             Rule::scope => Self::new(pair, context),
@@ -126,6 +126,10 @@ impl Scope {
             "Attempted to get the head of an empty scope"
         );
         self.path.last().unwrap().clone()
+    }
+
+    pub(crate) fn library(&self) -> Option<Atom> {
+        self.lib.clone()
     }
 }
 

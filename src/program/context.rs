@@ -182,6 +182,10 @@ impl Context {
         handle: &'a Handle,
         in_scope: &Scope,
     ) -> Option<Handle> {
+        if let Some(_library) = handle.library() {
+            // TODO: support libraries, particularly @core
+            return Some(handle.clone());
+        }
         let module = handle.module();
         let resolved = self
             .modules
