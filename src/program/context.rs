@@ -69,6 +69,10 @@ impl Context {
         }
     }
 
+    pub fn name_identifier(&mut self, identifier: Identifier) -> &str {
+        self.variables[Into::<usize>::into(identifier)].as_str()
+    }
+
     pub fn fresh_variable(&mut self) -> Identifier {
         self.get_variable(&format!("#{}", self.variables.len()))
     }
@@ -266,6 +270,13 @@ impl Context {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Cannot change arity of {} when aliasing to {}.",
             input, output,
+        )));
+    }
+
+    pub fn error_singleton_variable(&mut self, handle: &Handle, variable: &str) {
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Singleton variable {} in predicate {}",
+            variable, handle,
         )));
     }
 }

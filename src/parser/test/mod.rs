@@ -41,3 +41,4 @@ mod rule;
 mod scope;
 mod r#struct;
 mod variable;
+mod wildcard;

@@ -7,7 +7,7 @@ no!(variable_lower, Rule::variable, "hello_world");
 no!(variable_start_number, Rule::variable, "3Hello");
 no!(variable_special, Rule::variable, "Hello.World");
 no!(variable_quoted, Rule::variable, "#'hello'#");
-yes!(variable_under, Rule::variable, "_hello");
+no!(variable_under, Rule::variable, "_hello");
 yes!(variable_title, Rule::variable, "Æther");
 yes!(variable_greek, Rule::variable, "Λυμβερ");
 yes!(variable_latin, Rule::variable, "Ɑɣɸ");

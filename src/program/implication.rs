@@ -23,4 +23,10 @@ impl Implication {
             .iter_mut()
             .flat_map(|unification| unification.handles_mut())
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.conditions
+            .iter()
+            .flat_map(|unification| unification.identifiers())
+    }
 }

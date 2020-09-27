@@ -3,13 +3,13 @@ use super::*;
 yes! {
     export_defined => r#"
     :- pub(test/2).
-    test(A, B).
+    test(a, b).
     "#
 }
 
 yes! {
     export_order => r#"
-    test(A, B).
+    test(a, b).
     :- pub(test/2).
     "#
 }
@@ -31,8 +31,8 @@ no! {
 no! {
     export_similar => r#"
     :- pub(test/1).
-    test(a: A).
-    test(b: A).
+    test(a: a).
+    test(b: a).
     "#
 }
 

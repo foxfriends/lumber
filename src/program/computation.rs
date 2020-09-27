@@ -59,6 +59,19 @@ impl Computation {
             }
         }
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+        match self {
+            Self::Operation(pattern, steps) => Box::new(
+                pattern
+                    .identifiers()
+                    .chain(steps.iter().flat_map(|step| step.identifiers())),
+            ),
+            Self::SetAggregation(pattern, body) | Self::ListAggregation(pattern, body) => {
+                Box::new(pattern.identifiers().chain(body.identifiers()))
+            }
+        }
+    }
 }
 
 fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {

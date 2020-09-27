@@ -42,4 +42,14 @@ impl Unification {
             Self::Assumption(_, computation) => computation.handles_mut(),
         }
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+        match self {
+            Self::Query(query) => Box::new(query.identifiers()),
+            Self::Body(body) => Box::new(body.identifiers()),
+            Self::Assumption(pattern, computation) => {
+                Box::new(pattern.identifiers().chain(computation.identifiers()))
+            }
+        }
+    }
 }

@@ -27,4 +27,8 @@ impl Struct {
             fields: patterns,
         }
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.fields.iter().flat_map(|pattern| pattern.identifiers())
+    }
 }

@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::collections::HashMap;
 
 /// The body of a rule.
 #[derive(Default, Clone, Debug)]
@@ -38,5 +39,27 @@ impl Body {
 
     pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
+    }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.steps.iter().flat_map(|step| step.identifiers())
+    }
+
+    pub(crate) fn check_variables(&self, head: &Query, context: &mut Context) {
+        let counts = self.identifiers().chain(head.identifiers()).fold(
+            HashMap::<Identifier, usize>::default(),
+            |mut map, identifier| {
+                *map.entry(identifier).or_default() += 1;
+                map
+            },
+        );
+
+        for (identifier, count) in counts {
+            let variable = context.name_identifier(identifier);
+            if count <= 1 {
+                let name = variable.to_owned();
+                context.error_singleton_variable(head.as_ref(), name.as_str());
+            }
+        }
     }
 }

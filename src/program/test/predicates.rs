@@ -73,7 +73,8 @@ no! {
 
 yes! {
     predicate_assumptions => r#"
-    test :- A <- 1, B <- 2.
+    check(1, 2).
+    test :- A <- 1, B <- 2, check(A, B).
     "#
 }
 

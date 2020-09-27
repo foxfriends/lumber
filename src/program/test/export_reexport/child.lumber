@@ -1,2 +1,2 @@
 :- pub(test/2).
-test(A, B).
+test(a, b).

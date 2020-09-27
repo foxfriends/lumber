@@ -21,4 +21,8 @@ impl Conjunction {
     pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.terms.iter_mut().flat_map(|term| term.handles_mut())
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.terms.iter().flat_map(|term| term.identifiers())
+    }
 }

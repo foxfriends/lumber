@@ -84,4 +84,10 @@ impl Query {
         let handle = Handle::from_parts(scope, arity);
         Some(Query { handle, patterns })
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.patterns
+            .iter()
+            .flat_map(|pattern| pattern.identifiers())
+    }
 }

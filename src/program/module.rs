@@ -123,6 +123,7 @@ impl Module {
                         }
                         _ => unreachable!(),
                     };
+                    body.check_variables(&head, context);
                     context.declare_predicate(head.as_ref().clone());
                     definitions
                         .entry(head.as_ref().clone())

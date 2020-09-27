@@ -10,3 +10,9 @@ impl Identifier {
         Self(id)
     }
 }
+
+impl Into<usize> for Identifier {
+    fn into(self) -> usize {
+        self.0
+    }
+}

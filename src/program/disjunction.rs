@@ -21,4 +21,8 @@ impl Disjunction {
     pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.cases.iter_mut().flat_map(|case| case.handles_mut())
     }
+
+    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+        self.cases.iter().flat_map(|case| case.identifiers())
+    }
 }
