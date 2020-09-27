@@ -11,11 +11,11 @@ pub struct Body {
 impl Body {
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::body);
-        Self::new_inner(pair, context)
+        Self::new_inner(just!(pair.into_inner()), context)
     }
 
     pub(crate) fn new_inner(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        let pair = just!(Rule::procession, pair.into_inner());
+        assert_eq!(pair.as_rule(), Rule::procession);
         let steps = pair
             .into_inner()
             .map(|pair| Disjunction::new(pair, context))
