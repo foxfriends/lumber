@@ -31,6 +31,20 @@ yes! {
 
 no! {
     definition_undefined_reference => r#"
-    test(A) :- yes.
+    test(a) :- yes.
+    "#
+}
+
+yes! {
+    definition_named_fields => r#"
+    hello(from: a, to: b).
+    test :- hello(from: a, to: b).
+    "#
+}
+
+no! {
+    definition_named_fields_omitted => r#"
+    hello(from: a, to: b).
+    test :- hello(a, b).
     "#
 }
