@@ -3,7 +3,7 @@ use ramp::{int::Int, rational::Rational};
 
 /// A literal value, which cannot be further pattern matched.
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub enum Literal {
+pub(crate) enum Literal {
     /// A single integer.
     Integer(Int),
     /// A fractional number.
@@ -13,7 +13,7 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub(crate) fn new(pair: crate::Pair) -> Self {
+    pub fn new(pair: crate::Pair) -> Self {
         assert_eq!(pair.as_rule(), Rule::literal);
         let pair = just!(pair.into_inner());
         match pair.as_rule() {

@@ -4,18 +4,18 @@ use std::collections::HashMap;
 
 /// The body of a rule.
 #[derive(Default, Clone, Debug)]
-pub struct Body {
+pub(crate) struct Body {
     /// Steps between which variable bindings should not be backtracked.
     steps: Vec<Disjunction>,
 }
 
 impl Body {
-    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::body);
         Self::new_inner(just!(pair.into_inner()), context)
     }
 
-    pub(crate) fn new_inner(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::procession);
         let steps = pair
             .into_inner()
@@ -24,7 +24,7 @@ impl Body {
         Some(Self { steps })
     }
 
-    pub(crate) fn new_evaluation(unifications: Vec<Unification>) -> Self {
+    pub fn new_evaluation(unifications: Vec<Unification>) -> Self {
         let case = Conjunction {
             terms: unifications
                 .into_iter()
@@ -37,15 +37,15 @@ impl Body {
         Body { steps: vec![step] }
     }
 
-    pub(crate) fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+    pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }
 
-    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
         self.steps.iter().flat_map(|step| step.identifiers())
     }
 
-    pub(crate) fn check_variables(&self, head: &Query, context: &mut Context) {
+    pub fn check_variables(&self, head: &Query, context: &mut Context) {
         let counts = self.identifiers().chain(head.identifiers()).fold(
             HashMap::<Identifier, usize>::default(),
             |mut map, identifier| {

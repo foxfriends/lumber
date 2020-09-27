@@ -3,7 +3,7 @@ use crate::parser::Rule;
 
 /// An alias to expose a handle in a different scope.
 #[derive(Clone, Debug)]
-pub struct Alias {
+pub(crate) struct Alias {
     /// The original handle, in its source scope.
     pub(super) input: Handle,
     /// The exposed handle, in the new scope.
@@ -11,7 +11,7 @@ pub struct Alias {
 }
 
 impl Alias {
-    pub(crate) fn unpack_multiple(
+    pub fn unpack_multiple(
         pair: crate::Pair,
         context: &mut Context,
     ) -> Result<impl Iterator<Item = Alias>, Scope> {

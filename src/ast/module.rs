@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 /// A module within a Lumber program.
 #[derive(Clone, Debug)]
-pub struct Module {
+pub(crate) struct Module {
     /// The path from which to resolve dependencies of this module. If this module was read from
     /// file, this will be a path to the resolved file. Otherwise, if this module is from a
     /// non-filesystem location, this is simply a directory from which to search for more modules.
@@ -17,7 +17,7 @@ pub struct Module {
 }
 
 impl Module {
-    pub(crate) fn new(
+    pub fn new(
         path: PathBuf,
         source_str: &str,
         context: &mut Context,
@@ -142,7 +142,7 @@ impl Module {
         })
     }
 
-    pub(crate) fn resolve_scopes(&mut self, context: &mut Context) {
+    pub fn resolve_scopes(&mut self, context: &mut Context) {
         for (name, module) in self.submodules.iter_mut() {
             context.resolve_scopes(module, name.clone());
         }
@@ -167,7 +167,7 @@ impl Module {
             .collect();
     }
 
-    pub(crate) fn into_definitions(self) -> Box<dyn Iterator<Item = (Handle, Definition)>> {
+    pub fn into_definitions(self) -> Box<dyn Iterator<Item = (Handle, Definition)>> {
         Box::new(
             self.definitions.into_iter().chain(
                 self.submodules

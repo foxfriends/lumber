@@ -3,7 +3,7 @@ use crate::parser::Rule;
 
 /// A pattern against which other patterns can be unified.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub enum Pattern {
+pub(crate) enum Pattern {
     /// A structured pattern (unifies structurally with another query of the same name).
     Struct(Struct),
     /// A single variable (unifies with anything but only once).
@@ -19,13 +19,13 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::pattern);
         let pair = just!(pair.into_inner());
         Self::new_inner(pair, context)
     }
 
-    pub(crate) fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
+    pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
         match pair.as_rule() {
             Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => Self::Literal(Literal::new(pair)),
@@ -63,7 +63,7 @@ impl Pattern {
         }
     }
 
-    pub(crate) fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+    pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
             Self::Variable(identifier) => Box::new(std::iter::once(*identifier)),

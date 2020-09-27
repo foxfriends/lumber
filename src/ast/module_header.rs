@@ -6,21 +6,21 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug)]
 pub(crate) struct ModuleHeader {
     /// The path to this module.
-    pub(crate) scope: Scope,
+    pub scope: Scope,
     /// Modules from which imports are globbed.
-    pub(crate) globs: HashSet<Scope>,
+    pub globs: HashSet<Scope>,
     /// Native functions bound to this module.
-    pub(crate) natives: HashSet<Handle>,
+    pub natives: HashSet<Handle>,
     /// Publicly available predicates.
-    pub(crate) exports: HashSet<Handle>,
+    pub exports: HashSet<Handle>,
     /// Predicates that are modifyable at runtime.
-    pub(crate) mutables: HashSet<Handle>,
+    pub mutables: HashSet<Handle>,
     /// Predicates which are not completely defined in this module.
-    pub(crate) incompletes: HashSet<Handle>,
+    pub incompletes: HashSet<Handle>,
     /// All (private and public) predicates.
-    pub(crate) definitions: HashSet<Handle>,
+    pub definitions: HashSet<Handle>,
     /// Imported predicates, and their alises.
-    pub(crate) aliases: HashMap<Handle, Handle>,
+    pub aliases: HashMap<Handle, Handle>,
 }
 
 impl ModuleHeader {

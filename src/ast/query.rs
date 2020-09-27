@@ -2,7 +2,7 @@ use super::*;
 use crate::parser::Rule;
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub struct Query {
+pub(crate) struct Query {
     /// The shape of this query.
     handle: Handle,
     /// The patterns in each field.
@@ -22,22 +22,18 @@ impl AsMut<Handle> for Query {
 }
 
 impl Query {
-    pub(crate) fn new(handle: Handle, patterns: Vec<Pattern>) -> Self {
+    pub fn new(handle: Handle, patterns: Vec<Pattern>) -> Self {
         Self { handle, patterns }
     }
 }
 
 impl Query {
-    pub(crate) fn from_head(pair: crate::Pair, context: &mut Context) -> Self {
+    pub fn from_head(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::head);
         Self::new_unscoped(pair, context)
     }
 
-    pub(crate) fn from_function_head(
-        pair: crate::Pair,
-        context: &mut Context,
-        output: Pattern,
-    ) -> Self {
+    pub fn from_function_head(pair: crate::Pair, context: &mut Context, output: Pattern) -> Self {
         assert_eq!(pair.as_rule(), Rule::function_head);
         let mut query = Self::new_unscoped(pair, context);
         query.handle.extend_arity(Arity::Len(1.into()));
@@ -57,16 +53,12 @@ impl Query {
         Query { handle, patterns }
     }
 
-    pub(crate) fn from_predicate(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn from_predicate(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::predicate);
         Self::new_scoped(pair, context)
     }
 
-    pub(crate) fn from_call(
-        pair: crate::Pair,
-        context: &mut Context,
-        output: Pattern,
-    ) -> Option<Self> {
+    pub fn from_call(pair: crate::Pair, context: &mut Context, output: Pattern) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::call);
         let mut query = Self::new_scoped(pair, context)?;
         query.handle.extend_arity(Arity::Len(1.into()));
@@ -85,7 +77,7 @@ impl Query {
         Some(Query { handle, patterns })
     }
 
-    pub(crate) fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
         self.patterns
             .iter()
             .flat_map(|pattern| pattern.identifiers())

@@ -12,7 +12,7 @@ const fn right(token: &'static str) -> Operator {
 }
 
 #[derive(Clone, Debug)]
-pub enum Expression {
+pub(crate) enum Expression {
     Operation(Pattern, Vec<Unification>),
     Value(Pattern),
     SetAggregation(Pattern, Body),
@@ -20,7 +20,7 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::expression, pair.as_rule());
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
@@ -31,7 +31,7 @@ impl Expression {
         }
     }
 
-    pub(crate) fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::operation, pair.as_rule());
         let (result, work) = operation(pair, context)?;
         Some(Self::Operation(result, work))
@@ -67,7 +67,7 @@ impl Expression {
         Some(constructor(output, body))
     }
 
-    pub(crate) fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
+    pub fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
         match self {
             Self::Operation(.., unifications) => {
                 Box::new(unifications.iter_mut().flat_map(Unification::handles_mut))
@@ -79,7 +79,7 @@ impl Expression {
         }
     }
 
-    pub(crate) fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+    pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Operation(pattern, steps) => Box::new(
                 pattern

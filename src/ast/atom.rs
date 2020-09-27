@@ -40,7 +40,7 @@ impl Atomizer {
 
 /// A meaningless, constant symbol.
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct Atom(Rc<String>);
+pub(crate) struct Atom(Rc<String>);
 
 impl Display for Atom {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

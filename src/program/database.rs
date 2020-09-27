@@ -41,12 +41,12 @@ impl DatabaseDefinition<'_> {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct Database<'p> {
+pub(crate) struct Database<'p> {
     definitions: HashMap<Handle, DatabaseEntry<'p>>,
 }
 
 impl Database<'_> {
-    pub(crate) fn apply_header(&mut self, header: &ModuleHeader) {
+    pub fn apply_header(&mut self, header: &ModuleHeader) {
         for (output, input) in &header.aliases {
             self.definitions.insert(
                 output.clone(),
@@ -83,7 +83,7 @@ impl Database<'_> {
         }
     }
 
-    pub(crate) fn exports(&self, handle: &Handle) -> bool {
+    pub fn exports(&self, handle: &Handle) -> bool {
         self.definitions
             .get(handle)
             .map(|entry| entry.public)

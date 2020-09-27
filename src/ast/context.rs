@@ -18,7 +18,7 @@ pub struct Context<'p> {
 }
 
 impl<'p> Context<'p> {
-    pub fn compile(
+    pub(crate) fn compile(
         mut self,
         root_path: PathBuf,
         source: &str,
@@ -53,7 +53,7 @@ impl<'p> Context<'p> {
         self.current_scope.pop();
     }
 
-    pub fn get_variable(&mut self, name: &str) -> Identifier {
+    pub(crate) fn get_variable(&mut self, name: &str) -> Identifier {
         if let Some(existing) = self.current_environment.get(name) {
             Identifier::new(*existing)
         } else {
@@ -64,19 +64,19 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub fn name_identifier(&mut self, identifier: Identifier) -> &str {
+    pub(crate) fn name_identifier(&mut self, identifier: Identifier) -> &str {
         self.variables[Into::<usize>::into(identifier)].as_str()
     }
 
-    pub fn fresh_variable(&mut self) -> Identifier {
+    pub(crate) fn fresh_variable(&mut self) -> Identifier {
         self.get_variable(&format!("#{}", self.variables.len()))
     }
 
-    pub fn reset_environment(&mut self) {
+    pub(crate) fn reset_environment(&mut self) {
         self.current_environment.clear();
     }
 
-    pub fn add_module(&mut self, module: Atom) -> crate::Result<Option<Module>> {
+    pub(crate) fn add_module(&mut self, module: Atom) -> crate::Result<Option<Module>> {
         let scope = self.current_scope.join(module.clone());
         if self.modules.contains_key(&scope) {
             self.error_duplicate_module(scope);
@@ -105,28 +105,28 @@ impl<'p> Context<'p> {
         self.modules.get_mut(&self.current_scope).unwrap()
     }
 
-    pub fn declare_export(&mut self, export: Handle) {
+    pub(crate) fn declare_export(&mut self, export: Handle) {
         let export = self.current_module_mut().insert_public(export);
         if let Some(export) = export {
             self.error_duplicate_export(export);
         }
     }
 
-    pub fn declare_mutable(&mut self, handle: Handle) {
+    pub(crate) fn declare_mutable(&mut self, handle: Handle) {
         let handle = self.current_module_mut().insert_mutable(handle);
         if let Some(handle) = handle {
             self.error_duplicate_mutable(handle);
         }
     }
 
-    pub fn declare_alias(&mut self, alias: Handle, source: Handle) {
+    pub(crate) fn declare_alias(&mut self, alias: Handle, source: Handle) {
         let alias = self.current_module_mut().insert_alias(alias, source);
         if let Some((alias, source)) = alias {
             self.error_duplicate_import(alias, source);
         }
     }
 
-    pub fn declare_incomplete(&mut self, handle: Handle) {
+    pub(crate) fn declare_incomplete(&mut self, handle: Handle) {
         let (export, incomplete) = self.current_module_mut().insert_incomplete(handle);
         if let Some(incomplete) = incomplete {
             self.error_duplicate_incomplete(incomplete);
@@ -135,21 +135,21 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub fn import_glob(&mut self, module: Scope) {
+    pub(crate) fn import_glob(&mut self, module: Scope) {
         let module = self.current_module_mut().insert_glob(module);
         if let Some(module) = module {
             self.error_duplicate_glob(module);
         }
     }
 
-    pub fn declare_native(&mut self, predicate: Handle) {
+    pub(crate) fn declare_native(&mut self, predicate: Handle) {
         let native = self.current_module_mut().insert_native(predicate);
         if let Some(native) = native {
             self.error_duplicate_native(native);
         }
     }
 
-    pub fn declare_predicate(&mut self, predicate: Handle) {
+    pub(crate) fn declare_predicate(&mut self, predicate: Handle) {
         self.current_module_mut().insert(predicate);
     }
 
@@ -162,17 +162,17 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub fn resolve_scopes(&mut self, module: &mut Module, name: Atom) {
+    pub(crate) fn resolve_scopes(&mut self, module: &mut Module, name: Atom) {
         self.enter_module(name);
         module.resolve_scopes(self);
         self.leave_module();
     }
 
-    pub fn resolve_handle<'a>(&'a mut self, handle: &'a Handle) -> Option<Handle> {
+    pub(crate) fn resolve_handle<'a>(&'a mut self, handle: &'a Handle) -> Option<Handle> {
         self.resolve_handle_in_scope(handle, &self.current_scope.clone())
     }
 
-    pub fn resolve_handle_in_scope<'a>(
+    pub(crate) fn resolve_handle_in_scope<'a>(
         &'a mut self,
         handle: &'a Handle,
         in_scope: &Scope,
@@ -206,91 +206,91 @@ impl Context<'_> {
         self.errors.entry(self.current_scope.clone()).or_default()
     }
 
-    pub fn error_duplicate_module(&mut self, module: Scope) {
+    pub(crate) fn error_duplicate_module(&mut self, module: Scope) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Module {} declared multiple times.",
             module
         )));
     }
 
-    pub fn error_duplicate_export(&mut self, handle: Handle) {
+    pub(crate) fn error_duplicate_export(&mut self, handle: Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "{} exported multiple times.",
             handle
         )));
     }
 
-    pub fn error_duplicate_incomplete(&mut self, handle: Handle) {
+    pub(crate) fn error_duplicate_incomplete(&mut self, handle: Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "{} decared as incomplete multiple times.",
             handle
         )));
     }
 
-    pub fn error_duplicate_mutable(&mut self, handle: Handle) {
+    pub(crate) fn error_duplicate_mutable(&mut self, handle: Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "{} set as mutable multiple times.",
             handle
         )));
     }
 
-    pub fn error_negative_scope(&mut self, span: Span) {
+    pub(crate) fn error_negative_scope(&mut self, span: Span) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Scope {} goes above the main module.",
             span.as_str()
         )));
     }
 
-    pub fn error_duplicate_import(&mut self, import: Handle, from: Handle) {
+    pub(crate) fn error_duplicate_import(&mut self, import: Handle, from: Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "{} already imported from {}.",
             import, from
         )));
     }
 
-    pub fn error_duplicate_glob(&mut self, module: Scope) {
+    pub(crate) fn error_duplicate_glob(&mut self, module: Scope) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Module {} imported multiple times.",
             module
         )));
     }
 
-    pub fn error_duplicate_native(&mut self, handle: Handle) {
+    pub(crate) fn error_duplicate_native(&mut self, handle: Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Native function {} declared multiple times.",
             handle
         )));
     }
 
-    pub fn error_unrecognized_operator(&mut self, token: &str) {
+    pub(crate) fn error_unrecognized_operator(&mut self, token: &str) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Unrecognized operator `{}`.",
             token
         )));
     }
 
-    pub fn error_invalid_alias_arity(&mut self, input: &Handle, output: &Handle) {
+    pub(crate) fn error_invalid_alias_arity(&mut self, input: &Handle, output: &Handle) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Cannot change arity of {} when aliasing to {}.",
             input, output,
         )));
     }
 
-    pub fn error_singleton_variable(&mut self, handle: &Handle, variable: &str) {
+    pub(crate) fn error_singleton_variable(&mut self, handle: &Handle, variable: &str) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Singleton variable {} in predicate {}.",
             variable, handle,
         )));
     }
 
-    pub fn error_unlinked_library(&mut self, handle: &Handle, library: &Atom) {
+    pub(crate) fn error_unlinked_library(&mut self, handle: &Handle, library: &Atom) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "Referencing predicate {} from unlinked library {}.",
             handle, library,
         )));
     }
 
-    pub fn error_unresolved_library_predicate(&mut self, handle: &Handle, library: &Atom) {
+    pub(crate) fn error_unresolved_library_predicate(&mut self, handle: &Handle, library: &Atom) {
         self.current_errors_mut().push(crate::Error::parse(format!(
             "No predicate {} is exported by the library {}.",
             handle, library,

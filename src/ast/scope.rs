@@ -5,7 +5,7 @@ use std::fmt::{self, Display, Formatter};
 
 /// A path to a defined rule.
 #[derive(Clone, Hash, Eq, PartialEq, Debug, Default)]
-pub struct Scope {
+pub(crate) struct Scope {
     /// The library the rule is defined in, if not defined by the user.
     lib: Option<Atom>,
     /// The path to this rule, relative to the library root.
@@ -40,21 +40,21 @@ impl PartialOrd for Scope {
 }
 
 impl Scope {
-    pub(crate) fn builtin(name: &'static str, context: &mut Context) -> Self {
+    pub fn builtin(name: &'static str, context: &mut Context) -> Self {
         Self {
             lib: Some(context.atomizer.atomize_str("core")),
             path: vec![context.atomizer.atomize_str(name)],
         }
     }
 
-    pub(crate) fn without_lib(&self) -> Self {
+    pub fn without_lib(&self) -> Self {
         Self {
             lib: None,
             path: self.path.clone(),
         }
     }
 
-    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::scope, pair.as_rule());
         let mut pairs = pair.into_inner();
         let mut scope = match pairs.peek().unwrap().as_rule() {
@@ -97,7 +97,7 @@ impl Scope {
         }
     }
 
-    pub(crate) fn new_module_path(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new_module_path(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::module_path, pair.as_rule());
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
@@ -107,7 +107,7 @@ impl Scope {
         }
     }
 
-    pub(crate) fn join(&self, atom: Atom) -> Self {
+    pub fn join(&self, atom: Atom) -> Self {
         let mut path = self.path.clone();
         path.push(atom);
         Self {
@@ -116,22 +116,22 @@ impl Scope {
         }
     }
 
-    pub(crate) fn push(&mut self, atom: Atom) {
+    pub fn push(&mut self, atom: Atom) {
         self.path.push(atom);
     }
 
-    pub(crate) fn pop(&mut self) {
+    pub fn pop(&mut self) {
         assert!(!self.path.is_empty(), "Attempted to pop an empty scope");
         self.path.pop();
     }
 
-    pub(crate) fn drop(&self) -> Self {
+    pub fn drop(&self) -> Self {
         let mut scope = self.clone();
         scope.pop();
         scope
     }
 
-    pub(crate) fn head(&self) -> Atom {
+    pub fn head(&self) -> Atom {
         assert!(
             !self.path.is_empty(),
             "Attempted to get the head of an empty scope"
@@ -139,7 +139,7 @@ impl Scope {
         self.path.last().unwrap().clone()
     }
 
-    pub(crate) fn library(&self) -> Option<Atom> {
+    pub fn library(&self) -> Option<Atom> {
         self.lib.clone()
     }
 }

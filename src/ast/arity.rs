@@ -5,7 +5,7 @@ use std::fmt::{self, Display, Formatter};
 
 /// The arity portion of a predicate handle.
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub enum Arity {
+pub(crate) enum Arity {
     /// Number of consecutive unnamed arguments.
     Len(Int),
     /// A singled named argument.
@@ -13,7 +13,7 @@ pub enum Arity {
 }
 
 impl Arity {
-    pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::arity);
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
@@ -23,18 +23,11 @@ impl Arity {
         }
     }
 
-    pub(crate) fn can_alias(&self, other: &Self) -> bool {
+    pub fn can_alias(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Len(a), Self::Len(b)) => a == b,
             (Self::Name(..), Self::Name(..)) => true,
             _ => false,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            Self::Len(len) => len.into(),
-            Self::Name(..) => 1,
         }
     }
 }
