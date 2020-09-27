@@ -66,11 +66,9 @@ impl Database<'_> {
                 });
         }
         for mutable in &header.mutables {
-            self.definitions
-                .entry(mutable.clone())
-                .or_insert_with(|| {
-                    DatabaseEntry::new(DatabaseDefinition::Static(Definition::default()))
-                });
+            self.definitions.entry(mutable.clone()).or_insert_with(|| {
+                DatabaseEntry::new(DatabaseDefinition::Static(Definition::default()))
+            });
         }
         for export in &header.exports {
             self.definitions.get_mut(export).unwrap().set_public();
@@ -82,6 +80,13 @@ impl Database<'_> {
                 .definition
                 .set_mutable();
         }
+    }
+
+    pub(crate) fn exports(&self, handle: &Handle) -> bool {
+        self.definitions
+            .get(handle)
+            .map(|entry| entry.public)
+            .unwrap_or(false)
     }
 }
 

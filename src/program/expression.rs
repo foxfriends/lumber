@@ -111,6 +111,7 @@ fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<
 
 fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
     let prec_climber = PrecClimber::new(vec![
+        left("\\"),
         left("||"),
         left("&&"),
         left("|"),
@@ -146,6 +147,7 @@ fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<U
                 ">=" => builtin::geq(lhs, rhs, output.clone(), context),
                 "||" => builtin::or(lhs, rhs, output.clone(), context),
                 "&&" => builtin::and(lhs, rhs, output.clone(), context),
+                "\\" => builtin::dif(lhs, rhs, output.clone(), context),
                 "|" => builtin::bitor(lhs, rhs, output.clone(), context),
                 "&" => builtin::bitand(lhs, rhs, output.clone(), context),
                 "^" => builtin::bitxor(lhs, rhs, output.clone(), context),

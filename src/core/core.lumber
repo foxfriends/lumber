@@ -1,0 +1,54 @@
+:- nat(add/3).
+:- pub(add/3).
+
+:- nat(sub/3).
+:- pub(sub/3).
+
+:- nat(mul/3).
+:- pub(mul/3).
+
+:- nat(div/3).
+:- pub(div/3).
+
+:- nat(rem/3).
+:- pub(rem/3).
+
+:- nat(exp/3).
+:- pub(exp/3).
+
+:- nat(eq/3).
+:- pub(eq/3).
+
+:- nat(neq/3).
+:- pub(neq/3).
+
+:- nat(lt/3).
+:- pub(lt/3).
+
+:- nat(gt/3).
+:- pub(gt/3).
+
+:- nat(leq/3).
+:- pub(leq/3).
+
+:- nat(geq/3).
+:- pub(geq/3).
+
+:- nat(or/3).
+:- pub(or/3).
+
+:- nat(and/3).
+:- pub(and/3).
+
+:- nat(dif/3).
+:- pub(dif/3).
+
+:- nat(bitor/3).
+:- pub(bitor/3).
+
+:- nat(bitand/3).
+:- pub(bitand/3).
+
+:- nat(bitxor/3).
+:- pub(bitxor/3).
+

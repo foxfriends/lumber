@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Default)]
-pub struct Context {
+pub struct Context<'p> {
+    pub(crate) libraries: HashMap<Atom, Program<'p>>,
     pub(crate) root_path: PathBuf,
     pub(crate) atomizer: Atomizer,
     pub(crate) current_scope: Scope,
@@ -14,7 +15,7 @@ pub struct Context {
     pub(crate) errors: HashMap<Scope, Vec<crate::Error>>,
 }
 
-impl Context {
+impl Context<'_> {
     pub fn compile<'p>(
         mut self,
         root_path: PathBuf,
@@ -174,9 +175,13 @@ impl Context {
         handle: &'a Handle,
         in_scope: &Scope,
     ) -> Option<Handle> {
-        if let Some(_library) = handle.library() {
-            // TODO: support libraries, particularly @core
-            return Some(handle.clone());
+        if let Some(library) = handle.library() {
+            match self.libraries.get(&library) {
+                None => self.error_unlinked_library(handle, &library),
+                Some(lib) if lib.exports(handle) => return Some(handle.clone()),
+                Some(..) => self.error_unresolved_library_predicate(handle, &library),
+            }
+            return None;
         }
         let module = handle.module();
         let resolved = self
@@ -194,7 +199,7 @@ impl Context {
     }
 }
 
-impl Context {
+impl Context<'_> {
     fn current_errors_mut(&mut self) -> &mut Vec<crate::Error> {
         self.errors.entry(self.current_scope.clone()).or_default()
     }
@@ -271,8 +276,22 @@ impl Context {
 
     pub fn error_singleton_variable(&mut self, handle: &Handle, variable: &str) {
         self.current_errors_mut().push(crate::Error::parse(format!(
-            "Singleton variable {} in predicate {}",
+            "Singleton variable {} in predicate {}.",
             variable, handle,
+        )));
+    }
+
+    pub fn error_unlinked_library(&mut self, handle: &Handle, library: &Atom) {
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "Referencing predicate {} from unlinked library {}.",
+            handle, library,
+        )));
+    }
+
+    pub fn error_unresolved_library_predicate(&mut self, handle: &Handle, library: &Atom) {
+        self.current_errors_mut().push(crate::Error::parse(format!(
+            "No predicate {} is exported by the library {}.",
+            handle, library,
         )));
     }
 }

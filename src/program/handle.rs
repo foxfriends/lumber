@@ -44,6 +44,13 @@ impl Handle {
         self.scope.library()
     }
 
+    pub(crate) fn without_lib(&self) -> Self {
+        Self {
+            scope: self.scope.without_lib(),
+            arity: self.arity.clone(),
+        }
+    }
+
     pub(crate) fn module(&self) -> Scope {
         self.scope.drop()
     }

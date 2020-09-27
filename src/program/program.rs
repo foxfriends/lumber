@@ -3,16 +3,23 @@ use std::collections::HashMap;
 use std::path::Path;
 
 pub struct ProgramBuilder<'p> {
-    context: Context,
+    core: bool,
+    context: Context<'p>,
     natives: HashMap<Handle, NativeFunction<'p>>,
 }
 
 impl<'p> ProgramBuilder<'p> {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
+            core: true,
             context: Context::default(),
             natives: HashMap::default(),
         }
+    }
+
+    pub fn no_core(mut self) -> Self {
+        self.core = false;
+        self
     }
 
     pub fn bind<H, F>(mut self, handle: H, native: F) -> crate::Result<Self>
@@ -27,12 +34,22 @@ impl<'p> ProgramBuilder<'p> {
         Ok(self)
     }
 
+    pub fn link<S, F>(mut self, name: S, program: Program<'p>) -> Self
+    where
+        S: AsRef<str>,
+    {
+        self.context
+            .libraries
+            .insert(self.context.atomizer.atomize_str(name.as_ref()), program);
+        self
+    }
+
     pub fn build_from_file<S>(self, source: S) -> crate::Result<Program<'p>>
     where
         S: AsRef<Path>,
     {
         let source_code = std::fs::read_to_string(&source)?;
-        Program::new(self.context, source, source_code, self.natives)
+        self.build(source, source_code)
     }
 
     pub fn build_from_str<S>(self, source: S) -> crate::Result<Program<'p>>
@@ -40,14 +57,20 @@ impl<'p> ProgramBuilder<'p> {
         S: AsRef<str>,
     {
         let source_dir = std::env::current_dir()?;
-        Program::new(self.context, source_dir, source, self.natives)
+        self.build(source_dir, source)
     }
 
-    pub fn build_from_str_with_root<P, S>(self, root: P, source: S) -> crate::Result<Program<'p>>
+    pub fn build<P, S>(mut self, root: P, source: S) -> crate::Result<Program<'p>>
     where
         P: AsRef<Path>,
         S: AsRef<str>,
     {
+        if self.core {
+            crate::core::LIB.with(|lib| {
+                let core = self.context.atomizer.atomize_str("core");
+                self.context.libraries.insert(core, lib.clone());
+            });
+        }
         Program::new(self.context, root, source, self.natives)
     }
 }
@@ -95,5 +118,9 @@ impl<'p> Program<'p> {
 
     pub(crate) fn build(database: Database<'p>) -> Self {
         Self { database }
+    }
+
+    pub(crate) fn exports(&self, handle: &Handle) -> bool {
+        self.database.exports(&handle.without_lib())
     }
 }

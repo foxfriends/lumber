@@ -47,6 +47,13 @@ impl Scope {
         }
     }
 
+    pub(crate) fn without_lib(&self) -> Self {
+        Self {
+            lib: None,
+            path: self.path.clone(),
+        }
+    }
+
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::scope, pair.as_rule());
         let mut pairs = pair.into_inner();

@@ -9,7 +9,7 @@ macro_rules! yes {
             let path = path.parent().unwrap().join(stringify!($name));
             Program::builder()
                 $(.bind($handle, || {}).unwrap())*
-                .build_from_str_with_root(path, $src)
+                .build(path, $src)
                 .unwrap();
         }
     };
@@ -23,7 +23,7 @@ macro_rules! no {
             let path = path.parent().unwrap().join(stringify!($name));
             assert!(Program::builder()
                 $(.bind($handle, || {}).unwrap())*
-                .build_from_str_with_root(path, $src)
+                .build(path, $src)
                 .is_err());
         }
     };

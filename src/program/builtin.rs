@@ -29,6 +29,7 @@ op_2!(leq);
 op_2!(geq);
 op_2!(or);
 op_2!(and);
+op_2!(dif);
 op_2!(bitor);
 op_2!(bitand);
 op_2!(bitxor);
