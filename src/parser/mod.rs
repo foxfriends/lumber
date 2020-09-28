@@ -14,6 +14,10 @@ impl Parser {
     pub fn parse_handle<'i>(source_code: &'i str) -> crate::Result<crate::Pairs<'i>> {
         Ok(Self::parse(Rule::external_handle, source_code)?)
     }
+
+    pub fn parse_question<'i>(source_code: &'i str) -> crate::Result<crate::Pairs<'i>> {
+        Ok(Self::parse(Rule::question, source_code)?)
+    }
 }
 
 #[cfg(test)]

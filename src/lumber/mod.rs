@@ -6,8 +6,19 @@ use crate::program::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+mod bindings;
 mod builder;
+mod question;
+mod set;
+mod r#struct;
+mod value;
+
+pub use bindings::Bindings;
 pub use builder::LumberBuilder;
+pub use question::{IntoQuestion, Question};
+pub use r#struct::Struct;
+pub use set::Set;
+pub use value::Value;
 
 /// A Lumber program, for use either as a full program, or linked to by another Lumber program
 /// as a library.
@@ -95,5 +106,25 @@ impl<'p> Lumber<'p> {
 
     pub(crate) fn exports(&self, handle: &Handle) -> bool {
         self.database.exports(&handle.without_lib())
+    }
+
+    /// Ask a question, returning an iterator over all possible answers. If an answer could
+    /// not be instantiated fully (for example, due to a field required to deserialize the
+    /// result remaining unbound), the result will be an `Err` containing the rest of the
+    /// bindings, in an unstructured form
+    pub fn query<Q>(&self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Bindings>>
+    where
+        Q: IntoQuestion,
+    {
+        std::iter::empty()
+    }
+
+    /// Ask a question, checking whether an answer exists. An answer, if it exists, may not
+    /// necessarily be fully bound.
+    pub fn check<Q>(&self, query: Q) -> bool
+    where
+        Q: IntoQuestion,
+    {
+        self.query(query).next().is_some()
     }
 }

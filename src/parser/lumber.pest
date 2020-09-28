@@ -1,5 +1,6 @@
 module            =  { SOI ~ (directive | clause)* ~ EOI }
 external_handle   =  { SOI ~ atom ~ ("::" ~ atom)* ~ arity+ ~ EOI }
+question          =  { SOI ~ body ~ EOI }
 
 directive         =  { ":-" ~ instruction ~ "." }
 instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc }
