@@ -12,10 +12,7 @@ pub(crate) struct Module {
 }
 
 impl Module {
-    pub fn new(
-        source_str: &str,
-        context: &mut Context,
-    ) -> crate::Result<Self> {
+    pub fn new(source_str: &str, context: &mut Context) -> crate::Result<Self> {
         let pairs = Parser::parse_module(source_str)?;
         let pairs = just!(Rule::module, pairs).into_inner();
 
@@ -30,7 +27,7 @@ impl Module {
                     match pair.as_rule() {
                         Rule::mod_ => {
                             let atom = just!(Rule::atom, pair.into_inner());
-                            let atom = context.atomizer.atomize(atom);
+                            let atom = Atom::new(atom);
                             if let Some(module) = context.add_module(atom.clone())? {
                                 submodules.insert(atom, module);
                             }

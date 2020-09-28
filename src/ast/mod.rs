@@ -46,7 +46,6 @@ mod fields;
 mod module_header;
 mod prec_climber;
 
-pub(crate) use atom::Atomizer;
 pub(crate) use context::Context;
 pub(crate) use fields::fields;
 pub(crate) use module_header::ModuleHeader;

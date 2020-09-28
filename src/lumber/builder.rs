@@ -136,7 +136,7 @@ impl<'p> LumberBuilder<'p> {
     {
         self.context
             .libraries
-            .insert(self.context.atomizer.atomize_str(name.as_ref()), program);
+            .insert(crate::ast::Atom::from_str(name.as_ref()), program);
         self
     }
 
@@ -200,7 +200,7 @@ impl<'p> LumberBuilder<'p> {
     {
         if self.core {
             crate::core::LIB.with(|lib| {
-                let core = self.context.atomizer.atomize_str("core");
+                let core = Atom::from_str("core");
                 self.context.libraries.insert(core, lib.clone());
             });
         }

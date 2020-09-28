@@ -12,3 +12,4 @@ pest = "2.1"
 pest_derive = "2.1"
 ramp = "0.5"
 structopt = { version = "0.3", features = ["paw"] }
+weak-table = "0.3"

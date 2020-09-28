@@ -2,13 +2,8 @@ use super::*;
 
 macro_rules! op_2 {
     ($name:ident) => {
-        pub(crate) fn $name(
-            lhs: Pattern,
-            rhs: Pattern,
-            output: Pattern,
-            context: &mut Context,
-        ) -> Unification {
-            let scope = Scope::builtin(stringify!($name), context);
+        pub(crate) fn $name(lhs: Pattern, rhs: Pattern, output: Pattern) -> Unification {
+            let scope = Scope::builtin(stringify!($name));
             let handle = Handle::binop(scope);
             Unification::Query(Query::new(handle, vec![lhs, rhs, output]))
         }

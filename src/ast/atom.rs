@@ -1,29 +1,36 @@
 use crate::parser::Rule;
-use std::collections::HashSet;
+use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
+use weak_table::WeakHashSet;
 
-#[derive(Default)]
-pub(crate) struct Atomizer {
-    atoms: HashSet<Rc<String>>,
+thread_local! {
+    static ATOMS: RefCell<WeakHashSet<Weak<String>>> = Default::default();
 }
 
-impl Atomizer {
-    fn atomize_string(&mut self, string: String) -> Atom {
-        if let Some(existing) = self.atoms.get(&string) {
-            Atom(existing.clone())
-        } else {
-            let rc = Rc::new(string);
-            self.atoms.insert(rc.clone());
-            Atom(rc)
-        }
+/// A meaningless, constant symbol.
+#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub(crate) struct Atom(Rc<String>);
+
+impl Atom {
+    fn from_string(string: String) -> Atom {
+        ATOMS.with(|atoms| {
+            let mut atoms = atoms.borrow_mut();
+            if let Some(existing) = atoms.get(&string) {
+                Atom(existing)
+            } else {
+                let rc = Rc::new(string);
+                atoms.insert(rc.clone());
+                Atom(rc)
+            }
+        })
     }
 
-    pub fn atomize_str(&mut self, s: &str) -> Atom {
-        self.atomize_string(s.to_owned())
+    pub fn from_str(s: &str) -> Atom {
+        Self::from_string(s.to_owned())
     }
 
-    pub fn atomize(&mut self, pair: crate::Pair) -> Atom {
+    pub fn new(pair: crate::Pair) -> Atom {
         assert_eq!(pair.as_rule(), Rule::atom);
         let pair = just!(pair.into_inner());
         let string = match pair.as_rule() {
@@ -34,13 +41,9 @@ impl Atomizer {
             }
             _ => unreachable!(),
         };
-        self.atomize_string(string)
+        Self::from_string(string)
     }
 }
-
-/// A meaningless, constant symbol.
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub(crate) struct Atom(Rc<String>);
 
 impl Display for Atom {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

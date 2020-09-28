@@ -18,7 +18,7 @@ impl Arity {
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
             Rule::integer_10 => Self::Len(pair.as_str().parse().unwrap()),
-            Rule::atom => Self::Name(context.atomizer.atomize(pair)),
+            Rule::atom => Self::Name(Atom::new(pair)),
             _ => unreachable!(),
         }
     }

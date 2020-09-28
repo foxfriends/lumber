@@ -9,7 +9,6 @@ use std::path::PathBuf;
 pub struct Context<'p> {
     pub(crate) libraries: HashMap<Atom, Lumber<'p>>,
     pub(crate) root_path: PathBuf,
-    pub(crate) atomizer: Atomizer,
     pub(crate) current_scope: Scope,
     pub(crate) variables: Vec<String>,
     pub(crate) current_environment: HashMap<String, usize>,
@@ -21,7 +20,7 @@ impl<'p> Context<'p> {
     pub(crate) fn with_core() -> Self {
         let mut context = Self::default();
         crate::core::LIB.with(|lib| {
-            let core = context.atomizer.atomize_str("core");
+            let core = Atom::from_str("core");
             context.libraries.insert(core, lib.clone());
         });
         context

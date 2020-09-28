@@ -40,10 +40,10 @@ impl PartialOrd for Scope {
 }
 
 impl Scope {
-    pub fn builtin(name: &'static str, context: &mut Context) -> Self {
+    pub fn builtin(name: &'static str) -> Self {
         Self {
-            lib: Some(context.atomizer.atomize_str("core")),
-            path: vec![context.atomizer.atomize_str(name)],
+            lib: Some(Atom::from_str("core")),
+            path: vec![Atom::from_str(name)],
         }
     }
 
@@ -63,7 +63,7 @@ impl Scope {
             _ => unreachable!(),
         };
         for pair in pairs {
-            let atom = context.atomizer.atomize(pair);
+            let atom = Atom::new(pair);
             scope.push(atom);
         }
         Some(scope)
@@ -74,11 +74,7 @@ impl Scope {
         let mut pairs = pair.into_inner();
         match pairs.peek().unwrap().as_rule() {
             Rule::lib => Some(Scope {
-                lib: Some(
-                    context
-                        .atomizer
-                        .atomize(just!(pairs.next().unwrap().into_inner())),
-                ),
+                lib: Some(Atom::new(just!(pairs.next().unwrap().into_inner()))),
                 ..Scope::default()
             }),
             Rule::root => Some(Scope::default()),

@@ -43,7 +43,7 @@ impl Query {
 
     fn new_unscoped(pair: crate::Pair, context: &mut Context) -> Self {
         let mut pairs = pair.into_inner();
-        let atom = context.atomizer.atomize(pairs.next().unwrap());
+        let atom = Atom::new(pairs.next().unwrap());
         let scope = context.current_scope.join(atom);
         let (arity, patterns) = pairs
             .next()

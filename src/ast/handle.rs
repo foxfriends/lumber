@@ -26,7 +26,7 @@ impl AsHandle for &str {
         let mut scope = Scope::default();
         let mut arity = vec![];
         while Rule::atom == pairs.peek().unwrap().as_rule() {
-            scope.push(context.atomizer.atomize(pairs.next().unwrap()));
+            scope.push(Atom::new(pairs.next().unwrap()));
         }
         while Rule::arity == pairs.peek().unwrap().as_rule() {
             arity.push(Arity::new(pairs.next().unwrap(), context));
@@ -95,7 +95,7 @@ impl Handle {
     pub(crate) fn new_in_scope(mut scope: Scope, pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::handle);
         let mut pairs = pair.into_inner();
-        let atom = context.atomizer.atomize(pairs.next().unwrap());
+        let atom = Atom::new(pairs.next().unwrap());
         scope.push(atom);
         let arity = pairs.map(|pair| Arity::new(pair, context)).collect();
         Self { scope, arity }

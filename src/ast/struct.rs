@@ -16,7 +16,7 @@ impl Struct {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::struct_);
         let mut pairs = pair.into_inner();
-        let name = context.atomizer.atomize(pairs.next().unwrap());
+        let name = Atom::new(pairs.next().unwrap());
         let (arity, patterns) = pairs
             .next()
             .map(|pair| fields(pair, context))

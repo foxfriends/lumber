@@ -28,7 +28,7 @@ fn field(pair: crate::Pair, context: &mut Context) -> (Option<Atom>, Pattern) {
     match pair.as_rule() {
         Rule::named_field => {
             let mut pairs = pair.into_inner();
-            let atom = context.atomizer.atomize(pairs.next().unwrap());
+            let atom = Atom::new(pairs.next().unwrap());
             let pattern = Pattern::new(pairs.next().unwrap(), context);
             (Some(atom), pattern)
         }

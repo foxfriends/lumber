@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub struct Question(Body);
 
 /// Describes a type that can be converted into a question to be asked of the Lumber program,
-/// and the shape of the answers that to be expected.
+/// and the shape of the answers that are to be expected.
 pub trait IntoQuestion {
     /// The type of answers to this query.
     type Answer;
@@ -19,8 +19,12 @@ pub trait IntoQuestion {
 impl IntoQuestion for &str {
     type Answer = HashMap<String, Value>;
 
-    /// A string can be converted into a question. Note that this will panic if the question
-    /// is not valid. It is not recommended to construct questions dynamically in this way.
+    /// A string using Lumber syntax can be converted directly into a question. It is not recommended
+    /// to construct questions dynamically in this way, as it will cause a panic if the syntax is invalid.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the syntax is invalid.
     fn into_question(self) -> Question {
         let mut pairs = Parser::parse_question(self).unwrap();
         let pair = pairs.next().unwrap();
