@@ -13,11 +13,11 @@ pub struct Handle {
 
 pub trait AsHandle {
     #[doc(hidden)]
-    fn as_handle(&self, context: &mut Context) -> crate::Result<Handle>;
+    fn as_handle(&self) -> crate::Result<Handle>;
 }
 
 impl AsHandle for &str {
-    fn as_handle(&self, context: &mut Context) -> crate::Result<Handle> {
+    fn as_handle(&self) -> crate::Result<Handle> {
         let pair = just!(
             Rule::external_handle,
             crate::parser::Parser::parse_handle(self)?
@@ -29,7 +29,7 @@ impl AsHandle for &str {
             scope.push(Atom::new(pairs.next().unwrap()));
         }
         while Rule::arity == pairs.peek().unwrap().as_rule() {
-            arity.push(Arity::new(pairs.next().unwrap(), context));
+            arity.push(Arity::new(pairs.next().unwrap()));
         }
         assert_eq!(Rule::EOI, pairs.next().unwrap().as_rule());
         Ok(Handle { scope, arity })
@@ -89,15 +89,15 @@ impl Handle {
     }
 
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
-        Self::new_in_scope(context.current_scope.clone(), pair, context)
+        Self::new_in_scope(context.current_scope.clone(), pair)
     }
 
-    pub(crate) fn new_in_scope(mut scope: Scope, pair: crate::Pair, context: &mut Context) -> Self {
+    pub(crate) fn new_in_scope(mut scope: Scope, pair: crate::Pair) -> Self {
         assert_eq!(pair.as_rule(), Rule::handle);
         let mut pairs = pair.into_inner();
         let atom = Atom::new(pairs.next().unwrap());
         scope.push(atom);
-        let arity = pairs.map(|pair| Arity::new(pair, context)).collect();
+        let arity = pairs.map(|pair| Arity::new(pair)).collect();
         Self { scope, arity }
     }
 

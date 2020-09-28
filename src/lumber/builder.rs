@@ -84,7 +84,7 @@ impl<'p> LumberBuilder<'p> {
         F: Fn() + 'p, // TODO: this is not the final type
     {
         self.natives.insert(
-            handle.as_handle(&mut self.context).expect("Invalid handle"),
+            handle.as_handle().expect("Invalid handle"),
             NativeFunction::new(native),
         );
         self
