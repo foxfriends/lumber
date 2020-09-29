@@ -1,4 +1,4 @@
-use super::Binding;
+use super::{Binding, FromBinding};
 use crate::ast::*;
 use crate::parser::*;
 
@@ -11,6 +11,12 @@ pub use builder::QuestionBuilder;
 /// or manually using the [`QuestionBuilder`][].
 pub struct Question(Body);
 
+impl Into<Body> for Question {
+    fn into(self) -> Body {
+        self.0
+    }
+}
+
 impl Question {
     /// Start building a new question, using the [`QuestionBuilder`][]. The type of answers must be
     /// provided. If dynamic bindings are desired, use [`Binding`][] as the `Answer` type.
@@ -22,8 +28,8 @@ impl Question {
 /// Describes a type that can be converted into a question to be asked of the Lumber program,
 /// and the shape of the answers that are to be expected.
 pub trait IntoQuestion {
-    /// The type of answers to this query. This will eventually be restricted somehow.
-    type Answer;
+    /// The type of answers to this query.
+    type Answer: FromBinding;
 
     /// Converts the value into a question.
     fn into_question(self) -> Question;

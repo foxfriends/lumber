@@ -6,6 +6,7 @@ use crate::program::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+mod answer;
 mod binding;
 mod builder;
 mod question;
@@ -13,6 +14,7 @@ mod set;
 mod r#struct;
 mod value;
 
+pub use answer::FromBinding;
 pub use binding::Binding;
 pub use builder::LumberBuilder;
 pub use question::{IntoQuestion, Question, QuestionBuilder};
@@ -116,7 +118,9 @@ impl<'p> Lumber<'p> {
     where
         Q: IntoQuestion,
     {
-        std::iter::empty()
+        self.database
+            .unify(query.into_question().into())
+            .map(|binding| Q::Answer::from_binding(binding))
     }
 
     /// Ask a question, checking whether an answer exists. An answer, if it exists, may not

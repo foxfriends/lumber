@@ -1,4 +1,4 @@
-use super::{IntoQuestion, Question};
+use super::{FromBinding, IntoQuestion, Question};
 use std::marker::PhantomData;
 
 /// Provides means to construct any question programmatically. If the question cannot be
@@ -18,7 +18,10 @@ impl<T> QuestionBuilder<T> {
     }
 }
 
-impl<T> IntoQuestion for QuestionBuilder<T> {
+impl<T> IntoQuestion for QuestionBuilder<T>
+where
+    T: FromBinding,
+{
     type Answer = T;
 
     fn into_question(self) -> Question {
