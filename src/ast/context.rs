@@ -49,7 +49,7 @@ impl<'p> Context<'p> {
         if !self.errors.is_empty() {
             return Err(crate::Error::multiple_by_module(self.errors));
         }
-        let mut database: Database = root_module.into_definitions().collect();
+        let mut database: Database = Database::new(self.variables, root_module.into_definitions());
         for header in self.modules.values() {
             database.apply_header(header);
         }
