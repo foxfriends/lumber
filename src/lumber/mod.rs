@@ -6,16 +6,16 @@ use crate::program::*;
 use std::collections::HashMap;
 use std::path::Path;
 
-mod bindings;
+mod binding;
 mod builder;
 mod question;
 mod set;
 mod r#struct;
 mod value;
 
-pub use bindings::Bindings;
+pub use binding::Binding;
 pub use builder::LumberBuilder;
-pub use question::{IntoQuestion, Question};
+pub use question::{IntoQuestion, Question, QuestionBuilder};
 pub use r#struct::Struct;
 pub use set::Set;
 pub use value::Value;
@@ -112,7 +112,7 @@ impl<'p> Lumber<'p> {
     /// not be instantiated fully (for example, due to a field required to deserialize the
     /// result remaining unbound), the result will be an `Err` containing the rest of the
     /// bindings, in an unstructured form
-    pub fn query<Q>(&self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Bindings>>
+    pub fn query<Q>(&self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Binding>>
     where
         Q: IntoQuestion,
     {
