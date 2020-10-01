@@ -85,6 +85,12 @@ mod test {
 
     #[test]
     fn question_from_str_multi() {
-        "hello(A) ! hello(B) ; hello(C) , hello(D) -> hello(E), F <- 3".into_question();
+        "hello(A) -> hello(B), hello(C); hello(C), hello(D) -> hello(E), F <- 3".into_question();
+    }
+
+    #[test]
+    #[should_panic]
+    fn question_empty() {
+        "".into_question();
     }
 }

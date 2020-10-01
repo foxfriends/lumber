@@ -2,6 +2,8 @@
 //!
 //! More info will be available soon.
 
+#![feature(exact_size_is_empty)]
+
 mod ast;
 mod core;
 mod error;

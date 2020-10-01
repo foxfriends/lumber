@@ -2,10 +2,10 @@ use super::*;
 use crate::parser::Rule;
 
 /// A disjunction of conjunctions.
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub(crate) struct Disjunction {
     /// Cases between which variable bindings are not shared.
-    pub(super) cases: Vec<Conjunction>,
+    pub(crate) cases: Vec<Conjunction>,
 }
 
 impl Disjunction {

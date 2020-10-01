@@ -18,7 +18,7 @@ yes! {
     a.
     b.
     c.
-    test :- a ! b ! c.
+    test :- a -> b -> c.
     "#
 }
 
@@ -105,7 +105,7 @@ yes! {
 yes! {
     predicate_complex => r#"
     a. b. c. e. d("C"). d("E").
-    test :- a, b! (c -> A <- "C"; e -> A <- "E")! d(A).
+    test :- a, b, (c -> A <- "C"; e -> A <- "E"); d(A).
     "#
 }
 

@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
-struct DatabaseEntry<'p> {
+pub(crate) struct DatabaseEntry<'p> {
     public: bool,
     definition: DatabaseDefinition<'p>,
 }
@@ -23,7 +23,7 @@ impl<'p> DatabaseEntry<'p> {
 }
 
 #[derive(Clone, Debug)]
-enum DatabaseDefinition<'p> {
+pub(crate) enum DatabaseDefinition<'p> {
     Static(Definition),
     Mutable(RefCell<Definition>),
     Alias(Handle),
@@ -43,10 +43,10 @@ impl DatabaseDefinition<'_> {
 pub(crate) struct Database<'p> {
     /// All currently active definitions in this program. They may not be the same as they
     /// were when the program was created, due to mutable definitions.
-    definitions: HashMap<Handle, DatabaseEntry<'p>>,
+    pub(super) definitions: HashMap<Handle, DatabaseEntry<'p>>,
     /// A record of the original variable names. The indexes stored in each [`Identifier`][]
     /// can be used to find its name in this list.
-    variables: Vec<String>,
+    pub(super) variables: Vec<String>,
 }
 
 impl Database<'_> {

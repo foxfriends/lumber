@@ -114,7 +114,7 @@ impl<'p> Lumber<'p> {
     /// not be instantiated fully (for example, due to a field required to deserialize the
     /// result remaining unbound), the result will be an `Err` containing the rest of the
     /// bindings, in an unstructured form
-    pub fn query<Q>(&self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Binding>>
+    pub fn query<'a, Q>(&'a self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Binding>> + 'a
     where
         Q: IntoQuestion,
     {
