@@ -61,6 +61,49 @@ impl Database<'_> {
         unification: Unification,
         binding: &Binding,
     ) -> Bindings<'a> {
-        todo!()
+        match unification {
+            Unification::Query(query) => todo!(),
+            Unification::Body(body) => self.unify_disjunction(body.0, binding),
+            Unification::Assumption(output, expression) => {
+                Box::new(self.unify_expression(expression, binding).filter_map(
+                    move |(binding, pattern)| self.unify_patterns(&output, &pattern, &binding),
+                ))
+            }
+        }
+    }
+
+    fn unify_expression<'a>(
+        &'a self,
+        expression: Expression,
+        binding: &Binding,
+    ) -> Box<dyn Iterator<Item = (Binding, Pattern)> + 'a> {
+        match expression {
+            Expression::Operation(pattern, unifications) => Box::new(
+                unifications
+                    .into_iter()
+                    .fold(
+                        Box::new(std::iter::once(binding.clone())) as Bindings,
+                        |bindings: Bindings, term: Unification| -> Bindings {
+                            Box::new(bindings.flat_map(move |binding| {
+                                self.perform_unification(term.clone(), &binding)
+                            }))
+                        },
+                    )
+                    .map(move |binding| (binding, pattern.clone())),
+            ),
+            Expression::Value(pattern) => Box::new(std::iter::once((binding.clone(), pattern))),
+            Expression::SetAggregation(pattern, body) => Box::new(std::iter::once((
+                binding.clone(),
+                Pattern::Set(todo!(), None),
+            ))),
+            Expression::ListAggregation(pattern, body) => Box::new(std::iter::once((
+                binding.clone(),
+                Pattern::List(todo!(), None),
+            ))),
+        }
+    }
+
+    fn unify_patterns(&self, lhs: &Pattern, rhs: &Pattern, binding: &Binding) -> Option<Binding> {
+        None
     }
 }
