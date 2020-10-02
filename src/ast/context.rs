@@ -220,91 +220,91 @@ impl Context<'_> {
     }
 
     pub(crate) fn error_duplicate_module(&mut self, module: Scope) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Module {} declared multiple times.",
             module
         )));
     }
 
     pub(crate) fn error_duplicate_export(&mut self, handle: Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} exported multiple times.",
             handle
         )));
     }
 
     pub(crate) fn error_duplicate_incomplete(&mut self, handle: Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} decared as incomplete multiple times.",
             handle
         )));
     }
 
     pub(crate) fn error_duplicate_mutable(&mut self, handle: Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} set as mutable multiple times.",
             handle
         )));
     }
 
     pub(crate) fn error_negative_scope(&mut self, span: Span) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Scope {} goes above the main module.",
             span.as_str()
         )));
     }
 
     pub(crate) fn error_duplicate_import(&mut self, import: Handle, from: Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} already imported from {}.",
             import, from
         )));
     }
 
     pub(crate) fn error_duplicate_glob(&mut self, module: Scope) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Module {} imported multiple times.",
             module
         )));
     }
 
     pub(crate) fn error_duplicate_native(&mut self, handle: Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Native function {} declared multiple times.",
             handle
         )));
     }
 
     pub(crate) fn error_unrecognized_operator(&mut self, token: &str) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Unrecognized operator `{}`.",
             token
         )));
     }
 
     pub(crate) fn error_invalid_alias_arity(&mut self, input: &Handle, output: &Handle) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Cannot change arity of {} when aliasing to {}.",
             input, output,
         )));
     }
 
     pub(crate) fn error_singleton_variable(&mut self, handle: &Handle, variable: &str) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Singleton variable {} in predicate {}.",
             variable, handle,
         )));
     }
 
     pub(crate) fn error_unlinked_library(&mut self, handle: &Handle, library: &Atom) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "Referencing predicate {} from unlinked library {}.",
             handle, library,
         )));
     }
 
     pub(crate) fn error_unresolved_library_predicate(&mut self, handle: &Handle, library: &Atom) {
-        self.current_errors_mut().push(crate::Error::parse(format!(
+        self.current_errors_mut().push(crate::Error::parse(&format!(
             "No predicate {} is exported by the library {}.",
             handle, library,
         )));

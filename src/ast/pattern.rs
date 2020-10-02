@@ -18,6 +18,12 @@ pub(crate) enum Pattern {
     Wildcard,
 }
 
+impl Default for Pattern {
+    fn default() -> Self {
+        Self::Wildcard
+    }
+}
+
 impl Pattern {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(pair.as_rule(), Rule::pattern);

@@ -12,7 +12,7 @@ pub(crate) fn fields(pair: crate::Pair, context: &mut Context) -> (Vec<Arity>, V
                     if let Some(Arity::Len(len)) = arity.last_mut() {
                         *len += 1;
                     } else {
-                        arity.push(Arity::Len(1.into()));
+                        arity.push(Arity::Len(1));
                     }
                 }
             }

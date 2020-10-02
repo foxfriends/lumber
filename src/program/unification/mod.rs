@@ -6,10 +6,7 @@ type Bindings<'a> = Box<dyn Iterator<Item = Binding> + 'a>;
 
 impl Database<'_> {
     pub(crate) fn unify<'a>(&'a self, question: Body) -> impl Iterator<Item = Binding> + 'a {
-        let binding = question
-            .identifiers()
-            .map(|identifier| self.variables[Into::<usize>::into(identifier)].clone())
-            .collect();
+        let binding = question.identifiers().collect();
         self.unify_disjunction(question.0, &binding)
     }
 
@@ -92,14 +89,26 @@ impl Database<'_> {
                     .map(move |binding| (binding, pattern.clone())),
             ),
             Expression::Value(pattern) => Box::new(std::iter::once((binding.clone(), pattern))),
-            Expression::SetAggregation(pattern, body) => Box::new(std::iter::once((
-                binding.clone(),
-                Pattern::Set(todo!(), None),
-            ))),
-            Expression::ListAggregation(pattern, body) => Box::new(std::iter::once((
-                binding.clone(),
-                Pattern::List(todo!(), None),
-            ))),
+            Expression::SetAggregation(pattern, body) => {
+                let solutions = self
+                    .unify_disjunction(body.0, binding)
+                    .map(|binding| binding.apply(&pattern).unwrap())
+                    .collect();
+                Box::new(std::iter::once((
+                    binding.clone(),
+                    Pattern::Set(solutions, None),
+                )))
+            }
+            Expression::ListAggregation(pattern, body) => {
+                let solutions = self
+                    .unify_disjunction(body.0, binding)
+                    .map(|binding| binding.apply(&pattern).unwrap())
+                    .collect();
+                Box::new(std::iter::once((
+                    binding.clone(),
+                    Pattern::List(solutions, None),
+                )))
+            }
         }
     }
 

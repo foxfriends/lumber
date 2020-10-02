@@ -79,7 +79,7 @@ impl ModuleHeader {
         context: &'a Context,
     ) -> crate::Result<&'a Handle> {
         match self.resolve_inner(handle, from_scope, context, &mut vec![])? {
-            None => Err(crate::Error::parse(format!(
+            None => Err(crate::Error::parse(&format!(
                 "Unresolved predicate {} in scope {}.",
                 handle, from_scope
             ))),
@@ -96,7 +96,7 @@ impl ModuleHeader {
     ) -> crate::Result<Option<&'a Handle>> {
         if path.contains(&handle) {
             path.push(handle);
-            return Err(crate::Error::parse(format!(
+            return Err(crate::Error::parse(&format!(
                 "Alias loop detected: {}",
                 path.into_iter()
                     .map(|handle| handle.to_string())
@@ -137,7 +137,7 @@ impl ModuleHeader {
                 &[] => return Ok(None),
                 &[handle] => handle,
                 _ => {
-                    return Err(crate::Error::parse(format!(
+                    return Err(crate::Error::parse(&format!(
                         "Ambiguous reference {}. Could be referring to any of:\n{}",
                         handle,
                         candidates
@@ -153,7 +153,7 @@ impl ModuleHeader {
         if self.scope >= *from_scope || self.exports.contains(handle) {
             Ok(Some(resolved))
         } else {
-            Err(crate::Error::parse(format!(
+            Err(crate::Error::parse(&format!(
                 "Predicate {} is not visible from scope {}.",
                 handle, from_scope
             )))
@@ -179,7 +179,7 @@ impl ModuleHeader {
         let mut errors = vec![];
         for module in &self.globs {
             if !context.modules.contains_key(module) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Unresolved module {} in glob import.",
                     module,
                 )));
@@ -187,28 +187,28 @@ impl ModuleHeader {
         }
         for native in &self.natives {
             if !native_handles.contains(&native) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Native function {} is not bound.",
                     native,
                 )));
             }
             if self.definitions.contains(native) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Native function {} cannot also be implemented.",
                     native,
                 )));
             } else if self.aliases.contains_key(native) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Native function {} cannot also be imported.",
                     native,
                 )));
             } else if self.mutables.contains(native) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Native function {} cannot be set as mutable.",
                     native,
                 )));
             } else if self.incompletes.contains(native) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Native function {} cannot be set as incomplete.",
                     native,
                 )));
@@ -216,7 +216,7 @@ impl ModuleHeader {
         }
         for export in &self.exports {
             if !self.resolve(export, &self.scope, context).is_ok() {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Exported predicate {} cannot be found.",
                     export.head(),
                 )));
@@ -224,7 +224,7 @@ impl ModuleHeader {
         }
         for mutable in &self.mutables {
             if self.aliases.contains_key(mutable) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Cannot set alias {} as mutable.",
                     mutable.head(),
                 )));
@@ -232,7 +232,7 @@ impl ModuleHeader {
         }
         for incomplete in &self.incompletes {
             if self.aliases.contains_key(incomplete) {
-                errors.push(crate::Error::parse(format!(
+                errors.push(crate::Error::parse(&format!(
                     "Cannot set alias {} as incomplete.",
                     incomplete.head(),
                 )));
@@ -255,7 +255,7 @@ impl ModuleHeader {
                         message.push_str(&format!(" (aliased as {})", key.head()));
                     }
                     message.push('.');
-                    errors.push(crate::Error::parse(message));
+                    errors.push(crate::Error::parse(&message));
                 }
             }
         }
@@ -267,14 +267,14 @@ impl ModuleHeader {
             match alias.library() {
                 Some(library) => match context.libraries.get(&library) {
                     None => {
-                        errors.push(crate::Error::parse(format!(
+                        errors.push(crate::Error::parse(&format!(
                             "Referencing predicate {} from unlinked library {}.",
                             alias, library,
                         )));
                     }
                     Some(lib) if lib.exports(alias) => continue,
                     Some(..) => {
-                        errors.push(crate::Error::parse(format!(
+                        errors.push(crate::Error::parse(&format!(
                             "No predicate {} is exported by the library {}.",
                             alias, library,
                         )));
@@ -297,7 +297,7 @@ impl ModuleHeader {
                         .collect::<Vec<_>>();
                     if aliases.len() != 1 {
                         reported.insert(alias.clone());
-                        errors.push(crate::Error::parse(format!(
+                        errors.push(crate::Error::parse(&format!(
                             "{} is aliased multiple times, as:\n\t{}",
                             alias,
                             aliases

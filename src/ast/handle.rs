@@ -79,13 +79,13 @@ impl Handle {
 
     pub(crate) fn from_parts(scope: Scope, mut arity: Vec<Arity>) -> Self {
         if arity.is_empty() {
-            arity.push(Arity::Len(0.into()));
+            arity.push(Arity::Len(0));
         }
         Handle { scope, arity }
     }
 
     pub(crate) fn binop(scope: Scope) -> Self {
-        Self::from_parts(scope, vec![Arity::Len(3.into())])
+        Self::from_parts(scope, vec![Arity::Len(3)])
     }
 
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {

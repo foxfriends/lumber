@@ -5,11 +5,11 @@ use crate::parser::Rule;
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct Struct {
     /// The tag of the struct
-    name: Atom,
+    pub(crate) name: Atom,
     /// The shape of the struct
-    arity: Vec<Arity>,
+    pub(crate) arity: Vec<Arity>,
     /// The values in the struct
-    fields: Vec<Pattern>,
+    pub(crate) fields: Vec<Pattern>,
 }
 
 impl Struct {
@@ -20,7 +20,7 @@ impl Struct {
         let (arity, patterns) = pairs
             .next()
             .map(|pair| fields(pair, context))
-            .unwrap_or((vec![Arity::Len(0.into())], vec![]));
+            .unwrap_or((vec![Arity::Len(0)], vec![]));
         Self {
             name,
             arity,

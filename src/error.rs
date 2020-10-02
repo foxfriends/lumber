@@ -10,6 +10,8 @@ pub enum ErrorKind {
     /// An error was encountered in the source file, preventing the program from being created.
     /// This error likely cannot be handled programmatically.
     Parse,
+    /// An error has occurred while attempting to extract a pattern from a binding.
+    Binding,
     /// Contains multiple errors of various sources. This error can be printed to the user to
     /// help with debugging. This error likely cannot be handled programmatically.
     Multiple,
@@ -24,12 +26,23 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) fn parse<S: ToOwned<Owned = String>>(message: S) -> Self
+    pub(crate) fn parse<S: ?Sized + ToOwned<Owned = String>>(message: &S) -> Self
     where
         String: std::borrow::Borrow<S>,
     {
         Self {
             kind: ErrorKind::Parse,
+            message: message.to_owned(),
+            source: None,
+        }
+    }
+
+    pub(crate) fn binding<S: ?Sized + ToOwned<Owned = String>>(message: &S) -> Self
+    where
+        String: std::borrow::Borrow<S>,
+    {
+        Self {
+            kind: ErrorKind::Binding,
             message: message.to_owned(),
             source: None,
         }
