@@ -1,4 +1,4 @@
-use super::{List, Set, Struct, Value};
+use super::Value;
 use crate::ast::*;
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -9,6 +9,18 @@ use std::iter::FromIterator;
 pub struct Binding(HashMap<Identifier, Pattern>);
 
 impl Binding {
+    pub(crate) fn get(&self, identifier: Identifier) -> &Pattern {
+        let pattern = self.0.get(&identifier).unwrap();
+        match pattern {
+            Pattern::Variable(identifier) => self.get(*identifier),
+            _ => pattern,
+        }
+    }
+
+    pub(crate) fn set(&mut self, identifier: Identifier, pattern: Pattern) {
+        self.0.insert(identifier, pattern);
+    }
+
     pub(crate) fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
         Ok(self.apply(pattern)?.into())
     }

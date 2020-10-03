@@ -11,13 +11,11 @@ pub enum Value {
     Rational(Rational),
     /// A string value.
     String(String),
-    /// A meaningless atomic symbol.
-    Atom(String),
     /// An unordered, duplicate-free collection of values.
     Set(Set),
     /// An ordered collection of values, which may contain duplicates.
     List(List),
-    /// A structural value.
+    /// A structural value. Atoms are really just structs with no fields.
     Struct(Struct),
 }
 

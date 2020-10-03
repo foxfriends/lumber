@@ -2,7 +2,7 @@
 //!
 //! More info will be available soon.
 
-#![feature(exact_size_is_empty)]
+#![feature(bindings_after_at)]
 
 mod ast;
 mod core;

@@ -10,9 +10,11 @@ pub(crate) enum Pattern {
     Variable(Identifier),
     /// A literal value (unifies only with itself).
     Literal(Literal),
-    /// A list of patterns (unifies with a list of the same length where the patterns each unify in order).
+    /// A list of patterns (unifies with a list of the same length where the patterns each
+    /// unify in order).
     List(Vec<Pattern>, Option<Box<Pattern>>),
-    /// A set of patterns (unifies with a set containing the same elements disregarding order and duplicates).
+    /// A set of patterns (unifies with a set containing the same elements, ignoring order
+    /// and duplicates).
     Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
