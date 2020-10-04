@@ -15,6 +15,7 @@ pub(crate) enum Pattern {
     List(Vec<Pattern>, Option<Box<Pattern>>),
     /// A set of patterns (unifies with a set containing the same elements, ignoring order
     /// and duplicates).
+    #[cfg(feature = "builtin-sets")]
     Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
@@ -52,6 +53,9 @@ impl Pattern {
                     .map(|pair| Box::new(Pattern::new_inner(pair, context)));
                 Self::List(head, tail)
             }
+            #[cfg(not(feature = "builtin-sets"))]
+            Rule::set => unimplemented!("builtin-sets is not enabled, so set pattern syntax cannot be used."),
+            #[cfg(feature = "builtin-sets")]
             Rule::set => {
                 let mut pairs = pair.into_inner();
                 let head = match pairs.next() {
@@ -75,7 +79,13 @@ impl Pattern {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
             Self::Variable(identifier) => Box::new(std::iter::once(*identifier)),
-            Self::List(head, tail) | Self::Set(head, tail) => Box::new(
+            Self::List(head, tail) => Box::new(
+                head.iter()
+                    .flat_map(|pattern| pattern.identifiers())
+                    .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
+            ),
+            #[cfg(feature = "builtin-sets")]
+            Self::Set(head, tail) => Box::new(
                 head.iter()
                     .flat_map(|pattern| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),

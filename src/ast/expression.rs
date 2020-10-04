@@ -15,6 +15,7 @@ const fn right(token: &'static str) -> Operator {
 pub(crate) enum Expression {
     Operation(Pattern, Vec<Unification>),
     Value(Pattern),
+    #[cfg(feature = "builtin-sets")]
     SetAggregation(Pattern, Body),
     ListAggregation(Pattern, Body),
 }
@@ -56,7 +57,10 @@ impl Expression {
         assert_eq!(Rule::aggregation, pair.as_rule());
         let pair = just!(pair.into_inner());
         let constructor = match pair.as_rule() {
+            #[cfg(feature = "builtin-sets")]
             Rule::set_aggregation => Self::SetAggregation,
+            #[cfg(not(feature = "builtin-sets"))]
+            Rule::set_aggregation => unimplemented!("builtin-sets is not enabled, so set aggregation syntax cannot be used"),
             Rule::list_aggregation => Self::ListAggregation,
             _ => unreachable!(),
         };
@@ -73,9 +77,9 @@ impl Expression {
                 Box::new(unifications.iter_mut().flat_map(Unification::handles_mut))
             }
             Self::Value(..) => Box::new(std::iter::empty()),
-            Self::SetAggregation(.., body) | Self::ListAggregation(.., body) => {
-                Box::new(body.handles_mut())
-            }
+            #[cfg(feature = "builtin-sets")]
+            Self::SetAggregation(.., body) => Box::new(body.handles_mut()),
+            Self::ListAggregation(.., body) => Box::new(body.handles_mut()),
         }
     }
 
@@ -87,7 +91,11 @@ impl Expression {
                     .chain(steps.iter().flat_map(|step| step.identifiers())),
             ),
             Self::Value(pattern) => pattern.identifiers(),
-            Self::SetAggregation(pattern, body) | Self::ListAggregation(pattern, body) => {
+            #[cfg(feature = "builtin-sets")]
+            Self::SetAggregation(pattern, body) => {
+                Box::new(pattern.identifiers().chain(body.identifiers()))
+            }
+            Self::ListAggregation(pattern, body) => {
                 Box::new(pattern.identifiers().chain(body.identifiers()))
             }
         }

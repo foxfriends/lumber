@@ -91,6 +91,7 @@ impl Database<'_> {
                     .map(move |binding| (binding, pattern.clone())),
             ),
             Expression::Value(pattern) => Box::new(std::iter::once((binding.clone(), pattern))),
+            #[cfg(feature = "builtin-sets")]
             Expression::SetAggregation(pattern, body) => {
                 let solutions = self
                     .unify_disjunction(body.0, binding)
@@ -249,7 +250,8 @@ impl Database<'_> {
                 };
                 Some((Pattern::List(unified, Some(Box::new(suffix))), binding))
             }
-            _ => todo!(),
+            // Otherwise, it's a failure!
+            _ => None,
         }
     }
 

@@ -11,6 +11,7 @@ mod binding;
 mod builder;
 mod list;
 mod question;
+#[cfg(feature = "builtin-sets")]
 mod set;
 mod r#struct;
 mod value;
@@ -21,6 +22,7 @@ pub use builder::LumberBuilder;
 pub use list::List;
 pub use question::{IntoQuestion, Question, QuestionBuilder};
 pub use r#struct::Struct;
+#[cfg(feature = "builtin-sets")]
 pub use set::Set;
 pub use value::Value;
 

@@ -1,4 +1,6 @@
-use super::{List, Set, Struct};
+#[cfg(feature = "builtin-sets")]
+use super::Set;
+use super::{List, Struct};
 use crate::ast::{Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 
@@ -12,6 +14,7 @@ pub enum Value {
     /// A string value.
     String(String),
     /// An unordered, duplicate-free collection of values.
+    #[cfg(feature = "builtin-sets")]
     Set(Set),
     /// An ordered collection of values, which may contain duplicates.
     List(List),
@@ -32,6 +35,7 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::List(List::new(values, complete)))
             }
+            #[cfg(feature = "builtin-sets")]
             Pattern::Set(patterns, rest) => {
                 let values = patterns.into_iter().map(Into::into).collect();
                 let complete = rest.is_none();

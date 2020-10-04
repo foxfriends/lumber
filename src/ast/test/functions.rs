@@ -27,10 +27,18 @@ yes! {
     "#
 }
 
+#[cfg(feature = "builtin-sets")]
 yes! {
-    function_aggregate => r#"
+    function_aggregate_set => r#"
     node(_, _, _).
     test!(A, B) <- { pair(X, Y) : node(A, X, _), node(B, _, Y) }.
+    "#
+}
+
+yes! {
+    function_aggregate_list => r#"
+    node(_, _, _).
+    test!(A, B) <- [ pair(X, Y) : node(A, X, _), node(B, _, Y) ].
     "#
 }
 

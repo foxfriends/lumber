@@ -6,6 +6,7 @@ yes! {
     "#
 }
 
+#[cfg(feature = "builtin-sets")]
 yes! {
     operation_sets => r#"
     test1(a).
@@ -22,23 +23,23 @@ yes! {
 
 yes! {
     operation_named_operator => r#"
-    in!(A, { A | _ }) <- {_}.
-    in!(_, _) <- {}.
+    in!(A, [ A | _ ]) <- [_].
+    in!(_, _) <- [].
     test!(A, B) <- A `in` B.
     "#
 }
 
 yes! {
     operation_named_operator_alt => r#"
-    in(A, { A | _ }, {_}).
-    in(_, _, {}).
+    in(A, [ A | _ ], [_]).
+    in(_, _, []).
     test!(A, B) <- A `in` B.
     "#
 }
 
 yes! {
     operation_incorrect_value_types => r#"
-    test! <- {} + 3.
+    test! <- [] + 3.
     test! <- atom + 3.
     test! <- "hello" / 2.
     "#
@@ -46,7 +47,7 @@ yes! {
 
 no! {
     operation_named_operator_wrong_arity => r#"
-    in(A, { A | _ }).
+    in(A, [ A | _ ]).
     in(_, _).
     test!(A, B) <- A `in` B.
     "#

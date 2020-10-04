@@ -56,6 +56,7 @@ impl Binding {
                     .flatten();
                 Ok(Pattern::List(patterns, rest))
             }
+            #[cfg(features = "builtin-sets")]
             Pattern::Set(patterns, rest) => {
                 let mut patterns = patterns
                     .iter()
