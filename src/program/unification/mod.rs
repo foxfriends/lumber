@@ -115,6 +115,7 @@ impl Database<'_> {
         }
     }
 
+    // TODO: unification of sets will end up being a big change, as set unification is not deterministic.
     fn unify_patterns(
         &self,
         lhs: &Pattern,
