@@ -407,6 +407,7 @@ mod test {
         no!(list![x, x], list![int(1), int(2)], binding);
         yes!(list![x; x], list![list![int(1)], int(1)], binding);
         no!(list![x; x], list![int(1), int(1)], binding);
+        yes!(list![int(1); x], list![int(1), int(2); y], binding);
     }
 
     #[test]
@@ -416,6 +417,7 @@ mod test {
         no!(x, list![x], binding);
         no!(x, list![int(3); x], binding);
         no!(x, structure!(hello(x)), binding);
+        no!(list![int(1); x], list![int(1), int(2); x], binding);
     }
 
     #[test]
@@ -429,6 +431,8 @@ mod test {
             list![int(1) ; list![WILD; list![int(2)]]],
             list![int(1), int(3), int(2)]
         );
+        yes!(list![int(1) ; WILD], list![WILD; WILD]);
+        yes!(list![int(1) ; WILD], list![int(1), int(2); WILD]);
     }
 
     #[test]
