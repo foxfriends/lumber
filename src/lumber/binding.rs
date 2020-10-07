@@ -7,7 +7,7 @@ use std::iter::FromIterator;
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
 #[derive(Default, Clone, Debug)]
-pub struct Binding(HashMap<Identifier, Pattern>);
+pub struct Binding(pub(crate) HashMap<Identifier, Pattern>);
 
 impl Binding {
     pub(crate) fn transfer_from(
