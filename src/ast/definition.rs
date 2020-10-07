@@ -18,6 +18,10 @@ impl Definition {
     pub fn merge(&mut self, mut other: Definition) {
         self.0.append(&mut other.0);
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(Query, Body)> {
+        self.0.iter()
+    }
 }
 
 impl FromIterator<Self> for Definition {

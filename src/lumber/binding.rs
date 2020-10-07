@@ -1,5 +1,6 @@
 use super::Value;
 use crate::ast::*;
+use crate::program::unification::unify_patterns;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 
@@ -9,6 +10,23 @@ use std::iter::FromIterator;
 pub struct Binding(HashMap<Identifier, Pattern>);
 
 impl Binding {
+    pub(crate) fn transfer_from(
+        self,
+        input_binding: &Self,
+        source: &Query,
+        destination: &Query,
+    ) -> Option<Self> {
+        source
+            .patterns
+            .iter()
+            .zip(destination.patterns.iter())
+            .try_fold(self, |binding, (source, destination)| {
+                let applied = input_binding.apply(source).unwrap();
+                let (_, binding) = unify_patterns(&applied, destination, binding, &[])?;
+                Some(binding)
+            })
+    }
+
     pub(crate) fn get(&self, identifier: Identifier) -> &Pattern {
         let pattern = self.0.get(&identifier).unwrap();
         match pattern {

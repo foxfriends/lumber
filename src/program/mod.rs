@@ -1,6 +1,6 @@
 mod database;
 mod native_function;
-mod unification;
+pub(crate) mod unification;
 
-pub(crate) use database::Database;
+pub(crate) use database::{Database, DatabaseDefinition};
 pub use native_function::NativeFunction;

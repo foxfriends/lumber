@@ -4,9 +4,9 @@ use crate::parser::Rule;
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct Query {
     /// The shape of this query.
-    handle: Handle,
+    pub(crate) handle: Handle,
     /// The patterns in each field.
-    patterns: Vec<Pattern>,
+    pub(crate) patterns: Vec<Pattern>,
 }
 
 impl AsRef<Handle> for Query {

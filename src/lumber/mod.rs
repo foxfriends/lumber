@@ -118,21 +118,18 @@ impl<'p> Lumber<'p> {
     /// not be instantiated fully (for example, due to a field required to deserialize the
     /// result remaining unbound), the result will be an `Err` containing the rest of the
     /// bindings, in an unstructured form
-    pub fn query<'a, Q>(&'a self, query: Q) -> impl Iterator<Item = Result<Q::Answer, Binding>> + 'a
-    where
-        Q: IntoQuestion,
-    {
+    pub fn query<'a, A: FromBinding>(
+        &'a self,
+        query: &'a Question,
+    ) -> impl Iterator<Item = Result<A, Binding>> + 'a {
         self.database
-            .unify(query.into_question().into())
-            .map(|binding| Q::Answer::from_binding(binding))
+            .unify_question(query)
+            .map(|binding| A::from_binding(binding))
     }
 
     /// Ask a question, checking whether an answer exists. An answer, if it exists, may not
     /// necessarily be fully bound.
-    pub fn check<Q>(&self, query: Q) -> bool
-    where
-        Q: IntoQuestion,
-    {
-        self.query(query).next().is_some()
+    pub fn check<'a>(&'a self, query: &'a Question) -> bool {
+        self.query::<Binding>(query).next().is_some()
     }
 }

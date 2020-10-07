@@ -11,9 +11,9 @@ pub use builder::QuestionBuilder;
 /// or manually using the [`QuestionBuilder`][].
 pub struct Question(Body);
 
-impl Into<Body> for Question {
-    fn into(self) -> Body {
-        self.0
+impl AsRef<Body> for Question {
+    fn as_ref(&self) -> &Body {
+        &self.0
     }
 }
 

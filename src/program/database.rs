@@ -49,7 +49,7 @@ pub(crate) struct Database<'p> {
     pub(super) variables: Vec<String>,
 }
 
-impl Database<'_> {
+impl<'p> Database<'p> {
     pub fn new<I: IntoIterator<Item = (Handle, Definition)>>(
         variables: Vec<String>,
         definitions: I,
@@ -113,6 +113,17 @@ impl Database<'_> {
                 .unwrap()
                 .definition
                 .set_mutable();
+        }
+    }
+
+    pub fn lookup(&self, handle: &Handle, public: bool) -> Option<&DatabaseDefinition<'p>> {
+        let entry = self.definitions.get(handle)?;
+        if public && !entry.public {
+            return None;
+        }
+        match &entry.definition {
+            DatabaseDefinition::Alias(handle) => self.lookup(handle, false),
+            definition => Some(definition),
         }
     }
 
