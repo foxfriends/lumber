@@ -1,8 +1,5 @@
 use crate::Binding;
 
-#[cfg(test)]
-mod test;
-
 mod database;
 mod patterns;
 
