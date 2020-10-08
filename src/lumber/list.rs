@@ -1,5 +1,6 @@
 use super::Value;
 use std::fmt::{self, Display, Formatter};
+use std::iter::FromIterator;
 
 /// An implementation of a list which may be incomplete, suitable for Lumber values which
 /// may themselves be unbound.
@@ -9,9 +10,30 @@ pub struct List {
     pub(crate) complete: bool,
 }
 
+impl PartialEq for List {
+    fn eq(&self, other: &Self) -> bool {
+        self.values == other.values
+    }
+}
+
 impl List {
     pub(crate) fn new(values: Vec<Option<Value>>, complete: bool) -> Self {
         Self { values, complete }
+    }
+}
+
+impl<V> FromIterator<V> for List
+where
+    Value: From<V>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+    {
+        Self {
+            values: iter.into_iter().map(Value::from).map(Some).collect(),
+            complete: true,
+        }
     }
 }
 

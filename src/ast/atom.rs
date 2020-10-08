@@ -12,8 +12,8 @@ thread_local! {
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub(crate) struct Atom(Rc<String>);
 
-impl Atom {
-    fn from_string(string: String) -> Atom {
+impl From<String> for Atom {
+    fn from(string: String) -> Self {
         ATOMS.with(|atoms| {
             let mut atoms = atoms.borrow_mut();
             if let Some(existing) = atoms.get(&string) {
@@ -25,11 +25,15 @@ impl Atom {
             }
         })
     }
+}
 
-    pub fn from_str(s: &str) -> Atom {
-        Self::from_string(s.to_owned())
+impl From<&str> for Atom {
+    fn from(string: &str) -> Self {
+        Self::from(string.to_owned())
     }
+}
 
+impl Atom {
     pub fn new(pair: crate::Pair) -> Atom {
         assert_eq!(pair.as_rule(), Rule::atom);
         let pair = just!(pair.into_inner());
@@ -41,7 +45,7 @@ impl Atom {
             }
             _ => unreachable!(),
         };
-        Self::from_string(string)
+        Self::from(string)
     }
 }
 

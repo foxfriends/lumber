@@ -205,7 +205,7 @@ mod test {
 
     fn atom(name: &str) -> Pattern {
         Pattern::Struct(Struct {
-            name: Atom::from_str(name),
+            name: Atom::from(name),
             arity: vec![],
             fields: vec![],
         })
@@ -254,7 +254,7 @@ mod test {
         (
             @[$arity:ident, $fields:ident] $name:ident ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            $arity.push(Arity::Name(Atom::from_str(stringify!($fieldname))));
+            $arity.push(Arity::Name(Atom::from(stringify!($fieldname))));
             $fields.push($pat.clone());
             structure!(@[$arity, $fields] $name ($($($field)+)?))
         }};
@@ -266,7 +266,7 @@ mod test {
                 Some(Arity::Len(i)) => *i += 1,
                 _ => $arity.push(Arity::Len(1)),
             }
-            $arity.push(Arity::Name(Atom::from_str(stringify!($fieldname))));
+            $arity.push(Arity::Name(Atom::from(stringify!($fieldname))));
             $fields.push($pat.clone());
             structure!(@[$arity, $fields] $name ($($($field)+)?))
         }};
@@ -275,7 +275,7 @@ mod test {
             @[$arity:ident, $fields:ident] $name:ident ()
         ) => {
             Pattern::Struct(Struct {
-                name: Atom::from_str(stringify!($name)),
+                name: Atom::from(stringify!($name)),
                 arity: $arity,
                 fields: $fields,
             })

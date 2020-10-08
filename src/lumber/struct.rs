@@ -10,7 +10,7 @@ pub(crate) enum Field {
 
 /// A Lumber structure, containing a combination of named and indexed fields. Atoms in Lumber are
 /// the same as structs with no fields.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Struct {
     pub(crate) name: Atom,
     pub(crate) fields: Vec<(Field, Option<Value>)>,
@@ -29,6 +29,14 @@ impl Struct {
             .zip(values.into_iter())
             .collect();
         Struct { name, fields }
+    }
+
+    /// Constructs an atom.
+    pub fn atom(name: impl Into<String>) -> Self {
+        Self {
+            name: Atom::from(name.into()),
+            fields: vec![],
+        }
     }
 
     /// Checks if this struct is actually just an atom. An atom is a struct with no fields.

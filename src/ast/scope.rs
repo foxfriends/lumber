@@ -42,8 +42,8 @@ impl PartialOrd for Scope {
 impl Scope {
     pub fn builtin(name: &'static str) -> Self {
         Self {
-            lib: Some(Atom::from_str("core")),
-            path: vec![Atom::from_str(name)],
+            lib: Some(Atom::from("core")),
+            path: vec![Atom::from(name)],
         }
     }
 

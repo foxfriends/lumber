@@ -20,7 +20,7 @@ impl<'p> Context<'p> {
     pub(crate) fn with_core() -> Self {
         let mut context = Self::default();
         crate::core::LIB.with(|lib| {
-            let core = Atom::from_str("core");
+            let core = Atom::from("core");
             context.libraries.insert(core, lib.clone());
         });
         context
