@@ -44,8 +44,8 @@ daughter(A, B) :-
     parent(B, A).
 
 sibling(A, B) :-
-    parent(A, P),
-    parent(B, P).
+    parent(P, A),
+    parent(P, B).
 
 brother(A, B) :-
     male(A),

@@ -26,7 +26,6 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        eprintln!("Disjunction: {:?}", disjunction);
         disjunction
             .cases
             .iter()
@@ -46,7 +45,6 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        eprintln!("Conjunction: {:?}", conjunction);
         let bindings = Box::new(std::iter::once(binding));
         conjunction.terms.iter().fold(bindings, |bindings, term| {
             Box::new(bindings.flat_map(move |binding| self.unify_procession(term, binding, public)))
@@ -59,7 +57,6 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        eprintln!("Procession: {:?}", procession);
         let bindings = Box::new(std::iter::once(binding.clone()));
         procession
             .steps
@@ -76,7 +73,6 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        eprintln!("Unification: {:?}", unification);
         match unification {
             Unification::Query(query) => {
                 let definition = match self.lookup(query.as_ref(), public) {
@@ -112,7 +108,6 @@ impl Database<'_> {
         definition: &'a Definition,
         input_binding: Binding,
     ) -> Bindings<'a> {
-        eprintln!("Definition: {:?}", definition);
         Box::new(definition.iter().flat_map(move |(head, body)| {
             let input_binding = input_binding.clone();
             body.identifiers()

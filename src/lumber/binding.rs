@@ -27,11 +27,11 @@ impl Binding {
             })
     }
 
-    pub(crate) fn get(&self, identifier: Identifier) -> &Pattern {
-        let pattern = self.0.get(&identifier).unwrap();
+    pub(crate) fn get(&self, identifier: Identifier) -> Option<&Pattern> {
+        let pattern = self.0.get(&identifier)?;
         match pattern {
             Pattern::Variable(identifier) => self.get(*identifier),
-            _ => pattern,
+            _ => Some(pattern),
         }
     }
 

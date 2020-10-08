@@ -32,8 +32,8 @@ pub(crate) fn unify_patterns(
             if occurs.contains(lhs) || occurs.contains(rhs) {
                 return None;
             }
-            let lhs_pat = binding.get(*lhs).clone();
-            let rhs_pat = binding.get(*rhs).clone();
+            let lhs_pat = binding.get(*lhs).unwrap().clone();
+            let rhs_pat = binding.get(*rhs).unwrap().clone();
             let mut occurs = occurs.to_owned();
             occurs.push(*lhs);
             occurs.push(*rhs);
@@ -50,7 +50,7 @@ pub(crate) fn unify_patterns(
             if occurs.contains(var) {
                 return None;
             }
-            let var_pat = binding.get(*var).clone();
+            let var_pat = binding.get(*var).unwrap().clone();
             let mut occurs = occurs.to_owned();
             occurs.push(*var);
             let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
@@ -89,7 +89,7 @@ pub(crate) fn unify_patterns(
             match tail.as_ref() {
                 Pattern::Variable(ident) => {
                     let (output, tail, binding) = unify_prefix(head, full, binding, occurs)?;
-                    let tail_pat = binding.get(*ident).clone();
+                    let tail_pat = binding.get(*ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(*ident);
                     let (tail, binding) =

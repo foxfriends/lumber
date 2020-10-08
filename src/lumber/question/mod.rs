@@ -1,5 +1,7 @@
 use crate::ast::*;
 use crate::parser::*;
+use crate::{Binding, Value};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 mod builder;
@@ -9,11 +11,14 @@ pub use builder::QuestionBuilder;
 ///
 /// These can be constructed from strings using Question::from() or manually using the
 /// [`QuestionBuilder`][].
-pub struct Question(Body);
+pub struct Question {
+    body: Body,
+    variables: Vec<String>,
+}
 
 impl AsRef<Body> for Question {
     fn as_ref(&self) -> &Body {
-        &self.0
+        &self.body
     }
 }
 
@@ -22,6 +27,19 @@ impl Question {
     /// provided. If dynamic bindings are desired, use [`Binding`][] as the `Answer` type.
     pub fn new() -> QuestionBuilder {
         QuestionBuilder::new()
+    }
+
+    /// Uses a binding to extract the answer to this question.
+    pub fn answer(&self, binding: &Binding) -> Option<HashMap<&str, Option<Value>>> {
+        self.body
+            .identifiers()
+            .map(|identifier| {
+                Some((
+                    self.variables[Into::<usize>::into(identifier)].as_str(),
+                    binding.extract(binding.get(identifier)?).ok()?,
+                ))
+            })
+            .collect()
     }
 }
 
@@ -43,7 +61,12 @@ impl TryFrom<&str> for Question {
         assert_eq!(Rule::question, pair.as_rule());
         let mut pairs = pair.into_inner();
         let pair = pairs.next().unwrap();
-        Ok(Question(Body::new(pair, &mut Context::default()).unwrap()))
+        let mut context = Context::default();
+        let body = Body::new(pair, &mut context).unwrap();
+        Ok(Question {
+            body,
+            variables: context.variables,
+        })
     }
 }
 

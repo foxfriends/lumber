@@ -33,8 +33,8 @@ pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
             };
-            for answer in program.query::<Binding>(&question) {
-                println!("{:?}", answer);
+            for binding in program.query::<Binding>(&question) {
+                println!("{:?}", question.answer(&binding.unwrap()));
             }
         }
     } else {
@@ -46,8 +46,8 @@ pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
             };
-            for answer in program.query::<Binding>(&question) {
-                println!("{:?}", answer);
+            for binding in program.query::<Binding>(&question) {
+                println!("{:?}", question.answer(&binding.unwrap()));
             }
         }
     }
