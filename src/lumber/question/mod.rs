@@ -1,7 +1,7 @@
 use crate::ast::*;
 use crate::parser::*;
 use crate::{Binding, Value};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 mod builder;
@@ -30,7 +30,7 @@ impl Question {
     }
 
     /// Uses a binding to extract the answer to this question.
-    pub fn answer(&self, binding: &Binding) -> Option<HashMap<&str, Option<Value>>> {
+    pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<&str, Option<Value>>> {
         self.body
             .identifiers()
             .map(|identifier| {

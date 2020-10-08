@@ -3,6 +3,7 @@ use super::Set;
 use super::{List, Struct};
 use crate::ast::{Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
+use std::fmt::{self, Display, Formatter};
 
 /// Basic untyped values as understood by Lumber.
 #[derive(Clone, Debug)]
@@ -49,6 +50,20 @@ impl From<Pattern> for Option<Value> {
                     values,
                 )))
             }
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Value::Integer(int) => int.fmt(f),
+            Value::Rational(rat) => rat.fmt(f),
+            Value::String(string) => string.fmt(f),
+            #[cfg(feature = "builtin-sets")]
+            Value::Set(set) => set.fmt(f),
+            Value::List(list) => list.fmt(f),
+            Value::Struct(structure) => structure.fmt(f),
         }
     }
 }

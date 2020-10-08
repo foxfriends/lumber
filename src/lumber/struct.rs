@@ -1,8 +1,8 @@
 use super::Value;
 use crate::ast::*;
-use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub(crate) enum Field {
     Index(usize),
     Name(String),
@@ -13,7 +13,7 @@ pub(crate) enum Field {
 #[derive(Clone, Debug)]
 pub struct Struct {
     pub(crate) name: Atom,
-    pub(crate) fields: HashMap<Field, Option<Value>>,
+    pub(crate) fields: Vec<(Field, Option<Value>)>,
 }
 
 impl Struct {
@@ -39,5 +39,29 @@ impl Struct {
     /// The name or symbol of this struct or atom.
     pub fn name(&self) -> &str {
         self.name.as_ref()
+    }
+}
+
+impl Display for Struct {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.name.fmt(f)?;
+        if !self.fields.is_empty() {
+            write!(f, "(")?;
+            for (i, (field, value)) in self.fields.iter().enumerate() {
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                match field {
+                    Field::Index(..) => {}
+                    Field::Name(name) => write!(f, "{}:", name)?,
+                }
+                match value {
+                    Some(value) => value.fmt(f)?,
+                    None => write!(f, "_")?,
+                }
+            }
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 }

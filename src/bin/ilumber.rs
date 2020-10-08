@@ -26,30 +26,38 @@ pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
                 break;
             }
             let query = std::mem::take(&mut query);
-            let question = match Question::try_from(query.as_str()) {
-                Ok(question) => question,
-                Err(error) => {
-                    eprintln!("{:?}", error);
-                    continue;
-                }
-            };
-            for binding in program.query::<Binding>(&question) {
-                println!("{:?}", question.answer(&binding.unwrap()));
-            }
+            answer(&program, &query);
         }
     } else {
         for query in &opts.query {
-            let question = match Question::try_from(query.as_str()) {
-                Ok(question) => question,
-                Err(error) => {
-                    eprintln!("{:?}", error);
-                    continue;
-                }
-            };
-            for binding in program.query::<Binding>(&question) {
-                println!("{:?}", question.answer(&binding.unwrap()));
-            }
+            answer(&program, &query);
         }
     }
     Ok(())
+}
+
+fn answer(program: &Lumber, query: &str) {
+    let question = match Question::try_from(query) {
+        Ok(question) => question,
+        Err(error) => {
+            eprintln!("{:?}", error);
+            return;
+        }
+    };
+    for binding in program.query::<Binding>(&question) {
+        let output = question
+            .answer(&binding.unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|(var, val)| {
+                format!(
+                    "{} = {}",
+                    var,
+                    val.map(|val| val.to_string()).unwrap_or("_".into())
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("{}", output);
+    }
 }
