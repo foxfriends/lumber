@@ -1,14 +1,14 @@
-use super::{Binding, FromBinding};
 use crate::ast::*;
 use crate::parser::*;
+use std::convert::TryFrom;
 
 mod builder;
 pub use builder::QuestionBuilder;
 
 /// A question ready to be asked to the Lumber program.
 ///
-/// These can be constructed from structs or strings using the [`IntoQuestion`][] trait
-/// or manually using the [`QuestionBuilder`][].
+/// These can be constructed from strings using Question::from() or manually using the
+/// [`QuestionBuilder`][].
 pub struct Question(Body);
 
 impl AsRef<Body> for Question {
@@ -20,40 +20,30 @@ impl AsRef<Body> for Question {
 impl Question {
     /// Start building a new question, using the [`QuestionBuilder`][]. The type of answers must be
     /// provided. If dynamic bindings are desired, use [`Binding`][] as the `Answer` type.
-    pub fn new<Answer>() -> QuestionBuilder<Answer> {
+    pub fn new() -> QuestionBuilder {
         QuestionBuilder::new()
     }
 }
 
-/// Describes a type that can be converted into a question to be asked of the Lumber program,
-/// and the shape of the answers that are to be expected.
-pub trait IntoQuestion {
-    /// The type of answers to this query.
-    type Answer: FromBinding;
-
-    /// Converts the value into a question.
-    fn into_question(self) -> Question;
-}
-
-impl IntoQuestion for &str {
-    type Answer = Binding;
+impl TryFrom<&str> for Question {
+    type Error = crate::Error;
 
     /// A string using Lumber syntax can be converted directly into a question. It is not recommended
-    /// to construct questions dynamically in this way, as it will cause a panic if the syntax is invalid.
-    /// Instead, use the derives to build them from a struct.
+    /// to construct questions dynamically in this way, as the error will not be recoverable. Instead,
+    /// for dynamically constructed questions, use the [`QuestionBuilder`][]
     ///
     /// For one-off statically determined questions, however, string conversions should be fine.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Will panic if the syntax is invalid.
-    fn into_question(self) -> Question {
-        let mut pairs = Parser::parse_question(self).unwrap();
+    /// Will return an error if the syntax is invalid.
+    fn try_from(src: &str) -> crate::Result<Question> {
+        let mut pairs = Parser::parse_question(src)?;
         let pair = pairs.next().unwrap();
         assert_eq!(Rule::question, pair.as_rule());
         let mut pairs = pair.into_inner();
         let pair = pairs.next().unwrap();
-        Question(Body::new(pair, &mut Context::default()).unwrap())
+        Ok(Question(Body::new(pair, &mut Context::default()).unwrap()))
     }
 }
 
@@ -63,34 +53,37 @@ mod test {
 
     #[test]
     fn question_from_str_single() {
-        "hello(A)".into_question();
+        Question::try_from("hello(A)").unwrap();
     }
 
     #[test]
     fn question_from_str_scoped() {
-        "hello::world(A)".into_question();
+        Question::try_from("hello::world(A)").unwrap();
     }
 
     #[test]
     #[should_panic]
     fn question_from_str_parent() {
-        "^::hello(A)".into_question();
+        Question::try_from("^::hello(A)").unwrap();
     }
 
     #[test]
     #[should_panic]
     fn question_from_str_punctuated() {
-        "hello(A).".into_question();
+        Question::try_from("hello(A).").unwrap();
     }
 
     #[test]
     fn question_from_str_multi() {
-        "hello(A) -> hello(B), hello(C); hello(C), hello(D) -> hello(E), F <- 3".into_question();
+        Question::try_from(
+            "hello(A) -> hello(B), hello(C); hello(C), hello(D) -> hello(E), F <- 3",
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic]
     fn question_empty() {
-        "".into_question();
+        Question::try_from("").unwrap();
     }
 }

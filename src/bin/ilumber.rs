@@ -1,4 +1,5 @@
-use lumber::Lumber;
+use lumber::{Binding, Lumber, Question};
+use std::convert::TryFrom;
 use std::path::PathBuf;
 
 /// Interactive Lumber (REPL)
@@ -18,6 +19,37 @@ pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
         Some(path) => Lumber::from_file(path)?,
         None => Lumber::default(),
     };
-    println!("{:?}", program);
+    if opts.query.is_empty() {
+        let mut query = String::new();
+        while let Ok(len) = std::io::stdin().read_line(&mut query) {
+            if len == 0 {
+                break;
+            }
+            let query = std::mem::take(&mut query);
+            let question = match Question::try_from(query.as_str()) {
+                Ok(question) => question,
+                Err(error) => {
+                    eprintln!("{:?}", error);
+                    continue;
+                }
+            };
+            for answer in program.query::<Binding>(&question) {
+                println!("{:?}", answer);
+            }
+        }
+    } else {
+        for query in &opts.query {
+            let question = match Question::try_from(query.as_str()) {
+                Ok(question) => question,
+                Err(error) => {
+                    eprintln!("{:?}", error);
+                    continue;
+                }
+            };
+            for answer in program.query::<Binding>(&question) {
+                println!("{:?}", answer);
+            }
+        }
+    }
     Ok(())
 }

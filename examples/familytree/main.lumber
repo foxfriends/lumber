@@ -1,3 +1,15 @@
+:- pub(male/1).
+:- pub(female/1).
+:- pub(parent/2).
+:- pub(mother/2).
+:- pub(father/2).
+:- pub(son/2).
+:- pub(daughter/2).
+:- pub(sibling/2).
+:- pub(brother/2).
+:- pub(sister/2).
+:- pub(grandparent/2).
+
 male(brian).
 male(cameron).
 male(george).

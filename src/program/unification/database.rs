@@ -8,12 +8,16 @@ impl Database<'_> {
         &'a self,
         question: &'a Question,
     ) -> impl Iterator<Item = Binding> + 'a {
-        self.unify(question.as_ref(), true)
+        let body = question.as_ref();
+        let binding = body.identifiers().collect();
+        self.unify_body(body, binding, true)
     }
 
-    fn unify<'a>(&'a self, question: &'a Body, public: bool) -> impl Iterator<Item = Binding> + 'a {
-        let binding = question.identifiers().collect();
-        self.unify_disjunction(&question.0, binding, public)
+    fn unify_body<'a>(&'a self, body: &'a Body, binding: Binding, public: bool) -> Bindings<'a> {
+        match &body.0 {
+            Some(disjunction) => self.unify_disjunction(disjunction, binding, public),
+            None => Box::new(std::iter::once(binding)),
+        }
     }
 
     fn unify_disjunction<'a>(
@@ -22,6 +26,7 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
+        eprintln!("Disjunction: {:?}", disjunction);
         disjunction
             .cases
             .iter()
@@ -41,6 +46,7 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
+        eprintln!("Conjunction: {:?}", conjunction);
         let bindings = Box::new(std::iter::once(binding));
         conjunction.terms.iter().fold(bindings, |bindings, term| {
             Box::new(bindings.flat_map(move |binding| self.unify_procession(term, binding, public)))
@@ -53,6 +59,7 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
+        eprintln!("Procession: {:?}", procession);
         let bindings = Box::new(std::iter::once(binding.clone()));
         procession
             .steps
@@ -69,6 +76,7 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
+        eprintln!("Unification: {:?}", unification);
         match unification {
             Unification::Query(query) => {
                 let definition = match self.lookup(query.as_ref(), public) {
@@ -87,7 +95,7 @@ impl Database<'_> {
                     _ => unreachable!(),
                 }
             }
-            Unification::Body(body) => self.unify_disjunction(&body.0, binding, public),
+            Unification::Body(body) => self.unify_body(body, binding, public),
             Unification::Assumption(output, expression) => Box::new(
                 self.unify_expression(expression, binding, public)
                     .filter_map(move |(binding, pattern)| {
@@ -104,12 +112,13 @@ impl Database<'_> {
         definition: &'a Definition,
         input_binding: Binding,
     ) -> Bindings<'a> {
+        eprintln!("Definition: {:?}", definition);
         Box::new(definition.iter().flat_map(move |(head, body)| {
             let input_binding = input_binding.clone();
             body.identifiers()
                 .collect::<Binding>()
                 .transfer_from(&input_binding, &query, &head)
-                .map(move |binding| self.unify_disjunction(&body.0, binding, false))
+                .map(move |binding| self.unify_body(body, binding, false))
                 .into_iter()
                 .flatten()
                 .filter_map(move |output_binding| {
@@ -151,7 +160,7 @@ impl Database<'_> {
             }
             Expression::ListAggregation(pattern, body) => {
                 let solutions = self
-                    .unify_disjunction(&body.0, binding.clone(), public)
+                    .unify_body(body, binding.clone(), public)
                     .map(|binding| binding.apply(&pattern).unwrap())
                     .collect();
                 Box::new(std::iter::once((binding, Pattern::List(solutions, None))))

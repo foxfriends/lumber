@@ -20,7 +20,7 @@ pub use answer::FromBinding;
 pub use binding::Binding;
 pub use builder::LumberBuilder;
 pub use list::List;
-pub use question::{IntoQuestion, Question, QuestionBuilder};
+pub use question::{Question, QuestionBuilder};
 pub use r#struct::Struct;
 #[cfg(feature = "builtin-sets")]
 pub use set::Set;

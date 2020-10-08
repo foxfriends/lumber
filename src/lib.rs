@@ -18,3 +18,6 @@ pub use crate::lumber::*;
 pub use error::{Error, ErrorKind};
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod test;
