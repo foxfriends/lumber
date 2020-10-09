@@ -51,7 +51,7 @@ impl<'p> Context<'p> {
         }
         let mut database: Database = Database::new(self.variables, root_module.into_definitions());
         for header in self.modules.values() {
-            database.apply_header(header);
+            database.apply_header(header, &natives);
         }
         Ok(Lumber::build(self.libraries, database))
     }

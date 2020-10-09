@@ -8,7 +8,7 @@ macro_rules! yes {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.join(stringify!($name));
             Lumber::builder()
-                $(.bind($handle, || {}))*
+                $(.bind($handle, |_| unimplemented!()))*
                 $(.link(stringify!($lib), Lumber::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
                 .build(path, $src)
                 .unwrap();
@@ -23,7 +23,7 @@ macro_rules! no {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.parent().unwrap().join(stringify!($name));
             assert!(Lumber::builder()
-                $(.bind($handle, || {}))*
+                $(.bind($handle, |_| unimplemented!()))*
                 $(.link(stringify!($lib), Lumber::from_file(here.join("lib").join(stringify!($lib)).join("lib.lumber")).unwrap()))*
                 .build(path, $src)
                 .is_err());

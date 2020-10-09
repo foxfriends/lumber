@@ -87,7 +87,24 @@ impl Database<'_> {
                         todo!("Not sure yet how mutable definitions can be handled soundly")
                         // self.unify_definition(&query, &*definition.borrow(), binding)
                     }
-                    DatabaseDefinition::Native(..) => todo!(),
+                    DatabaseDefinition::Native(native_function) => {
+                        let values = query
+                            .patterns
+                            .iter()
+                            .map(|pattern| binding.extract(pattern).unwrap())
+                            .collect::<Vec<_>>();
+                        Box::new(native_function.call(values).into_iter().filter_map(
+                            move |values| {
+                                values
+                                    .into_iter()
+                                    .map(Into::into)
+                                    .zip(query.patterns.iter())
+                                    .try_fold(binding.clone(), |binding, (lhs, rhs)| {
+                                        Some(unify_patterns(&lhs, rhs, binding, &[])?.1)
+                                    })
+                            },
+                        ))
+                    }
                     _ => unreachable!(),
                 }
             }

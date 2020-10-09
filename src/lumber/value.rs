@@ -1,7 +1,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
-use super::{List, Struct};
-use crate::ast::{Literal, Pattern};
+use super::{r#struct::Field, List, Struct};
+use crate::ast::{Atom, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::fmt::{self, Display, Formatter};
 
@@ -98,6 +98,53 @@ impl From<Pattern> for Option<Value> {
                     &structure.arity,
                     values,
                 )))
+            }
+        }
+    }
+}
+
+impl Into<Pattern> for Option<Value> {
+    fn into(self) -> Pattern {
+        match self {
+            None => Pattern::Wildcard,
+            Some(Value::Integer(int)) => Pattern::Literal(Literal::Integer(int)),
+            Some(Value::Rational(rat)) => Pattern::Literal(Literal::Rational(rat)),
+            Some(Value::String(string)) => Pattern::Literal(Literal::String(string)),
+            Some(Value::List(List { values, complete })) => Pattern::List(
+                values.into_iter().map(Into::into).collect(),
+                if complete {
+                    None
+                } else {
+                    Some(Box::new(Pattern::Wildcard))
+                },
+            ),
+            #[cfg(feature = "builtin-sets")]
+            Some(Value::Set(..)) => todo!(),
+            Some(Value::Struct(Struct { name, fields })) => {
+                let (arity, fields) = fields.into_iter().fold(
+                    (vec![], vec![]),
+                    |(mut arity, mut fields), (field, value)| {
+                        match field {
+                            Field::Index(..) => {
+                                if let Some(crate::ast::Arity::Len(len)) = arity.last_mut() {
+                                    *len += 1;
+                                } else {
+                                    arity.push(crate::ast::Arity::Len(1));
+                                }
+                            }
+                            Field::Name(name) => {
+                                arity.push(crate::ast::Arity::Name(Atom::from(name)));
+                            }
+                        }
+                        fields.push(value.into());
+                        (arity, fields)
+                    },
+                );
+                Pattern::Struct(crate::ast::Struct {
+                    name,
+                    arity,
+                    fields,
+                })
             }
         }
     }

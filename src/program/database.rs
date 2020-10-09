@@ -27,7 +27,7 @@ pub(crate) enum DatabaseDefinition<'p> {
     Static(Definition),
     Mutable(RefCell<Definition>),
     Alias(Handle),
-    Native(Option<NativeFunction<'p>>),
+    Native(NativeFunction<'p>),
 }
 
 impl DatabaseDefinition<'_> {
@@ -79,7 +79,11 @@ impl<'p> Database<'p> {
         }
     }
 
-    pub fn apply_header(&mut self, header: &ModuleHeader) {
+    pub fn apply_header(
+        &mut self,
+        header: &ModuleHeader,
+        natives: &HashMap<Handle, NativeFunction<'p>>,
+    ) {
         for (output, input) in &header.aliases {
             self.definitions.insert(
                 output.clone(),
@@ -89,7 +93,9 @@ impl<'p> Database<'p> {
         for native in &header.natives {
             self.definitions.insert(
                 native.clone(),
-                DatabaseEntry::new(DatabaseDefinition::Native(None)),
+                DatabaseEntry::new(DatabaseDefinition::Native(
+                    natives.get(native).unwrap().clone(),
+                )),
             );
         }
         for incomplete in &header.incompletes {

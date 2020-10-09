@@ -1,4 +1,4 @@
-use super::Lumber;
+use super::{Lumber, Value};
 use crate::ast::*;
 use crate::program::*;
 use std::collections::HashMap;
@@ -69,7 +69,7 @@ impl<'p> LumberBuilder<'p> {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let path_to_main = PathBuf::from(file!()).parent().unwrap().join("test/bind/main.lumber");
     /// let lumber = Lumber::builder()
-    ///     .bind("fmt::print/1", || { /* ... */ })
+    ///     .bind("fmt::print/1", |_| todo!())
     ///     .build_from_file(path_to_main)?;
     /// # Ok(())
     /// # }
@@ -81,7 +81,7 @@ impl<'p> LumberBuilder<'p> {
     pub fn bind<H, F>(mut self, handle: H, native: F) -> Self
     where
         H: AsHandle,
-        F: Fn() + 'p, // TODO: this is not the final type
+        F: Fn(Vec<Option<Value>>) -> Vec<Vec<Option<Value>>> + 'p, // TODO: this is not the final type
     {
         self.natives.insert(
             handle.as_handle().expect("Invalid handle"),

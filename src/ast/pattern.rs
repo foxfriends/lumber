@@ -54,7 +54,9 @@ impl Pattern {
                 Self::List(head, tail)
             }
             #[cfg(not(feature = "builtin-sets"))]
-            Rule::set => unimplemented!("builtin-sets is not enabled, so set pattern syntax cannot be used."),
+            Rule::set => {
+                unimplemented!("builtin-sets is not enabled, so set pattern syntax cannot be used.")
+            }
             #[cfg(feature = "builtin-sets")]
             Rule::set => {
                 let mut pairs = pair.into_inner();

@@ -1,9 +1,11 @@
 //! Implementation of the Lumber @core library, containing important built-in functions required
 //! for the language to operate.
 
-use crate::Lumber;
+use crate::{Lumber, Value};
 
-fn nop3() {}
+fn nop3(values: Vec<Option<Value>>) -> Vec<Vec<Option<Value>>> {
+    vec![]
+}
 
 thread_local! {
     pub(crate) static LIB: Lumber<'static> = Lumber::builder()
