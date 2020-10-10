@@ -4,12 +4,10 @@
 use crate::{Lumber, Value};
 
 fn nop3(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
-    println!("{:?}", values);
     Box::new(vec![].into_iter())
 }
 
 fn add(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
-    println!("{:?}", values);
     let a = integer!(values[0]);
     let b = integer!(values[1]);
     Box::new(std::iter::once(vec![

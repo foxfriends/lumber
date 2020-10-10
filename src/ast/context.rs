@@ -103,10 +103,8 @@ impl<'p> Context<'p> {
                 path.join(atom.as_ref())
             })
             .with_extension("lumber");
-        println!("{}", module_path.display());
         if !module_path.exists() {
             module_path = module_path.with_file_name(format!("{}/mod.lumber", module.as_ref()));
-            println!("{}", module_path.display());
         }
         let source = std::fs::read_to_string(&module_path)?;
         let module = Module::new(&source, self)?;
