@@ -3,8 +3,8 @@
 
 use crate::{Lumber, Value};
 
-fn nop3(values: Vec<Option<Value>>) -> Vec<Vec<Option<Value>>> {
-    vec![]
+fn nop3(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
+    Box::new(vec![].into_iter())
 }
 
 thread_local! {

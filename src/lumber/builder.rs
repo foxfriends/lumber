@@ -81,7 +81,7 @@ impl<'p> LumberBuilder<'p> {
     pub fn bind<H, F>(mut self, handle: H, native: F) -> Self
     where
         H: AsHandle,
-        F: Fn(Vec<Option<Value>>) -> Vec<Vec<Option<Value>>> + 'p, // TODO: this is not the final type
+        F: Fn(Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> + 'p, // TODO: this is not the final type
     {
         self.natives.insert(
             handle.as_handle().expect("Invalid handle"),
