@@ -27,3 +27,4 @@ macro_rules! test {
 
 mod accessibility;
 mod bindings;
+mod operators;

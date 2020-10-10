@@ -4,13 +4,25 @@
 use crate::{Lumber, Value};
 
 fn nop3(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
+    println!("{:?}", values);
     Box::new(vec![].into_iter())
+}
+
+fn add(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
+    println!("{:?}", values);
+    let a = integer!(values[0]);
+    let b = integer!(values[1]);
+    Box::new(std::iter::once(vec![
+        Some(Value::integer(a.clone())),
+        Some(Value::integer(b.clone())),
+        Some(Value::integer(a + b)),
+    ]))
 }
 
 thread_local! {
     pub(crate) static LIB: Lumber<'static> = Lumber::builder()
         .core(false)
-        .bind("add/3", nop3)
+        .bind("add/3", add)
         .bind("sub/3", nop3)
         .bind("mul/3", nop3)
         .bind("div/3", nop3)

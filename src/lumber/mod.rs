@@ -6,6 +6,9 @@ use crate::program::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[macro_use]
+mod macros;
+
 mod answer;
 mod binding;
 mod builder;

@@ -14,9 +14,15 @@ struct Opts {
 }
 
 #[paw::main]
-pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
+pub fn main(opts: Opts) {
     let program = match opts.module {
-        Some(path) => Lumber::from_file(path)?,
+        Some(path) => match Lumber::from_file(path) {
+            Ok(program) => program,
+            Err(error) => {
+                eprintln!("{}", error);
+                return;
+            }
+        },
         None => Lumber::default(),
     };
     if opts.query.is_empty() {
@@ -33,7 +39,6 @@ pub fn main(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
             answer(&program, &query);
         }
     }
-    Ok(())
 }
 
 fn answer(program: &Lumber, query: &str) {

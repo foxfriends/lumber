@@ -4,10 +4,11 @@
 
 #![feature(bindings_after_at)]
 
+#[macro_use]
+mod lumber;
 mod ast;
 mod core;
 mod error;
-mod lumber;
 mod parser;
 mod program;
 
