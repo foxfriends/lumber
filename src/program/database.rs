@@ -44,14 +44,10 @@ pub(crate) struct Database<'p> {
     /// All currently active definitions in this program. They may not be the same as they
     /// were when the program was created, due to mutable definitions.
     pub(super) definitions: HashMap<Handle, DatabaseEntry<'p>>,
-    /// A record of the original variable names. The indexes stored in each [`Identifier`][]
-    /// can be used to find its name in this list.
-    pub(super) variables: Vec<String>,
 }
 
 impl<'p> Database<'p> {
     pub fn new<I: IntoIterator<Item = (Handle, Definition)>>(
-        variables: Vec<String>,
         definitions: I,
     ) -> Self {
         let definitions = definitions
@@ -75,7 +71,6 @@ impl<'p> Database<'p> {
             .collect();
         Self {
             definitions,
-            variables,
         }
     }
 

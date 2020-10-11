@@ -80,7 +80,7 @@ impl Pattern {
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
-            Self::Variable(identifier) => Box::new(std::iter::once(*identifier)),
+            Self::Variable(identifier) => Box::new(std::iter::once(identifier.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()
                     .flat_map(|pattern| pattern.identifiers())

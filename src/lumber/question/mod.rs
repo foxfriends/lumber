@@ -13,7 +13,6 @@ pub use builder::QuestionBuilder;
 /// [`QuestionBuilder`][].
 pub struct Question {
     body: Body,
-    variables: Vec<String>,
 }
 
 impl AsRef<Body> for Question {
@@ -30,13 +29,13 @@ impl Question {
     }
 
     /// Uses a binding to extract the answer to this question.
-    pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<&str, Option<Value>>> {
+    pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
         self.body
             .identifiers()
             .map(|identifier| {
                 Some((
-                    self.variables[Into::<usize>::into(identifier)].as_str(),
-                    binding.extract(binding.get(identifier)?).ok()?,
+                    identifier.name().to_owned(),
+                    binding.extract(binding.get(&identifier)?).ok()?,
                 ))
             })
             .collect()
@@ -63,10 +62,7 @@ impl TryFrom<&str> for Question {
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
         let body = Body::new(pair, &mut context).unwrap();
-        Ok(Question {
-            body,
-            variables: context.variables,
-        })
+        Ok(Question { body })
     }
 }
 

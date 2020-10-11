@@ -24,7 +24,7 @@ pub(crate) fn unify_patterns(
         (Pattern::Variable(lhs), Pattern::Variable(rhs)) if lhs == rhs => {
             // We don't need to use occurs check here because `A <- A` is allowed, despite
             // `A` being in the occurs list already.
-            Some((Pattern::Variable(*lhs), binding))
+            Some((Pattern::Variable(lhs.clone()), binding))
         }
         // Unifying a x with a different x, we use the natural order of variables
         // to designate one as the source of truth and the other as a reference.
@@ -32,15 +32,15 @@ pub(crate) fn unify_patterns(
             if occurs.contains(lhs) || occurs.contains(rhs) {
                 return None;
             }
-            let lhs_pat = binding.get(*lhs).unwrap().clone();
-            let rhs_pat = binding.get(*rhs).unwrap().clone();
+            let lhs_pat = binding.get(lhs).unwrap().clone();
+            let rhs_pat = binding.get(rhs).unwrap().clone();
             let mut occurs = occurs.to_owned();
-            occurs.push(*lhs);
-            occurs.push(*rhs);
+            occurs.push(lhs.clone());
+            occurs.push(rhs.clone());
             let (pattern, mut binding) = unify_patterns(&lhs_pat, &rhs_pat, binding, &occurs)?;
-            let min = Identifier::min(*lhs, *rhs);
-            let max = Identifier::max(*lhs, *rhs);
-            binding.set(min, pattern.clone());
+            let min = Identifier::min(lhs.clone(), rhs.clone());
+            let max = Identifier::max(lhs.clone(), rhs.clone());
+            binding.set(min.clone(), pattern.clone());
             binding.set(max, Pattern::Variable(min));
             Some((pattern, binding))
         }
@@ -50,11 +50,11 @@ pub(crate) fn unify_patterns(
             if occurs.contains(var) {
                 return None;
             }
-            let var_pat = binding.get(*var).unwrap().clone();
+            let var_pat = binding.get(var).unwrap().clone();
             let mut occurs = occurs.to_owned();
-            occurs.push(*var);
+            occurs.push(var.clone());
             let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
-            binding.set(*var, pattern.clone());
+            binding.set(var.clone(), pattern.clone());
             Some((pattern, binding))
         }
         // Literals must match exactly.
@@ -89,9 +89,9 @@ pub(crate) fn unify_patterns(
             match tail.as_ref() {
                 Pattern::Variable(ident) => {
                     let (output, tail, binding) = unify_prefix(head, full, binding, occurs)?;
-                    let tail_pat = binding.get(*ident).unwrap().clone();
+                    let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
-                    occurs.push(*ident);
+                    occurs.push(ident.clone());
                     let (tail, binding) =
                         unify_patterns(&Pattern::List(tail, None), &tail_pat, binding, &occurs)?;
                     Some((Pattern::List(output, Some(Box::new(tail))), binding))
@@ -211,15 +211,9 @@ mod test {
         })
     }
 
-    fn id(binding: &mut Binding) -> Pattern {
-        let identifier = binding
-            .0
-            .keys()
-            .max()
-            .map(|id| 1usize + Into::<usize>::into(*id))
-            .unwrap_or(0usize);
-        let identifier = Identifier::new(identifier);
-        binding.0.insert(identifier, Pattern::Wildcard);
+    fn id(name: &str, binding: &mut Binding) -> Pattern {
+        let identifier = Identifier::new(name.to_owned());
+        binding.0.insert(identifier.clone(), Pattern::Wildcard);
         Pattern::Variable(identifier)
     }
 
@@ -364,8 +358,8 @@ mod test {
     #[test]
     fn unify_variable() {
         let mut binding = Binding::default();
-        let x = id(&mut binding);
-        let y = id(&mut binding);
+        let x = id("x", &mut binding);
+        let y = id("y", &mut binding);
         yes!(x, WILD, binding);
         yes!(x, x, binding);
         yes!(x, y, binding);
@@ -379,8 +373,8 @@ mod test {
     #[test]
     fn unify_multiple_variables() {
         let mut binding = Binding::default();
-        let x = id(&mut binding);
-        let y = id(&mut binding);
+        let x = id("x", &mut binding);
+        let y = id("y", &mut binding);
         yes!(structure!(test(x, y)), WILD, binding);
         yes!(structure!(test(x, y)), structure!(test(int(3), x)), binding);
         yes!(
@@ -413,7 +407,7 @@ mod test {
     #[test]
     fn no_unify_variable_occurs() {
         let mut binding = Binding::default();
-        let x = id(&mut binding);
+        let x = id("x", &mut binding);
         no!(x, list![x], binding);
         no!(x, list![int(3); x], binding);
         no!(x, structure!(hello(x)), binding);

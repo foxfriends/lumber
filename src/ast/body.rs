@@ -49,10 +49,8 @@ impl Body {
         );
 
         for (identifier, count) in counts {
-            let variable = context.name_identifier(identifier);
             if count <= 1 {
-                let name = variable.to_owned();
-                context.error_singleton_variable(head.as_ref(), name.as_str());
+                context.error_singleton_variable(head.as_ref(), identifier.name());
             }
         }
     }

@@ -10,8 +10,7 @@ pub struct Context<'p> {
     pub(crate) libraries: HashMap<Atom, Lumber<'p>>,
     pub(crate) root_path: PathBuf,
     pub(crate) current_scope: Scope,
-    pub(crate) variables: Vec<String>,
-    pub(crate) current_environment: HashMap<String, usize>,
+    pub(crate) current_environment: HashMap<String, Identifier>,
     pub(crate) modules: HashMap<Scope, ModuleHeader>,
     pub(crate) errors: HashMap<Scope, Vec<crate::Error>>,
 }
@@ -49,7 +48,7 @@ impl<'p> Context<'p> {
         if !self.errors.is_empty() {
             return Err(crate::Error::multiple_by_module(self.errors));
         }
-        let mut database: Database = Database::new(self.variables, root_module.into_definitions());
+        let mut database: Database = Database::new(root_module.into_definitions());
         for header in self.modules.values() {
             database.apply_header(header, &natives);
         }
@@ -66,21 +65,17 @@ impl<'p> Context<'p> {
 
     pub(crate) fn get_variable(&mut self, name: &str) -> Identifier {
         if let Some(existing) = self.current_environment.get(name) {
-            Identifier::new(*existing)
+            existing.clone()
         } else {
-            let index = self.variables.len();
-            self.variables.push(name.to_owned());
-            self.current_environment.insert(name.to_owned(), index);
-            Identifier::new(index)
+            let ident = Identifier::new(name.to_owned());
+            self.current_environment
+                .insert(name.to_owned(), ident.clone());
+            ident
         }
     }
 
-    pub(crate) fn name_identifier(&mut self, identifier: Identifier) -> &str {
-        self.variables[Into::<usize>::into(identifier)].as_str()
-    }
-
     pub(crate) fn fresh_variable(&mut self) -> Identifier {
-        self.get_variable(&format!("#{}", self.variables.len()))
+        self.get_variable(&format!("#{}", self.current_environment.len()))
     }
 
     pub(crate) fn reset_environment(&mut self) {
