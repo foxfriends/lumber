@@ -7,7 +7,7 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Clone, Hash, Eq, PartialEq, Debug, Default)]
 pub(crate) struct Scope {
     /// The library the rule is defined in, if not defined by the user.
-    lib: Option<Atom>,
+    lib: Vec<Atom>,
     /// The path to this rule, relative to the library root.
     path: Vec<Atom>,
 }
@@ -42,15 +42,8 @@ impl PartialOrd for Scope {
 impl Scope {
     pub fn builtin(name: &'static str) -> Self {
         Self {
-            lib: Some(Atom::from("core")),
+            lib: vec![Atom::from("core")],
             path: vec![Atom::from(name)],
-        }
-    }
-
-    pub fn without_lib(&self) -> Self {
-        Self {
-            lib: None,
-            path: self.path.clone(),
         }
     }
 
@@ -74,7 +67,7 @@ impl Scope {
         let mut pairs = pair.into_inner();
         match pairs.peek().unwrap().as_rule() {
             Rule::lib => Some(Scope {
-                lib: Some(Atom::new(just!(pairs.next().unwrap().into_inner()))),
+                lib: vec![Atom::new(just!(pairs.next().unwrap().into_inner()))],
                 ..Scope::default()
             }),
             Rule::root => Some(Scope::default()),
@@ -127,6 +120,10 @@ impl Scope {
         scope
     }
 
+    pub fn add_lib(&mut self, lib: Atom) {
+        self.lib.insert(0, lib);
+    }
+
     pub fn head(&self) -> Atom {
         assert!(
             !self.path.is_empty(),
@@ -135,14 +132,14 @@ impl Scope {
         self.path.last().unwrap().clone()
     }
 
-    pub fn library(&self) -> Option<Atom> {
-        self.lib.clone()
+    pub fn library(&self) -> &[Atom] {
+        &self.lib
     }
 }
 
 impl Display for Scope {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if let Some(lib) = &self.lib {
+        for lib in &self.lib {
             write!(f, "@{}::", lib)?;
         }
         if self.path.is_empty() {

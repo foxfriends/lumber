@@ -37,19 +37,16 @@ impl AsHandle for &str {
 }
 
 impl Handle {
-    pub(crate) fn library(&self) -> Option<Atom> {
+    pub(crate) fn library(&self) -> &[Atom] {
         self.scope.library()
-    }
-
-    pub(crate) fn without_lib(&self) -> Self {
-        Self {
-            scope: self.scope.without_lib(),
-            arity: self.arity.clone(),
-        }
     }
 
     pub(crate) fn module(&self) -> Scope {
         self.scope.drop()
+    }
+
+    pub(crate) fn add_lib(&mut self, lib: Atom) {
+        self.scope.add_lib(lib);
     }
 
     pub(crate) fn head(&self) -> Self {

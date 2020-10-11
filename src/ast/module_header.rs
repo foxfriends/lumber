@@ -110,8 +110,10 @@ impl ModuleHeader {
         } else if let Some(resolved) = self.natives.get(handle) {
             resolved
         } else if let Some(alias) = self.aliases.get(handle) {
-            if alias.library().is_some() {
-                return Ok(Some(alias));
+            if let Some(lib) = alias.library().first() {
+                let lib = context.libraries.get(&lib).unwrap();
+                let handle = lib.resolve(alias, true);
+                return Ok(handle);
             }
             match context
                 .modules
@@ -264,7 +266,7 @@ impl ModuleHeader {
             if reported.contains(alias) {
                 continue;
             }
-            match alias.library() {
+            match alias.library().first() {
                 Some(library) => match context.libraries.get(&library) {
                     None => {
                         errors.push(crate::Error::parse(&format!(

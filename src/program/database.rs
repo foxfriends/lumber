@@ -37,6 +37,19 @@ impl DatabaseDefinition<'_> {
             _ => panic!("Cannot change definition to mutable"),
         }
     }
+
+    fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
+        match self {
+            Self::Static(def) => Box::new(def.bodies_mut().flat_map(|body| body.handles_mut())),
+            Self::Mutable(def) => Box::new(
+                def.get_mut()
+                    .bodies_mut()
+                    .flat_map(|body| body.handles_mut()),
+            ),
+            Self::Alias(handle) => Box::new(std::iter::once(handle)),
+            _ => Box::new(std::iter::empty()),
+        }
+    }
 }
 
 #[derive(Clone, Default, Debug)]
@@ -47,9 +60,7 @@ pub(crate) struct Database<'p> {
 }
 
 impl<'p> Database<'p> {
-    pub fn new<I: IntoIterator<Item = (Handle, Definition)>>(
-        definitions: I,
-    ) -> Self {
+    pub fn new<I: IntoIterator<Item = (Handle, Definition)>>(definitions: I) -> Self {
         let definitions = definitions
             .into_iter()
             .fold(
@@ -69,9 +80,7 @@ impl<'p> Database<'p> {
                 )
             })
             .collect();
-        Self {
-            definitions,
-        }
+        Self { definitions }
     }
 
     pub fn apply_header(
@@ -128,10 +137,42 @@ impl<'p> Database<'p> {
         }
     }
 
+    pub fn resolve<'a>(&'a self, handle: &'a Handle, public: bool) -> Option<&'a Handle> {
+        let entry = self.definitions.get(handle)?;
+        if public && !entry.public {
+            return None;
+        }
+        match &entry.definition {
+            DatabaseDefinition::Alias(handle) => self.resolve(handle, false),
+            _ => Some(handle),
+        }
+    }
+
     pub fn exports(&self, handle: &Handle) -> bool {
         self.definitions
             .get(handle)
             .map(|entry| entry.public)
             .unwrap_or(false)
+    }
+
+    pub fn into_library(mut self, name: &str) -> Self {
+        let lib = Atom::from(name);
+        self.definitions = self
+            .definitions
+            .into_iter()
+            .map(|(mut handle, mut entry)| {
+                handle.add_lib(lib.clone());
+                for handle in entry.definition.handles_mut() {
+                    handle.add_lib(lib.clone());
+                }
+                (handle, entry)
+            })
+            .collect();
+        self
+    }
+
+    pub fn merge(mut self, library: Self) -> Self {
+        self.definitions.extend(library.definitions);
+        self
     }
 }

@@ -94,13 +94,14 @@ impl Database<'_> {
                             .map(|pattern| binding.extract(pattern).unwrap())
                             .collect::<Vec<_>>();
                         Box::new(native_function.call(values).filter_map(move |values| {
-                            values
+                            let values = values
                                 .into_iter()
                                 .map(Into::into)
                                 .zip(query.patterns.iter())
                                 .try_fold(binding.clone(), |binding, (lhs, rhs)| {
                                     Some(unify_patterns(&lhs, rhs, binding, &[])?.1)
-                                })
+                                });
+                            values
                         }))
                     }
                     _ => unreachable!(),
@@ -110,8 +111,7 @@ impl Database<'_> {
             Unification::Assumption(output, expression) => Box::new(
                 self.unify_expression(expression, binding, public)
                     .filter_map(move |(binding, pattern)| {
-                        let occurs = &output.identifiers().collect::<Vec<_>>();
-                        Some(unify_patterns(&output, &pattern, binding, occurs)?.1)
+                        Some(unify_patterns(&output, &pattern, binding, &[])?.1)
                     }),
             ),
         }

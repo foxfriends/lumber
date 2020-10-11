@@ -1,4 +1,3 @@
-/* TODO: library calls don't work yet, so this doesn't work either.
 use super::*;
 
 test! {
@@ -12,4 +11,3 @@ test! {
         A = Value::integer(4);
     ?- "add1(A, 3)"
 }
-*/

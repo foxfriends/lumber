@@ -33,8 +33,7 @@ pub use value::Value;
 /// as a library.
 #[derive(Default, Clone, Debug)]
 pub struct Lumber<'p> {
-    libraries: HashMap<Atom, Lumber<'p>>,
-    database: Database<'p>,
+    pub(crate) database: Database<'p>,
 }
 
 impl<'p> Lumber<'p> {
@@ -106,15 +105,8 @@ impl<'p> Lumber<'p> {
         context.compile(source_file.as_ref().to_owned(), source_str, natives)
     }
 
-    pub(crate) fn build(libraries: HashMap<Atom, Lumber<'p>>, database: Database<'p>) -> Self {
-        Self {
-            libraries,
-            database,
-        }
-    }
-
-    pub(crate) fn exports(&self, handle: &Handle) -> bool {
-        self.database.exports(&handle.without_lib())
+    pub(crate) fn build(database: Database<'p>) -> Self {
+        Self { database }
     }
 
     /// Ask a question, returning an iterator over all possible answers. If an answer could
@@ -134,5 +126,9 @@ impl<'p> Lumber<'p> {
     /// necessarily be fully bound.
     pub fn check<'a>(&'a self, query: &'a Question) -> bool {
         self.query::<Binding>(query).next().is_some()
+    }
+
+    pub(crate) fn into_library(self, name: &str) -> Database<'p> {
+        self.database.into_library(name)
     }
 }

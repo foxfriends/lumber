@@ -134,9 +134,10 @@ impl<'p> LumberBuilder<'p> {
     where
         S: AsRef<str>,
     {
-        self.context
-            .libraries
-            .insert(crate::ast::Atom::from(name.as_ref()), program);
+        self.context.libraries.insert(
+            crate::ast::Atom::from(name.as_ref()),
+            program.into_library(name.as_ref()),
+        );
         self
     }
 
@@ -201,7 +202,9 @@ impl<'p> LumberBuilder<'p> {
         if self.core {
             crate::core::LIB.with(|lib| {
                 let core = Atom::from("core");
-                self.context.libraries.insert(core, lib.clone());
+                self.context
+                    .libraries
+                    .insert(core, lib.clone().into_library("core"));
             });
         }
         Lumber::new(self.context, root, source, self.natives)

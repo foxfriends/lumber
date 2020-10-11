@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 #[derive(Default)]
 pub struct Context<'p> {
-    pub(crate) libraries: HashMap<Atom, Lumber<'p>>,
+    pub(crate) libraries: HashMap<Atom, Database<'p>>,
     pub(crate) root_path: PathBuf,
     pub(crate) current_scope: Scope,
     pub(crate) current_environment: HashMap<String, Identifier>,
@@ -20,7 +20,9 @@ impl<'p> Context<'p> {
         let mut context = Self::default();
         crate::core::LIB.with(|lib| {
             let core = Atom::from("core");
-            context.libraries.insert(core, lib.clone());
+            context
+                .libraries
+                .insert(core, lib.clone().into_library("core"));
         });
         context
     }
@@ -52,7 +54,11 @@ impl<'p> Context<'p> {
         for header in self.modules.values() {
             database.apply_header(header, &natives);
         }
-        Ok(Lumber::build(self.libraries, database))
+        let database = self
+            .libraries
+            .into_iter()
+            .fold(database, |database, (_, library)| database.merge(library));
+        Ok(Lumber::build(database))
     }
 
     fn enter_module(&mut self, module: Atom) {
@@ -183,7 +189,7 @@ impl<'p> Context<'p> {
         handle: &'a Handle,
         in_scope: &Scope,
     ) -> Option<Handle> {
-        if let Some(library) = handle.library() {
+        if let Some(library) = handle.library().first() {
             match self.libraries.get(&library) {
                 None => self.error_unlinked_library(handle, &library),
                 Some(lib) if lib.exports(handle) => return Some(handle.clone()),
