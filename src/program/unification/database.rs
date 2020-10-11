@@ -26,17 +26,12 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        disjunction
-            .cases
-            .iter()
-            .find_map(move |case| -> Option<Bindings> {
-                let mut bindings = self
-                    .unify_conjunction(case, binding.clone(), public)
-                    .peekable();
-                bindings.peek()?;
-                Some(Box::new(bindings))
-            })
-            .unwrap_or(Box::new(std::iter::empty()))
+        Box::new(
+            disjunction
+                .cases
+                .iter()
+                .flat_map(move |case| self.unify_conjunction(case, binding.clone(), public)),
+        )
     }
 
     fn unify_conjunction<'a>(

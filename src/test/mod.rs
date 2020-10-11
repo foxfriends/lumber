@@ -14,9 +14,27 @@ macro_rules! test {
                 let question = Question::try_from($query).expect("question error");
                 let mut answers = program.query::<Binding>(&question);
                 $(
-                    let mut answer = question.answer(&answers.next().unwrap().expect(&format!("{:?} - expected another answer", $query))).unwrap();
+                    let mut answer = question
+                        .answer(
+                            &answers
+                                .next()
+                                .expect(&format!("{:?} - expected another answer", $query))
+                                .unwrap()
+                        )
+                        .expect(&format!("{:?} answers should be bound", $query));
                     $(
-                        assert_eq!(answer.remove(stringify!($var)).unwrap().as_ref().unwrap(), &$value, "{:?} -> {} = {}", $query, stringify!($var), $value);
+                        assert_eq!(
+                            answer
+                                .remove(stringify!($var))
+                                .expect(&format!("{:?}: var {:?} should exist", $query, stringify!($var)))
+                                .as_ref()
+                                .expect(&format!("{:?}: var {:?} should be set", $query, stringify!($var))),
+                            &$value,
+                            "{:?} -> {} = {}",
+                            $query,
+                            stringify!($var),
+                            $value,
+                        );
                     )*
                     assert!(answer.values().all(Option::is_none));
                 )*
