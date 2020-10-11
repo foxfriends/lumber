@@ -5,21 +5,22 @@ use std::path::PathBuf;
 macro_rules! test {
     ($name:ident => $src:literal $(?- $query:literal $($($var:ident = $value:expr),*;)*)+) => {
         #[test]
-        #[allow(unused_variables)]
+        #[allow(unused_variables, unused_mut)]
         fn $name() {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.join(stringify!($name));
-            let program = Lumber::builder().build(path, $src).unwrap();
+            let program = Lumber::builder().build(path, $src).expect("syntax error");
             $(
-                let question = Question::try_from($query).unwrap();
+                let question = Question::try_from($query).expect("question error");
                 let mut answers = program.query::<Binding>(&question);
                 $(
-                    let answer = question.answer(&answers.next().unwrap().unwrap()).unwrap();
+                    let mut answer = question.answer(&answers.next().unwrap().expect(&format!("{:?} - expected another answer", $query))).unwrap();
                     $(
-                        assert_eq!(answer.get(stringify!($var)).unwrap().as_ref().unwrap(), &$value);
+                        assert_eq!(answer.remove(stringify!($var)).unwrap().as_ref().unwrap(), &$value, "{:?} -> {} = {}", $query, stringify!($var), $value);
                     )*
+                    assert!(answer.values().all(Option::is_none));
                 )*
-                assert!(answers.next().is_none());
+                assert!(answers.next().is_none(), "{:?} expected no more answers", $query);
             )+
         }
     };
@@ -27,4 +28,7 @@ macro_rules! test {
 
 mod accessibility;
 mod bindings;
+mod conjunction;
+mod disjunction;
 mod operators;
+mod procession;
