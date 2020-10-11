@@ -114,3 +114,9 @@ no! {
     test <- 3.
     "#
 }
+
+yes! {
+    predicate_never => r#"
+    test :- !.
+    "#
+}

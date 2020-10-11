@@ -52,3 +52,8 @@
 :- nat(bitxor/3).
 :- pub(bitxor/3).
 
+:- pub(true/0).
+true.
+
+:- pub(false/0).
+false :- !.

@@ -74,6 +74,7 @@ impl Database<'_> {
         public: bool,
     ) -> Bindings<'a> {
         match unification {
+            Unification::Never => return Box::new(std::iter::empty()),
             Unification::Query(query) => {
                 let definition = match self.lookup(query.as_ref(), public) {
                     Some(definition) => definition,

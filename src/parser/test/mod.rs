@@ -35,6 +35,7 @@ mod handle;
 mod list;
 mod literal;
 mod multi_handle;
+mod never;
 mod operator;
 mod predicate;
 mod rule;

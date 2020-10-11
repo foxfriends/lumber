@@ -10,6 +10,8 @@ pub(crate) enum Unification {
     Body(Body),
     /// An assumption, where a pattern assumes a value.
     Assumption(Pattern, Expression),
+    /// A unification that always fails.
+    Never,
 }
 
 impl Unification {
@@ -20,6 +22,7 @@ impl Unification {
             Rule::assumption => Self::from_assumption(pair, context)?,
             Rule::predicate => Self::Query(Query::from_predicate(pair, context)?),
             Rule::disjunction => Self::Body(Body::new_inner(pair, context)?),
+            Rule::never => Self::Never,
             _ => unreachable!(),
         };
         Some(unification)
@@ -40,6 +43,7 @@ impl Unification {
             Self::Query(query) => Box::new(std::iter::once(query.as_mut())),
             Self::Body(body) => Box::new(body.handles_mut()),
             Self::Assumption(_, expression) => expression.handles_mut(),
+            Self::Never => Box::new(std::iter::empty()),
         }
     }
 
@@ -50,6 +54,7 @@ impl Unification {
             Self::Assumption(pattern, expression) => {
                 Box::new(pattern.identifiers().chain(expression.identifiers()))
             }
+            Self::Never => Box::new(std::iter::empty()),
         }
     }
 }

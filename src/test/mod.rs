@@ -31,5 +31,6 @@ mod assumption;
 mod bindings;
 mod conjunction;
 mod disjunction;
+mod never;
 mod operators;
 mod procession;
