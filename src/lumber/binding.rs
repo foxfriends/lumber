@@ -112,6 +112,7 @@ impl Binding {
                 }))
             }
             Pattern::Literal(..) => Ok(pattern.clone()),
+            Pattern::Any(..) => Ok(pattern.clone()),
             Pattern::Wildcard => Ok(Pattern::Wildcard),
         }
     }

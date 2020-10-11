@@ -3,10 +3,12 @@ use super::Set;
 use super::{r#struct::Field, List, Struct};
 use crate::ast::{Atom, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
+use std::any::Any;
 use std::fmt::{self, Display, Formatter};
+use std::rc::Rc;
 
 /// Basic untyped values as understood by Lumber.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum Value {
     /// An arbitrary size integer value.
     Integer(Int),
@@ -21,6 +23,25 @@ pub enum Value {
     List(List),
     /// A structural value. Atoms are really just structs with no fields.
     Struct(Struct),
+    /// An unknown Rust value.
+    Any(Rc<Box<dyn Any>>),
+}
+
+impl Eq for Value {}
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Integer(lhs), Value::Integer(rhs)) => lhs == rhs,
+            (Value::Rational(lhs), Value::Rational(rhs)) => lhs == rhs,
+            (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
+            #[cfg(feature = "builtin-sets")]
+            (Value::Set(lhs), Value::Set(rhs)) => lhs == rhs,
+            (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
+            (Value::Struct(lhs), Value::Struct(rhs)) => lhs == rhs,
+            (Value::Any(lhs), Value::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
+            _ => false,
+        }
+    }
 }
 
 impl Value {
@@ -42,6 +63,11 @@ impl Value {
     /// Constructs an atom value.
     pub fn atom(name: impl Into<String>) -> Self {
         Self::Struct(Struct::atom(name))
+    }
+
+    /// Constructs a Lumber value containing an unknown Rust value.
+    pub fn any(any: impl Any) -> Self {
+        Self::Any(Rc::new(Box::new(any)))
     }
 }
 
@@ -99,6 +125,7 @@ impl From<Pattern> for Option<Value> {
                     values,
                 )))
             }
+            Pattern::Any(any) => Some(Value::Any(any)),
         }
     }
 }
@@ -146,6 +173,7 @@ impl Into<Pattern> for Option<Value> {
                     fields,
                 })
             }
+            Some(Value::Any(any)) => Pattern::Any(any),
         }
     }
 }
@@ -160,6 +188,7 @@ impl Display for Value {
             Value::Set(set) => set.fmt(f),
             Value::List(list) => list.fmt(f),
             Value::Struct(structure) => structure.fmt(f),
+            Value::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
         }
     }
 }

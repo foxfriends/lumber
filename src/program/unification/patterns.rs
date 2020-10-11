@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::Binding;
+use std::rc::Rc;
 
 // TODO: unification of sets will end up being a big change, as set unification is not deterministic.
 // TODO: This function could be wrapped so it does not return the output pattern, as that is only really
@@ -11,14 +12,16 @@ pub(crate) fn unify_patterns(
     occurs: &[Identifier],
 ) -> Option<(Pattern, Binding)> {
     match (lhs, rhs) {
+        // Any values must be the exact same value. We know nothing else about them.
+        (Pattern::Any(lhs), Pattern::Any(rhs)) if Rc::ptr_eq(lhs, rhs) => {
+            Some((Pattern::Any(lhs.clone()), binding))
+        }
         // Unifying wildcards provides no additional info. It is at this point that an explicit
         // occurs check must be made (it will be caught recursively in other cases).
-        (Pattern::Wildcard, other) | (other, Pattern::Wildcard) => {
-            if other.identifiers().any(|id| occurs.contains(&id)) {
-                None
-            } else {
-                Some((other.clone(), binding))
-            }
+        (Pattern::Wildcard, other) | (other, Pattern::Wildcard)
+            if !other.identifiers().any(|id| occurs.contains(&id)) =>
+        {
+            Some((other.clone(), binding))
         }
         // Unifying a x with itself succeeds with no additional info.
         (Pattern::Variable(lhs), Pattern::Variable(rhs)) if lhs == rhs => {

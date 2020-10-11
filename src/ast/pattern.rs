@@ -1,8 +1,11 @@
 use super::*;
 use crate::parser::Rule;
+use std::any::Any;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 /// A pattern against which other patterns can be unified.
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum Pattern {
     /// A structured pattern (unifies structurally with another query of the same name).
     Struct(Struct),
@@ -19,11 +22,45 @@ pub(crate) enum Pattern {
     Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
+    /// An unknown Rust value.
+    Any(Rc<Box<dyn Any>>),
 }
 
 impl Default for Pattern {
     fn default() -> Self {
         Self::Wildcard
+    }
+}
+
+impl Eq for Pattern {}
+impl PartialEq for Pattern {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Pattern::Struct(lhs), Pattern::Struct(rhs)) => lhs == rhs,
+            (Pattern::Variable(lhs), Pattern::Variable(rhs)) => lhs == rhs,
+            (Pattern::Literal(lhs), Pattern::Literal(rhs)) => lhs == rhs,
+            #[cfg(feature = "builtin-sets")]
+            (Pattern::Set(lhs, ltail), Pattern::Set(rhs, rtail)) => lhs == rhs && ltail == rtail,
+            (Pattern::List(lhs, ltail), Pattern::List(rhs, rtail)) => lhs == rhs && ltail == rtail,
+            (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
+            (Pattern::Wildcard, Pattern::Wildcard) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Hash for Pattern {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        match self {
+            Pattern::Struct(value) => value.hash(hasher),
+            Pattern::Variable(value) => value.hash(hasher),
+            Pattern::Literal(value) => value.hash(hasher),
+            #[cfg(feature = "builtin-sets")]
+            Pattern::Set(value, tail) => (value, tail).hash(hasher),
+            Pattern::List(value, tail) => (value, tail).hash(hasher),
+            Pattern::Any(value) => Rc::as_ptr(value).hash(hasher),
+            Pattern::Wildcard => ().hash(hasher),
+        }
     }
 }
 
