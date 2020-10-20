@@ -8,9 +8,3 @@ pub trait FromBinding: Sized {
     /// cannot be completed, the full, unmodified binding should be returned as an `Err`.
     fn from_binding(binding: Binding) -> Result<Self, Binding>;
 }
-
-impl FromBinding for Binding {
-    fn from_binding(binding: Binding) -> Result<Self, Binding> {
-        Ok(binding)
-    }
-}

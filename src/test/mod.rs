@@ -12,14 +12,13 @@ macro_rules! test {
             let program = Lumber::builder().build(path, $src).expect("syntax error");
             $(
                 let question = Question::try_from($query).expect("question error");
-                let mut answers = program.query::<Binding>(&question);
+                let mut answers = program.ask(&question);
                 $(
                     let mut answer = question
                         .answer(
                             &answers
                                 .next()
                                 .expect(&format!("{:?} - expected another answer", $query))
-                                .unwrap()
                         )
                         .expect(&format!("{:?} answers should be bound", $query));
                     $(

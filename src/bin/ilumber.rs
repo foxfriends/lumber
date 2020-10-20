@@ -49,9 +49,9 @@ fn answer(program: &Lumber, query: &str) {
             return;
         }
     };
-    for binding in program.query::<Binding>(&question) {
+    for binding in program.ask(&question) {
         let output = question
-            .answer(&binding.unwrap())
+            .answer(&binding)
             .unwrap()
             .into_iter()
             .map(|(var, val)| {

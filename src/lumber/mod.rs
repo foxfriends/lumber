@@ -109,10 +109,10 @@ impl<'p> Lumber<'p> {
         Self { database }
     }
 
-    /// Ask a question, returning an iterator over all possible answers. If an answer could
-    /// not be instantiated fully (for example, due to a field required to deserialize the
-    /// result remaining unbound), the result will be an `Err` containing the rest of the
-    /// bindings, in an unstructured form
+    /// Ask a question, returning an iterator over all possible answers, attempting to
+    /// deserialize the answer from each output binding. If an answer could not be instantiated
+    /// fully (for example, due to a field required to deserialize the result remaining unbound),
+    /// the result will be an `Err` containing the rest of the bindings, in an unstructured form.
     pub fn query<'a, A: FromBinding>(
         &'a self,
         query: &'a Question,
@@ -122,10 +122,15 @@ impl<'p> Lumber<'p> {
             .map(|binding| A::from_binding(binding))
     }
 
+    /// Ask a question, returning an iterator over all possible answers, in raw binding form.
+    pub fn ask<'a>(&'a self, query: &'a Question) -> impl Iterator<Item = Binding> + 'a {
+        self.database.unify_question(query)
+    }
+
     /// Ask a question, checking whether an answer exists. An answer, if it exists, may not
     /// necessarily be fully bound.
     pub fn check<'a>(&'a self, query: &'a Question) -> bool {
-        self.query::<Binding>(query).next().is_some()
+        self.ask(query).next().is_some()
     }
 
     pub(crate) fn into_library(self, name: &str) -> Database<'p> {

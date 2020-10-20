@@ -51,6 +51,15 @@ impl TryFrom<&str> for Question {
     ///
     /// For one-off statically determined questions, however, string conversions should be fine.
     ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lumber::Question;
+    /// use std::convert::TryInto;
+    ///
+    /// let question: Question = "test(A)".try_into().unwrap();
+    /// ```
+    ///
     /// # Errors
     ///
     /// Will return an error if the syntax is invalid.

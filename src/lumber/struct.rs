@@ -32,6 +32,14 @@ impl Struct {
     }
 
     /// Constructs an atom.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::Struct;
+    /// let atom = Struct::atom("hello");
+    /// assert!(atom.is_atom());
+    /// ```
     pub fn atom(name: impl Into<String>) -> Self {
         Self {
             name: Atom::from(name.into()),
@@ -40,11 +48,27 @@ impl Struct {
     }
 
     /// Checks if this struct is actually just an atom. An atom is a struct with no fields.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::Struct;
+    /// let atom = Struct::atom("hello");
+    /// assert!(atom.is_atom());
+    /// ```
     pub fn is_atom(&self) -> bool {
         self.fields.is_empty()
     }
 
     /// The name or symbol of this struct or atom.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::Struct;
+    /// let atom = Struct::atom("hello");
+    /// assert_eq!(atom.name(), "hello");
+    /// ```
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
