@@ -1,43 +1,164 @@
 //! Implementation of the Lumber @core library, containing important built-in functions required
 //! for the language to operate.
 
-use crate::{Lumber, Value};
+use crate::Lumber;
 
-fn nop3(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
-    Box::new(vec![].into_iter())
+native_function! {
+    fn add(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None)   => answer![lhs, rhs, lhs + rhs],
+            (Some(Integer(lhs)), Some(Rational(rhs)), None)  => answer![lhs, rhs, lhs + rhs],
+            (Some(Rational(lhs)), Some(Integer(rhs)), None)  => answer![lhs, rhs, lhs + rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs)), None) => answer![lhs, rhs, lhs + rhs],
+            (Some(String(lhs)), Some(String(rhs)), None)     => answer![lhs, rhs, lhs + &rhs],
+            _ => {}
+        }
+    }
 }
 
-fn add(values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
-    let a = integer!(values[0]);
-    let b = integer!(values[1]);
-    Box::new(std::iter::once(vec![
-        Some(Value::integer(a.clone())),
-        Some(Value::integer(b.clone())),
-        Some(Value::integer(a + b)),
-    ]))
+native_function! {
+    fn sub(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None)   => answer![lhs, rhs, lhs - rhs],
+            (Some(Integer(lhs)), Some(Rational(rhs)), None)  => answer![lhs, rhs, ramp::rational::Rational::from(lhs) - rhs],
+            (Some(Rational(lhs)), Some(Integer(rhs)), None)  => answer![lhs, rhs, lhs - ramp::rational::Rational::from(rhs)],
+            (Some(Rational(lhs)), Some(Rational(rhs)), None) => answer![lhs, rhs, lhs - rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn mul(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None)   => answer![lhs, rhs, lhs * rhs],
+            (Some(Integer(lhs)), Some(Rational(rhs)), None)  => answer![lhs, rhs, lhs * rhs],
+            (Some(Rational(lhs)), Some(Integer(rhs)), None)  => answer![lhs, rhs, lhs * rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs)), None) => answer![lhs, rhs, lhs * rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn div(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None)   => answer![lhs, rhs, lhs / rhs],
+            (Some(Integer(lhs)), Some(Rational(rhs)), None)  => answer![lhs, rhs, lhs / rhs],
+            (Some(Rational(lhs)), Some(Integer(rhs)), None)  => answer![lhs, rhs, lhs / rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs)), None) => answer![lhs, rhs, lhs / rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn rem(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None) => answer![lhs, rhs, lhs % rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn bitor(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None) => answer![lhs, rhs, lhs | rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn bitand(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None) => answer![lhs, rhs, lhs & rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn bitxor(lhs, rhs, out) {
+        use crate::Value::*;
+        match (lhs, rhs, out) {
+            (Some(Integer(lhs)), Some(Integer(rhs)), None) => answer![lhs, rhs, lhs ^ rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn leq(lhs, rhs) {
+        use crate::Value::*;
+        match (lhs, rhs) {
+            (Some(Integer(lhs)), Some(Integer(rhs)))   if lhs <= rhs => answer![lhs, rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs))) if lhs <= rhs => answer![lhs, rhs],
+            (Some(String(lhs)), Some(String(rhs)))     if lhs <= rhs => answer![lhs, rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn geq(lhs, rhs) {
+        use crate::Value::*;
+        match (lhs, rhs) {
+            (Some(Integer(lhs)), Some(Integer(rhs)))   if lhs >= rhs => answer![lhs, rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs))) if lhs >= rhs => answer![lhs, rhs],
+            (Some(String(lhs)), Some(String(rhs)))     if lhs >= rhs => answer![lhs, rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn lt(lhs, rhs) {
+        use crate::Value::*;
+        match (lhs, rhs) {
+            (Some(Integer(lhs)), Some(Integer(rhs)))   if lhs < rhs => answer![lhs, rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs))) if lhs < rhs => answer![lhs, rhs],
+            (Some(String(lhs)), Some(String(rhs)))     if lhs < rhs => answer![lhs, rhs],
+            _ => {}
+        }
+    }
+}
+
+native_function! {
+    fn gt(lhs, rhs) {
+        use crate::Value::*;
+        match (lhs, rhs) {
+            (Some(Integer(lhs)), Some(Integer(rhs)))   if lhs > rhs => answer![lhs, rhs],
+            (Some(Rational(lhs)), Some(Rational(rhs))) if lhs > rhs => answer![lhs, rhs],
+            (Some(String(lhs)), Some(String(rhs)))     if lhs > rhs => answer![lhs, rhs],
+            _ => {}
+        }
+    }
 }
 
 thread_local! {
     pub(crate) static LIB: Lumber<'static> = Lumber::builder()
         .core(false)
         .bind("add/3", add)
-        .bind("sub/3", nop3)
-        .bind("mul/3", nop3)
-        .bind("div/3", nop3)
-        .bind("rem/3", nop3)
-        .bind("exp/3", nop3)
-        .bind("eq/3", nop3)
-        .bind("neq/3", nop3)
-        .bind("lt/3", nop3)
-        .bind("gt/3", nop3)
-        .bind("leq/3", nop3)
-        .bind("geq/3", nop3)
-        .bind("or/3", nop3)
-        .bind("and/3", nop3)
-        .bind("dif/3", nop3)
-        .bind("bitor/3", nop3)
-        .bind("bitand/3", nop3)
-        .bind("bitxor/3", nop3)
+        .bind("sub/3", sub)
+        .bind("mul/3", mul)
+        .bind("div/3", div)
+        .bind("rem/3", rem)
+        .bind("bitor/3", bitor)
+        .bind("bitand/3", bitand)
+        .bind("bitxor/3", bitxor)
+        .bind("leq/2", leq)
+        .bind("geq/2", geq)
+        .bind("lt/2", lt)
+        .bind("gt/2", gt)
         .build_from_str(include_str!("core.lumber"))
         .unwrap();
 }

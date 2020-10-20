@@ -2,7 +2,7 @@
 //!
 //! More info will be available soon.
 
-#![feature(bindings_after_at)]
+#![feature(bindings_after_at, generators, generator_trait)]
 
 #[macro_use]
 mod lumber;

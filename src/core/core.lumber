@@ -13,36 +13,6 @@
 :- nat(rem/3).
 :- pub(rem/3).
 
-:- nat(exp/3).
-:- pub(exp/3).
-
-:- nat(eq/3).
-:- pub(eq/3).
-
-:- nat(neq/3).
-:- pub(neq/3).
-
-:- nat(lt/3).
-:- pub(lt/3).
-
-:- nat(gt/3).
-:- pub(gt/3).
-
-:- nat(leq/3).
-:- pub(leq/3).
-
-:- nat(geq/3).
-:- pub(geq/3).
-
-:- nat(or/3).
-:- pub(or/3).
-
-:- nat(and/3).
-:- pub(and/3).
-
-:- nat(dif/3).
-:- pub(dif/3).
-
 :- nat(bitor/3).
 :- pub(bitor/3).
 
@@ -57,3 +27,18 @@ true.
 
 :- pub(false/0).
 false :- !.
+
+:- pub(equal/2).
+equal(A, A).
+
+:- nat(leq/2).
+:- pub(leq/2).
+
+:- nat(geq/2).
+:- pub(geq/2).
+
+:- nat(lt/2).
+:- pub(lt/2).
+
+:- nat(gt/2).
+:- pub(gt/2).

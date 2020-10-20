@@ -15,7 +15,7 @@ yes! {
     "#
 }
 
-yes! {
+no! {
     operation_boolean => r#"
     test!(A, B, C, D) <- A == B && C < D.
     "#

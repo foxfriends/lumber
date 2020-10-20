@@ -7,6 +7,7 @@ const fn left(token: &'static str) -> Operator {
     Operator::new(token, Assoc::Left)
 }
 
+#[allow(dead_code)]
 const fn right(token: &'static str) -> Operator {
     Operator::new(token, Assoc::Right)
 }
@@ -60,7 +61,9 @@ impl Expression {
             #[cfg(feature = "builtin-sets")]
             Rule::set_aggregation => Self::SetAggregation,
             #[cfg(not(feature = "builtin-sets"))]
-            Rule::set_aggregation => unimplemented!("builtin-sets is not enabled, so set aggregation syntax cannot be used"),
+            Rule::set_aggregation => unimplemented!(
+                "builtin-sets is not enabled, so set aggregation syntax cannot be used"
+            ),
             Rule::list_aggregation => Self::ListAggregation,
             _ => unreachable!(),
         };
@@ -119,17 +122,17 @@ fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<
 
 fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
     let prec_climber = PrecClimber::new(vec![
-        left("\\"),
-        left("||"),
-        left("&&"),
+        // left("\\"),
+        // left("||"),
+        // left("&&"),
         left("|"),
         left("^"),
         left("&"),
-        left("==") | left("!="),
-        left("<") | left(">") | left("<=") | left(">="),
+        // left("==") | left("!="),
+        // left("<") | left(">") | left("<=") | left(">="),
         left("+") | left("-"),
         left("*") | left("/") | left("%"),
-        right("**"),
+        // right("**")
     ]);
     let context = RefCell::new(context);
     prec_climber.climb(
@@ -146,29 +149,25 @@ fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<U
                 "*" => builtin::mul(lhs, rhs, output.clone()),
                 "/" => builtin::div(lhs, rhs, output.clone()),
                 "%" => builtin::rem(lhs, rhs, output.clone()),
-                "**" => builtin::exp(lhs, rhs, output.clone()),
-                "==" => builtin::eq(lhs, rhs, output.clone()),
-                "!=" => builtin::neq(lhs, rhs, output.clone()),
-                "<" => builtin::lt(lhs, rhs, output.clone()),
-                ">" => builtin::gt(lhs, rhs, output.clone()),
-                "<=" => builtin::leq(lhs, rhs, output.clone()),
-                ">=" => builtin::geq(lhs, rhs, output.clone()),
-                "||" => builtin::or(lhs, rhs, output.clone()),
-                "&&" => builtin::and(lhs, rhs, output.clone()),
-                "\\" => builtin::dif(lhs, rhs, output.clone()),
                 "|" => builtin::bitor(lhs, rhs, output.clone()),
                 "&" => builtin::bitand(lhs, rhs, output.clone()),
                 "^" => builtin::bitxor(lhs, rhs, output.clone()),
                 token => match op.into_inner().next() {
-                    Some(pair) => {
-                        assert_eq!(Rule::named_operator, pair.as_rule());
-                        let pair = just!(pair.into_inner());
-                        let scope = Scope::new(pair, context)?;
-                        Unification::Query(Query::new(
-                            Handle::binop(scope),
-                            vec![lhs, rhs, output.clone()],
-                        ))
-                    }
+                    Some(pair) => match pair.as_rule() {
+                        Rule::named_operator => {
+                            let pair = just!(pair.into_inner());
+                            let scope = Scope::new(pair, context)?;
+                            Unification::Query(Query::new(
+                                Handle::binop(scope),
+                                vec![lhs, rhs, output.clone()],
+                            ))
+                        }
+                        Rule::symbolic_operator => {
+                            context.error_unrecognized_operator(token);
+                            return None;
+                        }
+                        _ => unreachable!(),
+                    },
                     None => {
                         context.error_unrecognized_operator(token);
                         return None;
