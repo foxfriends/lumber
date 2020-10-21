@@ -4,13 +4,9 @@ use crate::{Binding, Value};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
-mod builder;
-pub use builder::QuestionBuilder;
-
 /// A question ready to be asked to the Lumber program.
 ///
-/// These can be constructed from strings using Question::from() or manually using the
-/// [`QuestionBuilder`][].
+/// These can be constructed from strings using [`Question::try_from`][].
 pub struct Question {
     body: Body,
 }
@@ -22,12 +18,6 @@ impl AsRef<Body> for Question {
 }
 
 impl Question {
-    /// Start building a new question, using the [`QuestionBuilder`][]. The type of answers must be
-    /// provided. If dynamic bindings are desired, use [`Binding`][] as the `Answer` type.
-    pub fn new() -> QuestionBuilder {
-        QuestionBuilder::new()
-    }
-
     /// Uses a binding to extract the answer to this question.
     pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
         self.body
@@ -46,10 +36,11 @@ impl TryFrom<&str> for Question {
     type Error = crate::Error;
 
     /// A string using Lumber syntax can be converted directly into a question. It is not recommended
-    /// to construct questions dynamically in this way, as the error will not be recoverable. Instead,
-    /// for dynamically constructed questions, use the [`QuestionBuilder`][]
+    /// to construct questions dynamically in this way, as the error will not be recoverable. There is
+    /// not currently another method of constructing questions, but it is a planned feature to have
+    /// some sort of question builder, DSL, or derive-based solution for this problem.
     ///
-    /// For one-off statically determined questions, however, string conversions should be fine.
+    /// For one-off statically written questions, string conversions should be fine and unwrapped.
     ///
     /// # Examples
     ///

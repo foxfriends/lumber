@@ -1,4 +1,4 @@
-use lumber::{Binding, Lumber, Question};
+use lumber::{Lumber, Question};
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
