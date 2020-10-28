@@ -1,3 +1,5 @@
+:- mod(list).
+
 :- nat(add/3).
 :- pub(add/3).
 
@@ -24,6 +26,10 @@
 
 :- pub(true/0).
 true.
+
+:- inc(false_/0).
+:- pub(false/0).
+false :- false_.
 
 :- pub(equal/2).
 equal(A, A).

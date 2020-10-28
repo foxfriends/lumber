@@ -2,6 +2,7 @@
 //! for the language to operate.
 
 use crate::Lumber;
+use std::path::PathBuf;
 
 native_function! {
     fn add(lhs, rhs, out) {
@@ -159,6 +160,6 @@ thread_local! {
         .bind("geq/2", geq)
         .bind("lt/2", lt)
         .bind("gt/2", gt)
-        .build_from_str(include_str!("core.lumber"))
+        .build(PathBuf::from(file!()).parent().unwrap(), include_str!("core.lumber"))
         .unwrap();
 }
