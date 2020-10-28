@@ -52,34 +52,14 @@ impl PartialEq for Pattern {
 impl Hash for Pattern {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
-            Pattern::Struct(value) => {
-                "s".hash(hasher);
-                value.hash(hasher);
-            }
-            Pattern::Variable(value) => {
-                "v".hash(hasher);
-                value.hash(hasher);
-            }
-            Pattern::Literal(value) => {
-                "t".hash(hasher);
-                value.hash(hasher);
-            }
+            Pattern::Struct(value) => value.hash(hasher),
+            Pattern::Variable(value) => value.hash(hasher),
+            Pattern::Literal(value) => value.hash(hasher),
             #[cfg(feature = "builtin-sets")]
-            Pattern::Set(value, tail) => {
-                "e".hash(hasher);
-                value.hash(hasher);
-                tail.hash(hasher);
-            }
-            Pattern::List(value, tail) => {
-                "l".hash(hasher);
-                value.hash(hasher);
-                tail.hash(hasher);
-            }
-            Pattern::Any(value) => {
-                "a".hash(hasher);
-                Rc::as_ptr(value).hash(hasher)
-            }
-            Pattern::Wildcard => "w".hash(hasher),
+            Pattern::Set(value, tail) => (value, tail).hash(hasher),
+            Pattern::List(value, tail) => (value, tail).hash(hasher),
+            Pattern::Any(value) => Rc::as_ptr(value).hash(hasher),
+            Pattern::Wildcard => ().hash(hasher),
         }
     }
 }

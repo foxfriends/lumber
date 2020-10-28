@@ -39,7 +39,7 @@ evaluation        =  { (assumption ~ ",")* ~ operation }
 disjunction       =  { conjunction ~ (";" ~ conjunction)* }
 conjunction       =  { procession ~ ("," ~ procession)* }
 procession        =  { unification ~ ("->" ~ unification)* }
-unification       =  { never | assumption | predicate | "(" ~ disjunction ~ ")" }
+unification       =  { assumption | predicate | "(" ~ disjunction ~ ")" }
 assumption        =  { pattern ~ "<-" ~ operation }
 expression        =  { value | aggregation | "(" ~ operation ~ ")" }
 operation         =  { expression ~ (operator ~ expression)* }
@@ -47,7 +47,6 @@ aggregation       =  { set_aggregation | list_aggregation }
 set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
 aggregation_body  =  { pattern ~ ":" ~ disjunction }
-never             = @{ "!" }
 
 call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
 predicate         =  { scope ~ ( "(" ~ fields ~ ")" )? }
@@ -64,7 +63,7 @@ quoted_atom       = @{ PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 
 operator          =  { named_operator | symbolic_operator }
 named_operator    = ${ "`" ~ scope ~ "`" }
-symbolic_operator = ${ !"->" ~ !"<-" ~ !"!" ~ (operator_symbol+) }
+symbolic_operator = ${ !"->" ~ !"<-" ~ (operator_symbol+) }
 operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_CONTINUE* }

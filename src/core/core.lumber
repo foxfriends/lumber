@@ -25,9 +25,6 @@
 :- pub(true/0).
 true.
 
-:- pub(false/0).
-false :- !.
-
 :- pub(equal/2).
 equal(A, A).
 
