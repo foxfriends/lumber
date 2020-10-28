@@ -82,6 +82,6 @@ no! {
 yes! {
     function_lists => r#"
     len!([]) <- 0.
-    len!([_ | R]) <- 1 + len!(R).
+    len!([_, ..R]) <- 1 + len!(R).
     "#
 }

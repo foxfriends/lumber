@@ -1,8 +1,8 @@
 :- pub(contains/2).
-contains(P, [P | _]).
-contains(P, [_ | Rest]) :- contains(P, Rest).
+contains(P, [P, ..]).
+contains(P, [_, ..Rest]) :- contains(P, Rest).
 
 :- pub(update/4).
 update([], _, _, []).
-update([P | Rest], P, U, [U | Rest]).
-update([X | Rest], P, U, [X | NewRest]) :- update(Rest, P, U, NewRest).
+update([P, ..Rest], P, U, [U, ..Rest]).
+update([X, ..Rest], P, U, [X, ..NewRest]) :- update(Rest, P, U, NewRest).

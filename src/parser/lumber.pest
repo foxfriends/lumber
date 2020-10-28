@@ -84,8 +84,10 @@ decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 
 string            = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
 
-list              =  { "[" ~ list_entries ~ ("|" ~ (list | variable | wildcard))? ~ "]" | "[" ~ "]" }
-set               =  { "{" ~ list_entries ~ ("|" ~ (set | variable | wildcard))? ~ "}" | "{" ~ "}" }
+list              =  { "[" ~ list_entries ~ list_tail? ~ "]" | "[" ~ "]" }
+list_tail         =  { "," ~ ".." ~ (list | variable | wildcard)? }
+set               =  { "{" ~ list_entries ~ set_tail? ~ "}" | "{" ~ "}" }
+set_tail          =  { "," ~ ".." ~ (set | variable | wildcard)? }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }

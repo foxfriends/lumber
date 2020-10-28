@@ -23,7 +23,7 @@ no! {
 
 yes! {
     operation_named_operator => r#"
-    in!(A, [ A | _ ]) <- [_].
+    in!(A, [A, ..]) <- [_].
     in!(_, _) <- [].
     test!(A, B) <- A `in` B.
     "#
@@ -31,7 +31,7 @@ yes! {
 
 yes! {
     operation_named_operator_alt => r#"
-    in(A, [ A | _ ], [_]).
+    in(A, [A, ..], [_]).
     in(_, _, []).
     test!(A, B) <- A `in` B.
     "#

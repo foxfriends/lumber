@@ -85,9 +85,10 @@ impl Pattern {
                         .collect(),
                     None => return Self::List(vec![], None),
                 };
-                let tail = pairs
-                    .next()
-                    .map(|pair| Box::new(Pattern::new_inner(pair, context)));
+                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
+                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
+                    None => Box::new(Pattern::Wildcard),
+                });
                 Self::List(head, tail)
             }
             #[cfg(not(feature = "builtin-sets"))]
