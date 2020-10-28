@@ -39,6 +39,16 @@ impl Binding {
         self.0.insert(identifier, pattern);
     }
 
+    pub(crate) fn bind(&mut self, variable: &str, value: Value) {
+        let identifier = self
+            .0
+            .keys()
+            .find(|id| id.name() == variable)
+            .unwrap()
+            .clone();
+        self.set(identifier, Some(value).into());
+    }
+
     pub(crate) fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
         Ok(self.apply(pattern)?.into())
     }

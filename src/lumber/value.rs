@@ -89,6 +89,12 @@ impl From<String> for Value {
     }
 }
 
+impl From<&str> for Value {
+    fn from(string: &str) -> Self {
+        Self::String(string.to_owned())
+    }
+}
+
 impl<V> From<Vec<V>> for Value
 where
     Value: From<V>,

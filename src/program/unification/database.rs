@@ -9,8 +9,7 @@ impl Database<'_> {
         question: &'a Question,
     ) -> impl Iterator<Item = Binding> + 'a {
         let body = question.as_ref();
-        let binding = body.identifiers().collect();
-        self.unify_body(body, binding, true)
+        self.unify_body(body, question.initial_binding.clone(), true)
     }
 
     fn unify_body<'a>(&'a self, body: &'a Body, binding: Binding, public: bool) -> Bindings<'a> {

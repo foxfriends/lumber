@@ -7,8 +7,10 @@ use std::convert::TryFrom;
 /// A question ready to be asked to the Lumber program.
 ///
 /// These can be constructed from strings using [`Question::try_from`][].
+#[derive(Clone, Debug)]
 pub struct Question {
     body: Body,
+    pub(crate) initial_binding: Binding,
 }
 
 impl AsRef<Body> for Question {
@@ -18,6 +20,24 @@ impl AsRef<Body> for Question {
 }
 
 impl Question {
+    /// Sets the value of a variable before unification begins.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::{Value, Question};
+    /// # use std::convert::TryFrom;
+    /// let mut question = Question::try_from("greeting(A, B)").unwrap();
+    /// question.set("A", Value::from("hello"));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If the variable being set is not referenced by the question.
+    pub fn set(&mut self, variable: &str, value: Value) {
+        self.initial_binding.bind(variable, value);
+    }
+
     /// Uses a binding to extract the answer to this question.
     pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
         self.body
@@ -62,7 +82,11 @@ impl TryFrom<&str> for Question {
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
         let body = Body::new(pair, &mut context).unwrap();
-        Ok(Question { body })
+        let initial_binding = body.identifiers().collect();
+        Ok(Question {
+            body,
+            initial_binding,
+        })
     }
 }
 
