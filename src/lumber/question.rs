@@ -38,6 +38,25 @@ impl Question {
         self.initial_binding.bind(variable, value);
     }
 
+    /// Sets the value of a variable before unification begins.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::{Value, Question};
+    /// # use std::convert::TryFrom;
+    /// let question = Question::try_from("greeting(A, B)").unwrap()
+    ///     .with("A", Value::from("hello"));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If the variable being set is not referenced by the question.
+    pub fn with(mut self, variable: &str, value: Value) -> Self {
+        self.set(variable, value);
+        self
+    }
+
     /// Uses a binding to extract the answer to this question.
     pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
         self.body
