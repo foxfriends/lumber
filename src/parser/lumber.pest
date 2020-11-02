@@ -1,5 +1,5 @@
 module            =  { SOI ~ (directive | clause)* ~ EOI }
-external_handle   =  { SOI ~ atom ~ ("::" ~ atom)* ~ arity+ ~ EOI }
+external_handle   =  { SOI ~ atom ~ ("::" ~ atom)* ~ arity ~ EOI }
 question          =  { SOI ~ body ~ EOI }
 
 directive         =  { ":-" ~ instruction ~ "." }
@@ -23,8 +23,8 @@ scope             =  { (scope_prefix ~ "::")? ~ atom ~ ("::" ~ atom)* }
 
 handles           =  { (handle | alias) ~ ("," ~ (handle | alias))* }
 alias             =  { "alias" ~ "(" ~ handle ~ "," ~ "as" ~ ":" ~ handle ~ ")" }
-handle            =  { atom ~ arity+ }
-arity             = ${ "/" ~ integer_10 | ":" ~ atom }
+handle            =  { atom ~ arity }
+arity             =  { "/" ~ integer_10 ~ (":" ~ atom ~ ("/" ~ !"0" ~ !"1" ~ integer_10)?)* }
 
 clause            =  { fact | rule | function }
 fact              =  { head ~ "." }

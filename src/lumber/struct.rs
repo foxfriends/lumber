@@ -1,11 +1,12 @@
 use super::Value;
 use crate::ast::*;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub(crate) enum Field {
-    Index(usize),
-    Name(String),
+    Unnamed,
+    Named(Atom),
 }
 
 /// A Lumber structure, containing a combination of named and indexed fields. Atoms in Lumber are
@@ -13,21 +14,24 @@ pub(crate) enum Field {
 #[derive(Clone, PartialEq, Debug)]
 pub struct Struct {
     pub(crate) name: Atom,
-    pub(crate) fields: Vec<(Field, Option<Value>)>,
+    pub(crate) fields: HashMap<Field, Vec<Option<Value>>>,
 }
 
 impl Struct {
-    pub(crate) fn new(name: Atom, arity: &[Arity], values: Vec<Option<Value>>) -> Self {
-        let fields = arity
-            .into_iter()
-            .flat_map(|arity| arity.iter())
-            .enumerate()
-            .map(|(i, name)| match name {
-                Some(name) => Field::Name(name.to_owned()),
-                None => Field::Index(i),
-            })
-            .zip(values.into_iter())
-            .collect();
+    pub(crate) fn new(name: Atom, arity: &Arity, mut values: Vec<Option<Value>>) -> Self {
+        let mut fields = HashMap::new();
+        if arity.len != 0 {
+            fields.insert(
+                Field::Unnamed,
+                values.drain(0..arity.len as usize).collect(),
+            );
+        }
+        for field in arity.fields() {
+            fields.insert(
+                Field::Named(field.name.clone()),
+                values.drain(0..field.len as usize).collect(),
+            );
+        }
         Struct { name, fields }
     }
 
@@ -43,7 +47,7 @@ impl Struct {
     pub fn atom(name: impl Into<String>) -> Self {
         Self {
             name: Atom::from(name.into()),
-            fields: vec![],
+            fields: HashMap::new(),
         }
     }
 
@@ -79,17 +83,38 @@ impl Display for Struct {
         self.name.fmt(f)?;
         if !self.fields.is_empty() {
             write!(f, "(")?;
-            for (i, (field, value)) in self.fields.iter().enumerate() {
+            let empty = vec![];
+            let unnamed_fields = self.fields.get(&Field::Unnamed).unwrap_or(&empty);
+            for (i, value) in unnamed_fields.iter().enumerate() {
                 if i != 0 {
                     write!(f, ", ")?;
-                }
-                match field {
-                    Field::Index(..) => {}
-                    Field::Name(name) => write!(f, "{}:", name)?,
                 }
                 match value {
                     Some(value) => value.fmt(f)?,
                     None => write!(f, "_")?,
+                }
+            }
+            for (i, (name, values)) in self
+                .fields
+                .iter()
+                .filter_map(|(k, v)| match k {
+                    Field::Unnamed => None,
+                    Field::Named(name) => Some((name, v)),
+                })
+                .enumerate()
+            {
+                if unnamed_fields.len() != 0 || i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}: ", name)?;
+                for (i, value) in values.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    match value {
+                        Some(value) => value.fmt(f)?,
+                        None => write!(f, "_")?,
+                    }
                 }
             }
             write!(f, ")")?;

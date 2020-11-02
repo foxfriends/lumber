@@ -1,20 +1,14 @@
 use super::*;
 use crate::parser::Rule;
 
-pub(crate) fn fields(pair: crate::Pair, context: &mut Context) -> (Vec<Arity>, Vec<Pattern>) {
+pub(crate) fn fields(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
     assert_eq!(pair.as_rule(), Rule::fields);
     pair.into_inner().map(|pair| field(pair, context)).fold(
-        (vec![], vec![]),
+        (Arity::default(), vec![]),
         |(mut arity, mut patterns), (name, pattern)| {
             match name {
-                Some(name) => arity.push(Arity::Name(name)),
-                None => {
-                    if let Some(Arity::Len(len)) = arity.last_mut() {
-                        *len += 1;
-                    } else {
-                        arity.push(Arity::Len(1));
-                    }
-                }
+                Some(name) => arity.push(name, 1),
+                None => arity.extend_len(),
             }
             patterns.push(pattern);
             (arity, patterns)

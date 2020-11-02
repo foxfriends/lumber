@@ -1,7 +1,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{r#struct::Field, List, Struct};
-use crate::ast::{Atom, Literal, Pattern};
+use crate::ast::{Arity, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
@@ -155,29 +155,20 @@ impl Into<Pattern> for Option<Value> {
             Some(Value::Set(..)) => todo!(),
             Some(Value::Struct(Struct { name, fields })) => {
                 let (arity, fields) = fields.into_iter().fold(
-                    (vec![], vec![]),
-                    |(mut arity, mut fields), (field, value)| {
+                    (Arity::default(), vec![]),
+                    |(mut arity, fields), (field, values)| {
                         match field {
-                            Field::Index(..) => {
-                                if let Some(crate::ast::Arity::Len(len)) = arity.last_mut() {
-                                    *len += 1;
-                                } else {
-                                    arity.push(crate::ast::Arity::Len(1));
-                                }
+                            Field::Unnamed => {
+                                arity.len = values.len() as u32;
                             }
-                            Field::Name(name) => {
-                                arity.push(crate::ast::Arity::Name(Atom::from(name)));
+                            Field::Named(name) => {
+                                arity.push(name.clone(), values.len() as u32);
                             }
                         }
-                        fields.push(value.into());
                         (arity, fields)
                     },
                 );
-                Pattern::Struct(crate::ast::Struct {
-                    name,
-                    arity,
-                    fields,
-                })
+                Pattern::Struct(crate::ast::Struct::from_parts(name, arity, fields))
             }
             Some(Value::Any(any)) => Pattern::Any(any),
         }

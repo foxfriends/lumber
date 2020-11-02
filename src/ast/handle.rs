@@ -6,9 +6,9 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Handle {
     /// The path and name of the predicate or function being described
-    scope: Scope,
+    pub(crate) scope: Scope,
     /// The arity of the predicate or function being described
-    arity: Vec<Arity>,
+    pub(crate) arity: Arity,
 }
 
 pub trait AsHandle {
@@ -24,13 +24,10 @@ impl AsHandle for &str {
         );
         let mut pairs = pair.into_inner();
         let mut scope = Scope::default();
-        let mut arity = vec![];
         while Rule::atom == pairs.peek().unwrap().as_rule() {
             scope.push(Atom::new(pairs.next().unwrap()));
         }
-        while Rule::arity == pairs.peek().unwrap().as_rule() {
-            arity.push(Arity::new(pairs.next().unwrap()));
-        }
+        let arity = Arity::new(pairs.next().unwrap());
         assert_eq!(Rule::EOI, pairs.next().unwrap().as_rule());
         Ok(Handle { scope, arity })
     }
@@ -68,21 +65,15 @@ impl Handle {
     }
 
     pub(crate) fn can_alias(&self, other: &Self) -> bool {
-        self.arity
-            .iter()
-            .zip(other.arity.iter())
-            .all(|(a, b)| a.can_alias(b))
+        self.arity.can_alias(&other.arity)
     }
 
-    pub(crate) fn from_parts(scope: Scope, mut arity: Vec<Arity>) -> Self {
-        if arity.is_empty() {
-            arity.push(Arity::Len(0));
-        }
+    pub(crate) fn from_parts(scope: Scope, arity: Arity) -> Self {
         Handle { scope, arity }
     }
 
     pub(crate) fn binop(scope: Scope) -> Self {
-        Self::from_parts(scope, vec![Arity::Len(3)])
+        Self::from_parts(scope, Arity::new_len(3))
     }
 
     pub(crate) fn new(pair: crate::Pair, context: &mut Context) -> Self {
@@ -94,30 +85,14 @@ impl Handle {
         let mut pairs = pair.into_inner();
         let atom = Atom::new(pairs.next().unwrap());
         scope.push(atom);
-        let arity = pairs.map(|pair| Arity::new(pair)).collect();
+        let arity = Arity::new(pairs.next().unwrap());
         Self { scope, arity }
-    }
-
-    pub(crate) fn extend_arity(&mut self, arity: Arity) {
-        match arity {
-            Arity::Name(..) => self.arity.push(arity),
-            Arity::Len(len) => {
-                if let Some(Arity::Len(prev)) = self.arity.last_mut() {
-                    *prev += len;
-                } else {
-                    self.arity.push(Arity::Len(len));
-                }
-            }
-        }
     }
 }
 
 impl Display for Handle {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.scope.fmt(f)?;
-        for arity in &self.arity {
-            arity.fmt(f)?;
-        }
-        Ok(())
+        self.arity.fmt(f)
     }
 }

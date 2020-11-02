@@ -1,51 +1,107 @@
 use super::*;
 use crate::parser::Rule;
+use std::collections::BTreeMap;
 use std::fmt::{self, Display, Formatter};
 
-/// The arity portion of a predicate handle.
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub(crate) enum Arity {
-    /// Number of consecutive unnamed arguments.
-    Len(u32),
-    /// A singled named argument.
-    Name(Atom),
+#[derive(Default, Clone, Hash, Eq, PartialEq, Debug)]
+pub(crate) struct Arity {
+    pub len: u32,
+    pub fields: Vec<Field>,
 }
 
 impl Arity {
     pub fn new(pair: crate::Pair) -> Self {
         assert_eq!(pair.as_rule(), Rule::arity);
-        let pair = just!(pair.into_inner());
-        match pair.as_rule() {
-            // TODO: do we really want to panic on arities longer than 2^32?
-            Rule::integer_10 => Self::Len(pair.as_str().parse().unwrap()),
-            Rule::atom => Self::Name(Atom::new(pair)),
-            _ => unreachable!(),
+        let mut pairs = pair.into_inner();
+        // TODO: this function will panic if len > 2^32... do we want that?
+        let len = pairs.next().unwrap().as_str().parse().unwrap();
+        let fields = pairs.fold(vec![], |mut fields, pair| {
+            match pair.as_rule() {
+                Rule::atom => fields.push(Field::new(Atom::new(pair), 1)),
+                Rule::integer_10 => fields.last_mut().unwrap().len = pair.as_str().parse().unwrap(),
+                _ => unreachable!(),
+            }
+            fields
+        });
+
+        Arity { len, fields }
+    }
+
+    pub fn push(&mut self, atom: Atom, len: u32) {
+        self.fields.push(Field::new(atom, len));
+    }
+
+    pub fn extend_len(&mut self) {
+        *self
+            .fields
+            .last_mut()
+            .map(|field| &mut field.len)
+            .unwrap_or(&mut self.len) += 1;
+    }
+
+    pub fn new_len(len: u32) -> Self {
+        Self {
+            len,
+            fields: vec![],
         }
     }
 
     pub fn can_alias(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Len(a), Self::Len(b)) => a == b,
-            (Self::Name(..), Self::Name(..)) => true,
-            _ => false,
-        }
+        self.len == other.len
+            && self.fields.len() == other.fields.len()
+            && self
+                .fields
+                .iter()
+                .zip(other.fields.iter())
+                .all(|(a, b)| a.len == b.len)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Option<&str>> {
-        match self {
-            Self::Len(len) => {
-                Box::new((0..*len).map(|_| None)) as Box<dyn Iterator<Item = Option<&str>>>
-            }
-            Self::Name(name) => Box::new(std::iter::once(Some(name.as_ref()))),
-        }
+    pub fn fields(&self) -> impl Iterator<Item = &Field> {
+        self.fields.iter()
+    }
+
+    pub fn sort<T>(&mut self, values: &mut Vec<T>) {
+        let start = self.len as usize;
+        let (f, v) = self
+            .fields
+            .drain(..)
+            .map(|Field { name, len }| (name, values.drain(start..start + len as usize).collect()))
+            .collect::<BTreeMap<_, Vec<_>>>()
+            .into_iter()
+            .fold(
+                (vec![], vec![]),
+                |(mut fields, mut values), (field, value)| {
+                    fields.push(Field::new(field, value.len() as u32));
+                    values.extend(value);
+                    (fields, values)
+                },
+            );
+        self.fields.extend(f);
+        values.extend(v);
     }
 }
 
 impl Display for Arity {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Arity::Len(len) => write!(f, "/{}", len),
-            Arity::Name(atom) => write!(f, ":{}", atom),
+        write!(f, "/{}", self.len)?;
+        for Field { name, len } in &self.fields {
+            write!(f, ":{}", name)?;
+            if *len != 1 {
+                write!(f, "/{}", len)?;
+            }
         }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub(crate) struct Field {
+    pub name: Atom,
+    pub len: u32,
+}
+
+impl Field {
+    fn new(name: Atom, len: u32) -> Self {
+        Self { name, len }
     }
 }

@@ -209,7 +209,7 @@ mod test {
     fn atom(name: &str) -> Pattern {
         Pattern::Struct(Struct {
             name: Atom::from(name),
-            arity: vec![],
+            arity: Arity::default(),
             fields: vec![],
         })
     }
@@ -243,7 +243,7 @@ mod test {
         (
             $name:ident ( $($field:tt)+ )
         ) => {{
-            let mut arity = vec![];
+            let mut arity = Arity::default();
             let mut fields = vec![];
             structure!(@[arity, fields] $name ($($field)+))
         }};
@@ -251,7 +251,7 @@ mod test {
         (
             @[$arity:ident, $fields:ident] $name:ident ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            $arity.push(Arity::Name(Atom::from(stringify!($fieldname))));
+            $arity.push(Atom::from(stringify!($fieldname)), 1);
             $fields.push($pat.clone());
             structure!(@[$arity, $fields] $name ($($($field)+)?))
         }};
@@ -259,11 +259,7 @@ mod test {
         (
             @[$arity:ident, $fields:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            match $arity.last_mut() {
-                Some(Arity::Len(i)) => *i += 1,
-                _ => $arity.push(Arity::Len(1)),
-            }
-            $arity.push(Arity::Name(Atom::from(stringify!($fieldname))));
+            $arity.extend_len();
             $fields.push($pat.clone());
             structure!(@[$arity, $fields] $name ($($($field)+)?))
         }};
@@ -271,11 +267,11 @@ mod test {
         (
             @[$arity:ident, $fields:ident] $name:ident ()
         ) => {
-            Pattern::Struct(Struct {
-                name: Atom::from(stringify!($name)),
-                arity: $arity,
-                fields: $fields,
-            })
+            Pattern::Struct(Struct::from_parts(
+                Atom::from(stringify!($name)),
+                $arity,
+                $fields,
+            ))
         };
     }
 
@@ -335,6 +331,16 @@ mod test {
             structure!(hello(WILD, list![rat(1)])),
             structure!(hello(atom("hello"), WILD)),
         );
+
+        yes!(
+            structure!(hello(int(3), a: int(1), b: int(2))),
+            structure!(hello(int(3), a: int(1), b: int(2))),
+        );
+
+        yes!(
+            structure!(hello(int(3), a: int(1), b: int(2))),
+            structure!(hello(int(3), b: int(2), a: int(1))),
+        );
     }
 
     #[test]
@@ -347,6 +353,26 @@ mod test {
         no!(
             structure!(hello(atom("hello"), list![rat(1)])),
             structure!(hello(atom("world"), list![rat(1)])),
+        );
+
+        no!(
+            structure!(hello(int(3), a: int(1), b: int(2))),
+            structure!(hello(int(3), b: int(1), a: int(2))),
+        );
+
+        no!(
+            structure!(hello(int(3), a: int(1))),
+            structure!(hello(int(3), b: int(1), a: int(1))),
+        );
+
+        no!(
+            structure!(hello(int(3), b: int(1), a: int(1))),
+            structure!(hello(int(3), a: int(1))),
+        );
+
+        no!(
+            structure!(hello(int(3), b: int(1))),
+            structure!(hello(int(3), a: int(1))),
         );
     }
 

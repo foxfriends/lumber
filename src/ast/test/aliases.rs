@@ -18,14 +18,14 @@ no! {
 no! {
     alias_removed_fields => r#"
     :- mod(a).
-    :- use(a(alias(test:from/1:to/1, as: test/4))).
+    :- use(a(alias(test/0:from/2:to/2, as: test/4))).
     "#
 }
 
 no! {
     alias_moved_fields => r#"
     :- mod(a).
-    :- use(a(alias(test:from/1:to/1, as: test:from:to/2))).
+    :- use(a(alias(test:from/2:to/2, as: test:from:to/3))).
     "#
 }
 
@@ -40,7 +40,7 @@ yes! {
 yes! {
     alias_renamed_fields => r#"
     :- mod(a).
-    :- use(a(alias(test:from/1:to/1, as: go:away/1:towards/1))).
+    :- use(a(alias(test/0:from/2:to/2, as: go/0:away/2:towards/2))).
     test(a) :- go(away: a, b, towards: c, d).
     "#
 }

@@ -36,7 +36,7 @@ impl Query {
     pub fn from_function_head(pair: crate::Pair, context: &mut Context, output: Pattern) -> Self {
         assert_eq!(pair.as_rule(), Rule::function_head);
         let mut query = Self::new_unscoped(pair, context);
-        query.handle.extend_arity(Arity::Len(1));
+        query.handle.arity.extend_len();
         query.patterns.push(output);
         query
     }
@@ -48,7 +48,7 @@ impl Query {
         let (arity, patterns) = pairs
             .next()
             .map(|pair| fields(pair, context))
-            .unwrap_or((vec![], vec![]));
+            .unwrap_or((Arity::default(), vec![]));
         let handle = Handle::from_parts(scope, arity);
         Query { handle, patterns }
     }
@@ -61,7 +61,7 @@ impl Query {
     pub fn from_call(pair: crate::Pair, context: &mut Context, output: Pattern) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::call);
         let mut query = Self::new_scoped(pair, context)?;
-        query.handle.extend_arity(Arity::Len(1));
+        query.handle.arity.extend_len();
         query.patterns.push(output);
         Some(query)
     }
@@ -72,7 +72,7 @@ impl Query {
         let (arity, patterns) = pairs
             .next()
             .map(|pair| fields(pair, context))
-            .unwrap_or((vec![], vec![]));
+            .unwrap_or((Arity::default(), vec![]));
         let handle = Handle::from_parts(scope, arity);
         Some(Query { handle, patterns })
     }

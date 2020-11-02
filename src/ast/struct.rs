@@ -7,7 +7,7 @@ pub(crate) struct Struct {
     /// The tag of the struct
     pub(crate) name: Atom,
     /// The shape of the struct
-    pub(crate) arity: Vec<Arity>,
+    pub(crate) arity: Arity,
     /// The values in the struct
     pub(crate) fields: Vec<Pattern>,
 }
@@ -20,11 +20,16 @@ impl Struct {
         let (arity, patterns) = pairs
             .next()
             .map(|pair| fields(pair, context))
-            .unwrap_or((vec![Arity::Len(0)], vec![]));
+            .unwrap_or((Arity::default(), vec![]));
+        Self::from_parts(name, arity, patterns)
+    }
+
+    pub fn from_parts(name: Atom, mut arity: Arity, mut fields: Vec<Pattern>) -> Self {
+        arity.sort(&mut fields);
         Self {
             name,
             arity,
-            fields: patterns,
+            fields,
         }
     }
 
