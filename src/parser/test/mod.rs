@@ -37,6 +37,7 @@ mod literal;
 mod multi_handle;
 mod operator;
 mod predicate;
+mod record;
 mod rule;
 mod scope;
 mod r#struct;

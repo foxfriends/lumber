@@ -20,6 +20,8 @@ pub(crate) enum Pattern {
     /// and duplicates).
     #[cfg(feature = "builtin-sets")]
     Set(Vec<Pattern>, Option<Box<Pattern>>),
+    /// A record, containing a set of fields.
+    // Record(Fields, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
     /// An unknown Rust value.

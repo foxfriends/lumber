@@ -6,10 +6,10 @@ use crate::parser::Rule;
 pub(crate) struct Struct {
     /// The tag of the struct
     pub(crate) name: Atom,
-    /// The shape of the struct
-    pub(crate) arity: Arity,
-    /// The values in the struct
-    pub(crate) fields: Vec<Pattern>,
+    /// The tuple portion of the struct
+    pub(crate) patterns: Vec<Pattern>,
+    /// The record portion of the struct
+    pub(crate) fields: Fields,
 }
 
 impl Struct {
@@ -17,23 +17,24 @@ impl Struct {
         assert_eq!(pair.as_rule(), Rule::struct_);
         let mut pairs = pair.into_inner();
         let name = Atom::new(pairs.next().unwrap());
-        let (arity, patterns) = pairs
+        let (patterns, fields) = pairs
             .next()
-            .map(|pair| fields(pair, context))
-            .unwrap_or((Arity::default(), vec![]));
-        Self::from_parts(name, arity, patterns)
+            .map(|pair| Fields::new(pair, context))
+            .unwrap_or((vec![], Fields::default()));
+        Self::from_parts(name, patterns, fields)
     }
 
-    pub fn from_parts(name: Atom, mut arity: Arity, mut fields: Vec<Pattern>) -> Self {
-        arity.sort(&mut fields);
+    pub fn from_parts(name: Atom, patterns: Vec<Pattern>, fields: Fields) -> Self {
         Self {
             name,
-            arity,
+            patterns,
             fields,
         }
     }
 
     pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
-        self.fields.iter().flat_map(|pattern| pattern.identifiers())
+        self.patterns
+            .iter()
+            .flat_map(|pattern| pattern.identifiers())
     }
 }

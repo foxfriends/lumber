@@ -108,16 +108,28 @@ impl Binding {
             }
             Pattern::Struct(crate::ast::Struct {
                 name,
-                arity,
+                patterns,
                 fields,
             }) => {
-                let fields = fields
+                let patterns = patterns
                     .iter()
                     .map(|pattern| self.apply(pattern))
                     .collect::<crate::Result<Vec<_>>>()?;
+                let fields = fields
+                    .iter()
+                    .map(|(field, patterns)| {
+                        Ok((
+                            field.clone(),
+                            patterns
+                                .iter()
+                                .map(|pattern| self.apply(pattern))
+                                .collect::<crate::Result<Vec<_>>>()?,
+                        ))
+                    })
+                    .collect::<crate::Result<Fields>>()?;
                 Ok(Pattern::Struct(crate::ast::Struct {
                     name: name.clone(),
-                    arity: arity.clone(),
+                    patterns,
                     fields,
                 }))
             }

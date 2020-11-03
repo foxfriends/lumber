@@ -89,9 +89,8 @@ list_tail         =  { "," ~ ".." ~ (list | variable | wildcard)? }
 set               =  { "{" ~ list_entries ~ set_tail? ~ "}" | "{" ~ "}" }
 set_tail          =  { "," ~ ".." ~ (set | variable | wildcard)? }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
-// record            =  { "{" ~ record_entries ~ record_tail? ~ "}" | "{" ~ ":" ~ "}" }
-// record_tail       =  { "," ~ ".." ~ (record | variable | wildcard)? }
-// record_entries    =  { named_field ~ ("," ~ named_field)* }
+record            =  { "{" ~ named_fields ~ record_tail? ~ "}" | "{" ~ ":" ~ "}" }
+record_tail       =  { "," ~ ".." ~ (record | variable | wildcard)? }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }
 COMMENT           = _{ line_comment | block_comment }

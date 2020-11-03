@@ -1,7 +1,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
-use super::{r#struct::Field, List, Struct};
-use crate::ast::{Arity, Literal, Pattern};
+use super::{List, Struct};
+use crate::ast::{Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
@@ -124,11 +124,16 @@ impl From<Pattern> for Option<Value> {
                 Some(Value::Set(Set::new(values, complete)))
             }
             Pattern::Struct(structure) => {
-                let values = structure.fields.into_iter().map(Into::into).collect();
+                let values = structure.patterns.into_iter().map(Into::into).collect();
+                let fields = structure
+                    .fields
+                    .into_iter()
+                    .map(|(field, values)| (field, values.into_iter().map(Into::into).collect()))
+                    .collect();
                 Some(Value::Struct(Struct::new(
                     structure.name.clone(),
-                    &structure.arity,
                     values,
+                    fields,
                 )))
             }
             Pattern::Any(any) => Some(Value::Any(any)),
@@ -153,22 +158,17 @@ impl Into<Pattern> for Option<Value> {
             ),
             #[cfg(feature = "builtin-sets")]
             Some(Value::Set(..)) => todo!(),
-            Some(Value::Struct(Struct { name, fields })) => {
-                let (arity, fields) = fields.into_iter().fold(
-                    (Arity::default(), vec![]),
-                    |(mut arity, fields), (field, values)| {
-                        match field {
-                            Field::Unnamed => {
-                                arity.len = values.len() as u32;
-                            }
-                            Field::Named(name) => {
-                                arity.push(name.clone(), values.len() as u32);
-                            }
-                        }
-                        (arity, fields)
-                    },
-                );
-                Pattern::Struct(crate::ast::Struct::from_parts(name, arity, fields))
+            Some(Value::Struct(Struct {
+                name,
+                values,
+                fields,
+            })) => {
+                let patterns = values.into_iter().map(Into::into).collect();
+                let fields = fields
+                    .into_iter()
+                    .map(|(key, values)| (key, values.into_iter().map(Into::into).collect()))
+                    .collect();
+                Pattern::Struct(crate::ast::Struct::from_parts(name, patterns, fields))
             }
             Some(Value::Any(any)) => Pattern::Any(any),
         }

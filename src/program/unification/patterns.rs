@@ -67,13 +67,17 @@ pub(crate) fn unify_patterns(
         (Pattern::Literal(..), Pattern::Literal(..)) => None,
         // Structs must match in name and arity, and then all their fields must match as well.
         (Pattern::Struct(lhs), Pattern::Struct(rhs))
-            if lhs.name == rhs.name && lhs.arity == rhs.arity =>
+            if lhs.name == rhs.name
+                && lhs.patterns.len() == rhs.patterns.len()
+                && lhs.fields.similar(&rhs.fields) =>
         {
-            let (fields, binding) = unify_sequence(&lhs.fields, &rhs.fields, binding, occurs)?;
+            let (patterns, binding) =
+                unify_sequence(&lhs.patterns, &rhs.patterns, binding, occurs)?;
+            let (fields, binding) = unify_fields(&lhs.fields, &rhs.fields, binding, occurs)?;
             Some((
                 Pattern::Struct(Struct {
                     name: lhs.name.clone(),
-                    arity: lhs.arity.clone(),
+                    patterns,
                     fields,
                 }),
                 binding,
@@ -161,6 +165,26 @@ fn unify_sequence(
         })
 }
 
+fn unify_fields(
+    lhs: &Fields,
+    rhs: &Fields,
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<(Fields, Binding)> {
+    if !lhs.similar(rhs) {
+        return None;
+    }
+    let (fields, binding) = lhs.iter().zip(rhs.iter()).try_fold(
+        (vec![], binding),
+        |(mut fields, binding), (lhs, rhs)| {
+            let (patterns, binding) = unify_sequence(&lhs.1, &rhs.1, binding, occurs)?;
+            fields.push((lhs.0.clone(), patterns));
+            Some((fields, binding))
+        },
+    )?;
+    Some((fields.into_iter().collect(), binding))
+}
+
 fn unify_prefix(
     lhs: &[Pattern],
     rhs: &[Pattern],
@@ -185,6 +209,7 @@ fn unify_prefix(
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::collections::BTreeMap;
 
     macro_rules! yes {
         ($lhs:expr, $rhs:expr $(,)?) => {
@@ -209,8 +234,8 @@ mod test {
     fn atom(name: &str) -> Pattern {
         Pattern::Struct(Struct {
             name: Atom::from(name),
-            arity: Arity::default(),
-            fields: vec![],
+            patterns: vec![],
+            fields: Fields::default(),
         })
     }
 
@@ -243,36 +268,64 @@ mod test {
         (
             $name:ident ( $($field:tt)+ )
         ) => {{
-            let mut arity = Arity::default();
-            let mut fields = vec![];
-            structure!(@[arity, fields] $name ($($field)+))
+            #[allow(unused_mut)]
+            let mut patterns = vec![];
+            #[allow(unused_mut)]
+            let mut fields = BTreeMap::default();
+            structure!(@[patterns, fields] $name ($($field)+))
         }};
 
         (
-            @[$arity:ident, $fields:ident] $name:ident ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
+            @ [$patterns:ident, $fields:ident] $name:ident ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            $arity.push(Atom::from(stringify!($fieldname)), 1);
-            $fields.push($pat.clone());
-            structure!(@[$arity, $fields] $name ($($($field)+)?))
+            #[allow(unused_mut)]
+            let mut field_values = vec![$pat.clone()];
+            structure!(@ $fieldname [$patterns, $fields, field_values] $name ($($($field)+)?))
         }};
 
         (
-            @[$arity:ident, $fields:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
+            @ [$patterns:ident, $fields:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            $arity.extend_len();
-            $fields.push($pat.clone());
-            structure!(@[$arity, $fields] $name ($($($field)+)?))
+            $patterns.push($pat.clone());
+            structure!(@[$patterns, $fields] $name ($($($field)+)?))
         }};
 
         (
-            @[$arity:ident, $fields:ident] $name:ident ()
+            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ( $nextfield:ident: $pat:expr $(, $($field:tt)+)? )
+        ) => {{
+            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
+            #[allow(unused_mut)]
+            let mut field_values = vec![$pat.clone()];
+            structure!(@ $nextfield [$patterns, $fields, field_values] $name ($($($field)+)?))
+        }};
+
+        (
+            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
+        ) => {{
+            $field_values.push($pat.clone());
+            structure!(@ $fieldname [$patterns, $fields, $field_values] $name ($($($field)+)?))
+        }};
+
+        (
+            @[$patterns:ident, $fields:ident] $name:ident ()
         ) => {
             Pattern::Struct(Struct::from_parts(
                 Atom::from(stringify!($name)),
-                $arity,
-                $fields,
+                $patterns,
+                $fields.into_iter().collect(),
             ))
         };
+
+        (
+            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ()
+        ) => {{
+            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
+            Pattern::Struct(Struct::from_parts(
+                Atom::from(stringify!($name)),
+                $patterns,
+                $fields.into_iter().collect(),
+            ))
+        }};
     }
 
     #[test]

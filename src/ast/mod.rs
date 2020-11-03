@@ -10,6 +10,7 @@ mod conjunction;
 mod definition;
 mod disjunction;
 mod expression;
+mod fields;
 mod handle;
 mod identifier;
 mod literal;
@@ -29,6 +30,7 @@ pub(crate) use conjunction::Conjunction;
 pub(crate) use definition::Definition;
 pub(crate) use disjunction::Disjunction;
 pub(crate) use expression::Expression;
+pub(crate) use fields::Fields;
 pub(crate) use handle::{AsHandle, Handle};
 pub(crate) use identifier::Identifier;
 pub(crate) use literal::Literal;
@@ -42,12 +44,10 @@ pub(crate) use unification::Unification;
 
 mod builtin;
 mod context;
-mod fields;
 mod module_header;
 mod prec_climber;
 
 pub(crate) use context::Context;
-pub(crate) use fields::fields;
 pub(crate) use module_header::ModuleHeader;
 pub(crate) use prec_climber::{Operator, PrecClimber};
 
