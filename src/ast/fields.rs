@@ -22,23 +22,30 @@ impl Fields {
         } else {
             vec![]
         };
+        let fields = pairs
+            .next()
+            .map(|pair| Self::from_named(pair, context))
+            .unwrap_or_else(Self::default);
+        (tuple, fields)
+    }
+
+    pub fn from_named(pair: crate::Pair, context: &mut Context) -> Self {
+        assert_eq!(pair.as_rule(), Rule::named_fields);
         let mut fields = BTreeMap::default();
-        match pairs.next() {
-            Some(pair) => {
-                assert_eq!(pair.as_rule(), Rule::named_fields);
-                for pair in pair.into_inner() {
-                    let mut pairs = pair.into_inner();
-                    let name = Atom::new(pairs.next().unwrap());
-                    let values = just!(Rule::bare_fields, pairs)
-                        .into_inner()
-                        .map(|pair| Pattern::new(pair, context))
-                        .collect::<Vec<_>>();
-                    fields.insert(name, values);
-                }
-            }
-            None => {}
+        for pair in pair.into_inner() {
+            let mut pairs = pair.into_inner();
+            let name = Atom::new(pairs.next().unwrap());
+            let values = just!(Rule::bare_fields, pairs)
+                .into_inner()
+                .map(|pair| Pattern::new(pair, context))
+                .collect::<Vec<_>>();
+            fields.insert(name, values);
         }
-        (tuple, Self { fields })
+        Self { fields }
+    }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.fields.append(&mut other.fields);
     }
 
     pub fn similar(&self, other: &Self) -> bool {
@@ -51,6 +58,18 @@ impl Fields {
 
     pub fn iter(&self) -> impl Iterator<Item = (&Atom, &Vec<Pattern>)> {
         self.fields.iter()
+    }
+}
+
+impl Into<BTreeMap<Atom, Vec<Pattern>>> for Fields {
+    fn into(self) -> BTreeMap<Atom, Vec<Pattern>> {
+        self.fields
+    }
+}
+
+impl From<BTreeMap<Atom, Vec<Pattern>>> for Fields {
+    fn from(fields: BTreeMap<Atom, Vec<Pattern>>) -> Self {
+        Self { fields }
     }
 }
 

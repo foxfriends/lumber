@@ -14,6 +14,7 @@ mod binding;
 mod builder;
 mod list;
 mod question;
+mod record;
 #[cfg(feature = "builtin-sets")]
 mod set;
 mod r#struct;
@@ -25,6 +26,7 @@ pub use builder::LumberBuilder;
 pub use list::List;
 pub use question::Question;
 pub use r#struct::Struct;
+pub use record::Record;
 #[cfg(feature = "builtin-sets")]
 pub use set::Set;
 pub use value::Value;

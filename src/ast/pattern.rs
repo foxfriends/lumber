@@ -21,7 +21,7 @@ pub(crate) enum Pattern {
     #[cfg(feature = "builtin-sets")]
     Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A record, containing a set of fields.
-    // Record(Fields, Option<Box<Pattern>>),
+    Record(Fields, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard,
     /// An unknown Rust value.
@@ -44,6 +44,9 @@ impl PartialEq for Pattern {
             #[cfg(feature = "builtin-sets")]
             (Pattern::Set(lhs, ltail), Pattern::Set(rhs, rtail)) => lhs == rhs && ltail == rtail,
             (Pattern::List(lhs, ltail), Pattern::List(rhs, rtail)) => lhs == rhs && ltail == rtail,
+            (Pattern::Record(lhs, ltail), Pattern::Record(rhs, rtail)) => {
+                lhs == rhs && ltail == rtail
+            }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             (Pattern::Wildcard, Pattern::Wildcard) => true,
             _ => false,
@@ -60,6 +63,7 @@ impl Hash for Pattern {
             #[cfg(feature = "builtin-sets")]
             Pattern::Set(value, tail) => (value, tail).hash(hasher),
             Pattern::List(value, tail) => (value, tail).hash(hasher),
+            Pattern::Record(value, tail) => (value, tail).hash(hasher),
             Pattern::Any(value) => Rc::as_ptr(value).hash(hasher),
             Pattern::Wildcard => ().hash(hasher),
         }
@@ -112,6 +116,17 @@ impl Pattern {
                     .map(|pair| Box::new(Pattern::new_inner(pair, context)));
                 Self::Set(head, tail)
             }
+            Rule::record => {
+                let mut pairs = pair.into_inner();
+                let head = match pairs.next() {
+                    Some(head) => Fields::from_named(head, context),
+                    None => return Self::Record(Fields::default(), None),
+                };
+                let tail = pairs
+                    .next()
+                    .map(|pair| Box::new(Pattern::new_inner(pair, context)));
+                Self::Record(head, tail)
+            }
             Rule::wildcard => Self::Wildcard,
             _ => unreachable!(),
         }
@@ -124,6 +139,13 @@ impl Pattern {
             Self::List(head, tail) => Box::new(
                 head.iter()
                     .flat_map(|pattern| pattern.identifiers())
+                    .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
+            ),
+            Self::Record(head, tail) => Box::new(
+                head.iter()
+                    .flat_map(|(_, patterns)| {
+                        patterns.iter().flat_map(|pattern| pattern.identifiers())
+                    })
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
             #[cfg(feature = "builtin-sets")]

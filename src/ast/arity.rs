@@ -26,18 +26,6 @@ impl Arity {
         Arity { len, fields }
     }
 
-    pub fn from_fields(len: u32, fields: Fields) -> (Self, Vec<Pattern>) {
-        let (fields, patterns) = fields.into_iter().fold(
-            (vec![], vec![]),
-            |(mut fields, mut patterns), (field, pattern)| {
-                fields.push((field, pattern.len() as u32));
-                patterns.extend(pattern);
-                (fields, patterns)
-            },
-        );
-        (Self { len, fields }, patterns)
-    }
-
     pub fn push(&mut self, atom: Atom, len: u32) {
         self.fields.push((atom, len));
     }
@@ -65,10 +53,6 @@ impl Arity {
                 .iter()
                 .zip(other.fields.iter())
                 .all(|(a, b)| a.1 == b.1)
-    }
-
-    pub fn fields(&self) -> impl Iterator<Item = &(Atom, u32)> {
-        self.fields.iter()
     }
 }
 

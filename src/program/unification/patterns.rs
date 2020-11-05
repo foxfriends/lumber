@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::Binding;
+use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 // TODO: unification of sets will end up being a big change, as set unification is not deterministic.
@@ -84,7 +85,7 @@ pub(crate) fn unify_patterns(
             ))
         }
         (Pattern::Struct(..), Pattern::Struct(..)) => None,
-        // If neither list has a tail, the heads must match, similar to struct fields.
+        // If neither list has a tail, the heads must match.
         (Pattern::List(lhs, None), Pattern::List(rhs, None)) => {
             let (fields, binding) = unify_sequence(&lhs, &rhs, binding, occurs)?;
             Some((Pattern::List(fields, None), binding))
@@ -142,6 +143,67 @@ pub(crate) fn unify_patterns(
             };
             Some((Pattern::List(unified, Some(Box::new(suffix))), binding))
         }
+        // If neither record has a tail, the heads must match like a struct
+        (Pattern::Record(lhs, None), Pattern::Record(rhs, None)) => {
+            let (fields, binding) = unify_fields(&lhs, &rhs, binding, occurs)?;
+            Some((Pattern::Record(fields, None), binding))
+        }
+        // If only one record has a tail, the tail unifies with whatever the head does
+        // not already cover.
+        (other @ Pattern::Record(full, None), Pattern::Record(head, Some(tail)))
+        | (Pattern::Record(head, Some(tail)), other @ Pattern::Record(full, None)) => {
+            match tail.as_ref() {
+                Pattern::Variable(ident) => {
+                    let (output, tail, binding) =
+                        unify_fields_partial(head, full, binding, occurs)?;
+                    let tail_pat = binding.get(ident).unwrap().clone();
+                    let mut occurs = occurs.to_owned();
+                    occurs.push(ident.clone());
+                    let (tail, binding) =
+                        unify_patterns(&Pattern::Record(tail, None), &tail_pat, binding, &occurs)?;
+                    Some((Pattern::Record(output, Some(Box::new(tail))), binding))
+                }
+                Pattern::Wildcard => {
+                    let (mut output, mut tail, binding) =
+                        unify_fields_partial(head, full, binding, occurs)?;
+                    output.append(&mut tail);
+                    Some((Pattern::Record(output, None), binding))
+                }
+                Pattern::Record(cont, tail) => {
+                    let mut combined = head.clone();
+                    combined.append(&mut cont.clone());
+                    let lhs = Pattern::Record(combined, tail.clone());
+                    unify_patterns(&lhs, other, binding, occurs)
+                }
+                // If the tail cannot unify with a record, then there is a problem.
+                _ => None,
+            }
+        }
+        // If both records have tails, unify the heads to remove common elements of both, then
+        // a record formed from the remaining elements of the other is unified with each tail in
+        // turn.
+        (Pattern::Record(lhs, Some(lhs_tail)), Pattern::Record(rhs, Some(rhs_tail))) => {
+            let (intersection, mut lhs_rest, mut rhs_rest, mut binding) =
+                unify_fields_difference(lhs, rhs, binding, occurs)?;
+            let unknown_tail = binding.fresh_variable();
+            let new_rhs_tail = Pattern::Record(
+                lhs_rest.clone(),
+                Some(Box::new(Pattern::Variable(unknown_tail.clone()))),
+            );
+            let new_lhs_tail = Pattern::Record(
+                rhs_rest.clone(),
+                Some(Box::new(Pattern::Variable(unknown_tail.clone()))),
+            );
+            lhs_rest.append(&mut rhs_rest);
+            let out_tail =
+                Pattern::Record(lhs_rest, Some(Box::new(Pattern::Variable(unknown_tail))));
+            let (_, binding) = unify_patterns(lhs_tail, &new_lhs_tail, binding, occurs)?;
+            let (_, binding) = unify_patterns(rhs_tail, &new_rhs_tail, binding, occurs)?;
+            Some((
+                Pattern::Record(intersection, Some(Box::new(out_tail))),
+                binding,
+            ))
+        }
         // Otherwise, it's a failure!
         _ => None,
     }
@@ -175,14 +237,73 @@ fn unify_fields(
         return None;
     }
     let (fields, binding) = lhs.iter().zip(rhs.iter()).try_fold(
-        (vec![], binding),
+        (BTreeMap::default(), binding),
         |(mut fields, binding), (lhs, rhs)| {
             let (patterns, binding) = unify_sequence(&lhs.1, &rhs.1, binding, occurs)?;
-            fields.push((lhs.0.clone(), patterns));
+            fields.insert(lhs.0.clone(), patterns);
             Some((fields, binding))
         },
     )?;
-    Some((fields.into_iter().collect(), binding))
+    Some((Fields::from(fields), binding))
+}
+
+fn unify_fields_partial(
+    part: &Fields,
+    full: &Fields,
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<(Fields, Fields, Binding)> {
+    let mut full: BTreeMap<_, _> = full.clone().into();
+    let (fields, binding) = part.iter().try_fold(
+        (BTreeMap::new(), binding),
+        |(mut fields, binding), (key, patterns)| {
+            let (unified, binding) =
+                unify_sequence(&patterns, full.remove(&key)?.as_slice(), binding, occurs)?;
+            fields.insert(key.clone(), unified);
+            Some((fields, binding))
+        },
+    )?;
+    Some((fields.into(), full.into(), binding))
+}
+
+fn unify_fields_difference(
+    lhs: &Fields,
+    rhs: &Fields,
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<(Fields, Fields, Fields, Binding)> {
+    let mut lhs: BTreeMap<_, _> = lhs.clone().into();
+    let mut rhs: BTreeMap<_, _> = rhs.clone().into();
+    let all_keys: HashSet<_> = lhs.keys().chain(rhs.keys()).cloned().collect();
+
+    let (intersection, lhs_rest, rhs_rest, binding) = all_keys.into_iter().try_fold(
+        (BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), binding),
+        |(mut intersection, mut lhs_rest, mut rhs_rest, binding), key| match (
+            lhs.remove(&key),
+            rhs.remove(&key),
+        ) {
+            (Some(lhs), Some(rhs)) => {
+                let (patterns, binding) = unify_sequence(&lhs, &rhs, binding, occurs)?;
+                intersection.insert(key, patterns);
+                Some((intersection, lhs_rest, rhs_rest, binding))
+            }
+            (Some(dif), None) => {
+                lhs_rest.insert(key, dif);
+                Some((intersection, lhs_rest, rhs_rest, binding))
+            }
+            (None, Some(dif)) => {
+                rhs_rest.insert(key, dif);
+                Some((intersection, lhs_rest, rhs_rest, binding))
+            }
+            _ => unreachable!(),
+        },
+    )?;
+    Some((
+        intersection.into(),
+        lhs_rest.into(),
+        rhs_rest.into(),
+        binding,
+    ))
 }
 
 fn unify_prefix(
@@ -209,7 +330,6 @@ fn unify_prefix(
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::collections::BTreeMap;
 
     macro_rules! yes {
         ($lhs:expr, $rhs:expr $(,)?) => {
@@ -307,14 +427,14 @@ mod test {
         }};
 
         (
-            @[$patterns:ident, $fields:ident] $name:ident ()
-        ) => {
+            @ [$patterns:ident, $fields:ident] $name:ident ()
+        ) => {{
             Pattern::Struct(Struct::from_parts(
                 Atom::from(stringify!($name)),
                 $patterns,
-                $fields.into_iter().collect(),
+                $fields.into(),
             ))
-        };
+        }};
 
         (
             @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ()
@@ -323,9 +443,57 @@ mod test {
             Pattern::Struct(Struct::from_parts(
                 Atom::from(stringify!($name)),
                 $patterns,
-                $fields.into_iter().collect(),
+                $fields.into(),
             ))
         }};
+    }
+
+    macro_rules! record {
+        (
+            @ $fieldname:ident [$fields:ident, $field_values:ident] (.. $rest:expr)
+        ) => {{
+            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
+            Pattern::Record($fields.into(), Some(Box::new($rest.clone())))
+        }};
+
+        (
+            @ [$fields:ident] ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
+        ) => {{
+            #[allow(unused_mut)]
+            let mut field_values = vec![$pat.clone()];
+            record!(@ $fieldname [$fields, field_values] ($($($field)+)?))
+        }};
+
+        (
+            @ $fieldname:ident [$fields:ident, $field_values:ident] ( $nextfield:ident: $pat:expr $(, $($field:tt)+)? )
+        ) => {{
+            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
+            #[allow(unused_mut)]
+            let mut field_values = vec![$pat.clone()];
+            record!(@ $nextfield [$fields, field_values] ($($($field)+)?))
+        }};
+
+        (
+            @ $fieldname:ident [$fields:ident, $field_values:ident] ( $pat:expr $(, $($field:tt)+)? )
+        ) => {{
+            $field_values.push($pat.clone());
+            record!(@ $fieldname [$fields, $field_values] ($($($field)+)?))
+        }};
+
+        (
+            @ $fieldname:ident [$fields:ident, $field_values:ident] ()
+        ) => {{
+            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
+            Pattern::Record($fields.into(), None)
+        }};
+
+        ($($field:tt)+) => {{
+            #[allow(unused_mut)]
+            let mut fields = BTreeMap::default();
+            record!(@[fields] ($($field)+))
+        }};
+
+        () => { Pattern::Record(Default::default(), None) }
     }
 
     #[test]
@@ -430,6 +598,36 @@ mod test {
     }
 
     #[test]
+    fn unify_record() {
+        yes!(record! {}, record! {});
+        yes!(record! { a: int(1) }, record! { a: int(1) });
+        yes!(record! { a: int(1) }, record! { a: int(1), ..WILD });
+        yes!(
+            record! { a: int(1), b: int(2) },
+            record! { a: int(1), ..WILD }
+        );
+        yes!(
+            record! { a: int(1), b: int(2), ..WILD },
+            record! { a: int(1), ..WILD }
+        );
+        yes!(
+            record! { a: int(1), b: int(2), ..WILD },
+            record! { a: int(1), c: int(3), ..WILD }
+        );
+    }
+
+    #[test]
+    fn no_unify_record() {
+        no!(record! {}, record! { a: int(1) });
+        no!(record! { a: int(1) }, record! { a: int(2) });
+        no!(record! { a: int(2) }, record! { a: int(1), ..WILD });
+        no!(
+            record! { a: int(1), b: int(2), ..WILD },
+            record! { a: int(1), b: int(3), ..WILD }
+        );
+    }
+
+    #[test]
     fn unify_wildcard() {
         yes!(WILD, WILD);
         yes!(WILD, atom("anything"));
@@ -484,6 +682,17 @@ mod test {
         yes!(list![x; x], list![list![int(1)], int(1)], binding);
         no!(list![x; x], list![int(1), int(1)], binding);
         yes!(list![int(1); x], list![int(1), int(2); y], binding);
+
+        yes!(
+            record! { a: x, b: int(0), ..x },
+            record! { c: int(1), d: int(2), ..WILD },
+            binding,
+        );
+        yes!(
+            record! { a: x, b: int(0), ..x },
+            record! { c: int(1), d: int(2), a: record! { c: int(1), d: int(2) }, ..y },
+            binding,
+        );
     }
 
     #[test]

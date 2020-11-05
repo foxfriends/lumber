@@ -39,6 +39,12 @@ impl Binding {
         self.0.insert(identifier, pattern);
     }
 
+    pub(crate) fn fresh_variable(&mut self) -> Identifier {
+        let var = Identifier::new(format!("##{}", self.0.len()));
+        self.0.insert(var.clone(), Pattern::Wildcard);
+        var
+    }
+
     pub(crate) fn bind(&mut self, variable: &str, value: Value) {
         let identifier = self
             .0
@@ -105,6 +111,35 @@ impl Binding {
                     .transpose()?
                     .flatten();
                 Ok(Pattern::Set(patterns, rest))
+            }
+            Pattern::Record(fields, rest) => {
+                let mut fields = fields
+                    .iter()
+                    .map(|(key, patterns)| {
+                        Ok((
+                            key.clone(),
+                            patterns
+                                .iter()
+                                .map(|pattern| self.apply(pattern))
+                                .collect::<crate::Result<_>>()?,
+                        ))
+                    })
+                    .collect::<crate::Result<Fields>>()?;
+                let rest = rest
+                    .as_ref()
+                    .map(|pattern| -> crate::Result<Option<Box<Pattern>>> {
+                        match self.apply(&*pattern)? {
+                            Pattern::Record(mut head, rest) => {
+                                fields.append(&mut head);
+                                Ok(rest)
+                            }
+                            Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
+                            _ => panic!("We have unified a record with a non-record value. This should not happen."),
+                        }
+                    })
+                    .transpose()?
+                    .flatten();
+                Ok(Pattern::Record(fields, rest))
             }
             Pattern::Struct(crate::ast::Struct {
                 name,

@@ -69,8 +69,8 @@ operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$"
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_CONTINUE* }
 wildcard          = @{ "_" ~ XID_CONTINUE* }
 
-value             =  { literal | call | struct_ | variable | list | set }
-pattern           =  { literal | struct_ | variable | list | set | wildcard }
+value             =  { literal | call | struct_ | variable | list | record| set }
+pattern           =  { literal | struct_ | variable | list | record | set | wildcard }
 
 literal           =  { decimal | integer | string }
 

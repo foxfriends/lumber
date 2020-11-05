@@ -1,6 +1,6 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
-use super::{List, Struct};
+use super::{List, Record, Struct};
 use crate::ast::{Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
@@ -21,6 +21,8 @@ pub enum Value {
     Set(Set),
     /// An ordered collection of values, which may contain duplicates.
     List(List),
+    /// A set of key value(s) pairs.
+    Record(Record),
     /// A structural value. Atoms are really just structs with no fields.
     Struct(Struct),
     /// An unknown Rust value.
@@ -123,6 +125,14 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::Set(Set::new(values, complete)))
             }
+            Pattern::Record(fields, rest) => {
+                let values = fields
+                    .into_iter()
+                    .map(|(key, patterns)| (key, patterns.into_iter().map(Into::into).collect()))
+                    .collect();
+                let complete = rest.is_none();
+                Some(Value::Record(Record::new(values, complete)))
+            }
             Pattern::Struct(structure) => {
                 let values = structure.patterns.into_iter().map(Into::into).collect();
                 let fields = structure
@@ -158,6 +168,17 @@ impl Into<Pattern> for Option<Value> {
             ),
             #[cfg(feature = "builtin-sets")]
             Some(Value::Set(..)) => todo!(),
+            Some(Value::Record(Record { fields, complete })) => Pattern::Record(
+                fields
+                    .into_iter()
+                    .map(|(key, values)| (key, values.into_iter().map(Into::into).collect()))
+                    .collect(),
+                if complete {
+                    None
+                } else {
+                    Some(Box::new(Pattern::Wildcard))
+                },
+            ),
             Some(Value::Struct(Struct {
                 name,
                 values,
@@ -184,6 +205,7 @@ impl Display for Value {
             #[cfg(feature = "builtin-sets")]
             Value::Set(set) => set.fmt(f),
             Value::List(list) => list.fmt(f),
+            Value::Record(record) => record.fmt(f),
             Value::Struct(structure) => structure.fmt(f),
             Value::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
         }
