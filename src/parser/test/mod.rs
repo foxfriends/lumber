@@ -44,3 +44,4 @@ mod r#struct;
 mod variable;
 mod wildcard;
 mod set;
+mod trailing_comma;

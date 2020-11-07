@@ -11,7 +11,7 @@ pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
 
-multi_handle      =  { module_path ~ ("(" ~ handles ~ ")")? }
+multi_handle      =  { module_path ~ ("(" ~ handles ~ ","? ~ ")")? }
 module_path       =  { scope | scope_prefix }
 
 scope_prefix      =  { (up ~ ("::" ~ up)* | root | lib)  }
@@ -31,8 +31,8 @@ fact              =  { head ~ "." }
 rule              =  { head ~ ":-" ~ body ~ "." }
 function          =  { function_head ~ "<-" ~ evaluation ~ "." }
 
-head              =  { atom ~ ( "(" ~ fields ~ ")" )? }
-function_head     =  { atom ~ "!" ~ ( "(" ~ fields ~ ")" )? }
+head              =  { atom ~ ( "(" ~ fields ~ ","? ~ ")" )? }
+function_head     =  { atom ~ "!" ~ ( "(" ~ fields ~ ","?  ~ ")" )? }
 body              =  { disjunction }
 evaluation        =  { (assumption ~ ",")* ~ operation }
 
@@ -48,9 +48,9 @@ set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
 aggregation_body  =  { pattern ~ ":" ~ disjunction }
 
-call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ")" )? }
-predicate         =  { scope ~ ( "(" ~ fields ~ ")" )? }
-struct_           =  { atom ~ ( "(" ~ fields ~ ")" )? }
+call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ","? ~ ")" )? }
+predicate         =  { scope ~ ( "(" ~ fields ~ ","? ~ ")" )? }
+struct_           =  { atom ~ ( "(" ~ fields ~ ","? ~ ")" )? }
 
 fields            =  { named_fields | bare_fields ~ ("," ~ named_fields)? }
 named_fields      =  { named_field ~ ("," ~ named_field)* }
@@ -84,12 +84,12 @@ decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 
 string            = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
 
-list              =  { "[" ~ list_entries ~ list_tail? ~ "]" | "[" ~ "]" }
+list              =  { "[" ~ list_entries ~ (list_tail | ",")? ~ "]" | "[" ~ "]" }
 list_tail         =  { "," ~ ".." ~ (list | variable | wildcard)? }
-set               =  { "{" ~ list_entries ~ set_tail? ~ "}" | "{" ~ "}" }
+set               =  { "{" ~ list_entries ~ (set_tail | ",")? ~ "}" | "{" ~ "}" }
 set_tail          =  { "," ~ ".." ~ (set | variable | wildcard)? }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
-record            =  { "{" ~ named_fields ~ record_tail? ~ "}" | "{" ~ ":" ~ "}" }
+record            =  { "{" ~ named_fields ~ (record_tail | ",")? ~ "}" | "{" ~ ":" ~ "}" }
 record_tail       =  { "," ~ ".." ~ (record | variable | wildcard)? }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }
