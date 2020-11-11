@@ -85,11 +85,11 @@ impl Query {
 }
 
 fn params(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
-    assert_eq!(pair.as_rule(), Rule::fields);
+    assert_eq!(pair.as_rule(), Rule::params);
     let mut pairs = pair.into_inner().peekable();
     let mut arity = Arity::default();
     let mut patterns = vec![];
-    if pairs.peek().unwrap().as_rule() == Rule::bare_fields {
+    if pairs.peek().unwrap().as_rule() == Rule::bare_params {
         patterns.extend(
             pairs
                 .next()
@@ -101,11 +101,11 @@ fn params(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
     }
     match pairs.next() {
         Some(pair) => {
-            assert_eq!(pair.as_rule(), Rule::named_fields);
+            assert_eq!(pair.as_rule(), Rule::named_params);
             for pair in pair.into_inner() {
                 let mut pairs = pair.into_inner();
                 let name = Atom::new(pairs.next().unwrap());
-                let values = just!(Rule::bare_fields, pairs)
+                let values = just!(Rule::bare_params, pairs)
                     .into_inner()
                     .map(|pair| Pattern::new(pair, context))
                     .collect::<Vec<_>>();

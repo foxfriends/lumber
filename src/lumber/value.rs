@@ -1,9 +1,10 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{List, Record, Struct};
-use crate::ast::{Literal, Pattern};
+use crate::ast::{Atom, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -40,10 +41,35 @@ impl PartialEq for Value {
             (Value::Set(lhs), Value::Set(rhs)) => lhs == rhs,
             (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
             (Value::Struct(lhs), Value::Struct(rhs)) => lhs == rhs,
+            (Value::Record(lhs), Value::Record(rhs)) => lhs == rhs,
             (Value::Any(lhs), Value::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             _ => false,
         }
     }
+}
+
+macro_rules! as_variant {
+    ($name:ident, $ty:ty, $variant:ident) => {
+        /// Gets this value as a $ty.
+        pub fn $name(&self) -> Option<&$ty> {
+            match self {
+                Self::$variant(inner) => Some(inner),
+                _ => None,
+            }
+        }
+    };
+}
+
+macro_rules! as_variant_mut {
+    ($name:ident, $ty:ty, $variant:ident) => {
+        /// Gets this value as a $ty, mutably.
+        pub fn $name(&mut self) -> Option<&mut $ty> {
+            match self {
+                Self::$variant(inner) => Some(inner),
+                _ => None,
+            }
+        }
+    };
 }
 
 impl Value {
@@ -52,25 +78,62 @@ impl Value {
         Self::Integer(int.into())
     }
 
+    as_variant!(as_integer, Int, Integer);
+    as_variant_mut!(as_integer_mut, Int, Integer);
+
     /// Constructs a rational value.
     pub fn rational(rat: impl Into<Rational>) -> Self {
         Self::Rational(rat.into())
     }
+
+    as_variant!(as_rational, Rational, Rational);
+    as_variant_mut!(as_rational_mut, Rational, Rational);
 
     /// Constructs a string value.
     pub fn string(string: impl Into<String>) -> Self {
         Self::String(string.into())
     }
 
+    as_variant!(as_string, String, String);
+    as_variant_mut!(as_string_mut, String, String);
+
     /// Constructs an atom value.
     pub fn atom(name: impl Into<String>) -> Self {
         Self::Struct(Struct::atom(name))
     }
 
+    as_variant!(as_struct, Struct, Struct);
+    as_variant_mut!(as_struct_mut, Struct, Struct);
+
     /// Constructs a Lumber value containing an unknown Rust value.
     pub fn any(any: impl Any) -> Self {
         Self::Any(Rc::new(Box::new(any)))
     }
+
+    /// Constructs a Lumber value containing a list of other values.
+    pub fn list<V>(values: impl IntoIterator<Item = V>) -> Self
+    where
+        Value: From<V>,
+    {
+        Self::List(values.into_iter().collect())
+    }
+
+    as_variant!(as_list, List, List);
+    as_variant_mut!(as_list_mut, List, List);
+
+    /// Constructs a Lumber value containing a record.
+    pub fn record(values: HashMap<String, Option<Value>>) -> Self {
+        Self::Record(Record::new(
+            values
+                .into_iter()
+                .map(|(k, v)| (Atom::from(k), v))
+                .collect(),
+            true,
+        ))
+    }
+
+    as_variant!(as_record, Record, Record);
+    as_variant_mut!(as_record_mut, Record, Record);
 }
 
 impl From<Int> for Value {
@@ -128,7 +191,7 @@ impl From<Pattern> for Option<Value> {
             Pattern::Record(fields, rest) => {
                 let values = fields
                     .into_iter()
-                    .map(|(key, patterns)| (key, patterns.into_iter().map(Into::into).collect()))
+                    .map(|(key, pattern)| (key, pattern.into()))
                     .collect();
                 let complete = rest.is_none();
                 Some(Value::Record(Record::new(values, complete)))
@@ -171,7 +234,7 @@ impl Into<Pattern> for Option<Value> {
             Some(Value::Record(Record { fields, complete })) => Pattern::Record(
                 fields
                     .into_iter()
-                    .map(|(key, values)| (key, values.into_iter().map(Into::into).collect()))
+                    .map(|(key, value)| (key, value.into()))
                     .collect(),
                 if complete {
                     None

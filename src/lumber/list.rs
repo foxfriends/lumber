@@ -20,6 +20,14 @@ impl List {
     pub(crate) fn new(values: Vec<Option<Value>>, complete: bool) -> Self {
         Self { values, complete }
     }
+
+    /// Adds a value to this list.
+    pub fn push<V>(&mut self, value: V)
+    where
+        Option<Value>: From<V>,
+    {
+        self.values.push(value.into());
+    }
 }
 
 impl<V> FromIterator<V> for List

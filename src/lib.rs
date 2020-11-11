@@ -11,6 +11,8 @@ mod core;
 mod error;
 mod parser;
 mod program;
+#[cfg(feature = "serde")]
+pub mod ser;
 
 type Pairs<'i> = pest::iterators::Pairs<'i, parser::Rule>;
 type Pair<'i> = pest::iterators::Pair<'i, parser::Rule>;

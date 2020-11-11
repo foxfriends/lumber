@@ -2,6 +2,7 @@ use super::Value;
 use crate::ast::*;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
+use std::ops::{Index, IndexMut};
 
 /// A Lumber structure, containing a combination of named and indexed fields. Atoms in Lumber are
 /// the same as structs with no fields.
@@ -42,6 +43,34 @@ impl Struct {
         }
     }
 
+    /// Adds an unnamed value to the end of this Struct.
+    pub fn push(&mut self, value: Option<Value>) {
+        self.values.push(value);
+    }
+
+    /// Adds an unnamed value to the end of this Struct.
+    pub fn with(mut self, value: Option<Value>) -> Self {
+        self.values.push(value);
+        self
+    }
+
+    /// Sets the values of a named field in this Struct.
+    ///
+    /// Until tuples are properly implemented, this function takes a `Vec` because struct
+    /// fields may have multiple values.
+    pub fn set(&mut self, field: impl AsRef<str>, value: Vec<Option<Value>>) {
+        self.fields.insert(Atom::from(field.as_ref()), value);
+    }
+
+    /// Sets the values of a named field in this Struct.
+    ///
+    /// Until tuples are properly implemented, this function takes a `Vec` because struct
+    /// fields may have multiple values.
+    pub fn with_entry(mut self, field: impl AsRef<str>, value: Vec<Option<Value>>) -> Self {
+        self.fields.insert(Atom::from(field.as_ref()), value);
+        self
+    }
+
     /// Checks if this struct is actually just an atom. An atom is a struct with no fields.
     ///
     /// # Examples
@@ -66,6 +95,26 @@ impl Struct {
     /// ```
     pub fn name(&self) -> &str {
         self.name.as_ref()
+    }
+}
+
+impl Index<usize> for Struct {
+    type Output = Option<Value>;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.values.index(index)
+    }
+}
+
+impl IndexMut<usize> for Struct {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.values.index_mut(index)
+    }
+}
+
+impl Index<String> for Struct {
+    type Output = Vec<Option<Value>>;
+    fn index(&self, index: String) -> &Self::Output {
+        self.fields.index(&Atom::from(index))
     }
 }
 

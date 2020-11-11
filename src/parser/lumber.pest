@@ -31,8 +31,8 @@ fact              =  { head ~ "." }
 rule              =  { head ~ ":-" ~ body ~ "." }
 function          =  { function_head ~ "<-" ~ evaluation ~ "." }
 
-head              =  { atom ~ ( "(" ~ fields ~ ","? ~ ")" )? }
-function_head     =  { atom ~ "!" ~ ( "(" ~ fields ~ ","?  ~ ")" )? }
+head              =  { atom ~ ( "(" ~ params ~ ","? ~ ")" )? }
+function_head     =  { atom ~ "!" ~ ( "(" ~ params ~ ","?  ~ ")" )? }
 body              =  { disjunction }
 evaluation        =  { (assumption ~ ",")* ~ operation }
 
@@ -48,14 +48,14 @@ set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
 aggregation_body  =  { pattern ~ ":" ~ disjunction }
 
-call              =  { scope ~ "!" ~ ( "(" ~ fields ~ ","? ~ ")" )? }
-predicate         =  { scope ~ ( "(" ~ fields ~ ","? ~ ")" )? }
-struct_           =  { atom ~ ( "(" ~ fields ~ ","? ~ ")" )? }
+call              =  { scope ~ "!" ~ ( "(" ~ params ~ ","? ~ ")" )? }
+predicate         =  { scope ~ ( "(" ~ params ~ ","? ~ ")" )? }
+struct_           =  { atom ~ ( "(" ~ params ~ ","? ~ ")" )? }
 
-fields            =  { named_fields | bare_fields ~ ("," ~ named_fields)? }
-named_fields      =  { named_field ~ ("," ~ named_field)* }
-named_field       =  { atom ~ ":" ~ bare_fields }
-bare_fields       =  { pattern ~ (!("," ~ pattern ~ ":") ~ "," ~ pattern)* }
+params            =  { named_params | bare_params ~ ("," ~ named_params)? }
+named_params      =  { named_param ~ ("," ~ named_param)* }
+named_param       =  { atom ~ ":" ~ bare_params }
+bare_params       =  { pattern ~ (!("," ~ pattern ~ ":") ~ "," ~ pattern)* }
 
 atom              =  { bare_atom | quoted_atom }
 bare_atom         = @{ &XID_START ~ (LOWERCASE_LETTER | OTHER_LETTER) ~ XID_CONTINUE* }
@@ -89,7 +89,9 @@ list_tail         =  { "," ~ ".." ~ (list | variable | wildcard)? }
 set               =  { "{" ~ list_entries ~ (set_tail | ",")? ~ "}" | "{" ~ "}" }
 set_tail          =  { "," ~ ".." ~ (set | variable | wildcard)? }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
-record            =  { "{" ~ named_fields ~ (record_tail | ",")? ~ "}" | "{" ~ ":" ~ "}" }
+record            =  { "{" ~ fields ~ (record_tail | ",")? ~ "}" | "{" ~ ":" ~ "}" }
+fields            =  { field ~ ("," ~ field)* }
+field             =  { atom ~ ":" ~ pattern }
 record_tail       =  { "," ~ ".." ~ (record | variable | wildcard)? }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }

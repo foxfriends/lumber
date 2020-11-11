@@ -9,7 +9,7 @@ pub(crate) struct Struct {
     /// The tuple portion of the struct
     pub(crate) patterns: Vec<Pattern>,
     /// The record portion of the struct
-    pub(crate) fields: Fields,
+    pub(crate) fields: Params,
 }
 
 impl Struct {
@@ -19,12 +19,12 @@ impl Struct {
         let name = Atom::new(pairs.next().unwrap());
         let (patterns, fields) = pairs
             .next()
-            .map(|pair| Fields::new(pair, context))
-            .unwrap_or((vec![], Fields::default()));
+            .map(|pair| Params::new(pair, context))
+            .unwrap_or((vec![], Params::default()));
         Self::from_parts(name, patterns, fields)
     }
 
-    pub fn from_parts(name: Atom, patterns: Vec<Pattern>, fields: Fields) -> Self {
+    pub fn from_parts(name: Atom, patterns: Vec<Pattern>, fields: Params) -> Self {
         Self {
             name,
             patterns,

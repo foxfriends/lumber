@@ -115,15 +115,7 @@ impl Binding {
             Pattern::Record(fields, rest) => {
                 let mut fields = fields
                     .iter()
-                    .map(|(key, patterns)| {
-                        Ok((
-                            key.clone(),
-                            patterns
-                                .iter()
-                                .map(|pattern| self.apply(pattern))
-                                .collect::<crate::Result<_>>()?,
-                        ))
-                    })
+                    .map(|(key, pattern)| Ok((key.clone(), self.apply(pattern)?)))
                     .collect::<crate::Result<Fields>>()?;
                 let rest = rest
                     .as_ref()
@@ -161,7 +153,7 @@ impl Binding {
                                 .collect::<crate::Result<Vec<_>>>()?,
                         ))
                     })
-                    .collect::<crate::Result<Fields>>()?;
+                    .collect::<crate::Result<Params>>()?;
                 Ok(Pattern::Struct(crate::ast::Struct {
                     name: name.clone(),
                     patterns,

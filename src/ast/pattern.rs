@@ -119,7 +119,7 @@ impl Pattern {
             Rule::record => {
                 let mut pairs = pair.into_inner();
                 let head = match pairs.next() {
-                    Some(head) => Fields::from_named(head, context),
+                    Some(head) => Fields::new(head, context),
                     None => return Self::Record(Fields::default(), None),
                 };
                 let tail = pairs
@@ -143,9 +143,7 @@ impl Pattern {
             ),
             Self::Record(head, tail) => Box::new(
                 head.iter()
-                    .flat_map(|(_, patterns)| {
-                        patterns.iter().flat_map(|pattern| pattern.identifiers())
-                    })
+                    .flat_map(|(_, pattern)| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
             #[cfg(feature = "builtin-sets")]

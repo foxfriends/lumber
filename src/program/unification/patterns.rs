@@ -74,7 +74,7 @@ pub(crate) fn unify_patterns(
         {
             let (patterns, binding) =
                 unify_sequence(&lhs.patterns, &rhs.patterns, binding, occurs)?;
-            let (fields, binding) = unify_fields(&lhs.fields, &rhs.fields, binding, occurs)?;
+            let (fields, binding) = unify_params(&lhs.fields, &rhs.fields, binding, occurs)?;
             Some((
                 Pattern::Struct(Struct {
                     name: lhs.name.clone(),
@@ -227,20 +227,40 @@ fn unify_sequence(
         })
 }
 
+fn unify_params(
+    lhs: &Params,
+    rhs: &Params,
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<(Params, Binding)> {
+    if !lhs.similar(rhs) {
+        return None;
+    }
+    let (params, binding) = lhs.iter().zip(rhs.iter()).try_fold(
+        (BTreeMap::default(), binding),
+        |(mut params, binding), (lhs, rhs)| {
+            let (patterns, binding) = unify_sequence(&lhs.1, &rhs.1, binding, occurs)?;
+            params.insert(lhs.0.clone(), patterns);
+            Some((params, binding))
+        },
+    )?;
+    Some((Params::from(params), binding))
+}
+
 fn unify_fields(
     lhs: &Fields,
     rhs: &Fields,
     binding: Binding,
     occurs: &[Identifier],
 ) -> Option<(Fields, Binding)> {
-    if !lhs.similar(rhs) {
+    if lhs.len() != rhs.len() {
         return None;
     }
     let (fields, binding) = lhs.iter().zip(rhs.iter()).try_fold(
         (BTreeMap::default(), binding),
         |(mut fields, binding), (lhs, rhs)| {
-            let (patterns, binding) = unify_sequence(&lhs.1, &rhs.1, binding, occurs)?;
-            fields.insert(lhs.0.clone(), patterns);
+            let (pattern, binding) = unify_patterns(&lhs.1, &rhs.1, binding, occurs)?;
+            fields.insert(lhs.0.clone(), pattern);
             Some((fields, binding))
         },
     )?;
@@ -256,9 +276,9 @@ fn unify_fields_partial(
     let mut full: BTreeMap<_, _> = full.clone().into();
     let (fields, binding) = part.iter().try_fold(
         (BTreeMap::new(), binding),
-        |(mut fields, binding), (key, patterns)| {
+        |(mut fields, binding), (key, pattern)| {
             let (unified, binding) =
-                unify_sequence(&patterns, full.remove(&key)?.as_slice(), binding, occurs)?;
+                unify_patterns(&pattern, &full.remove(&key)?, binding, occurs)?;
             fields.insert(key.clone(), unified);
             Some((fields, binding))
         },
@@ -283,7 +303,7 @@ fn unify_fields_difference(
             rhs.remove(&key),
         ) {
             (Some(lhs), Some(rhs)) => {
-                let (patterns, binding) = unify_sequence(&lhs, &rhs, binding, occurs)?;
+                let (patterns, binding) = unify_patterns(&lhs, &rhs, binding, occurs)?;
                 intersection.insert(key, patterns);
                 Some((intersection, lhs_rest, rhs_rest, binding))
             }
@@ -355,7 +375,7 @@ mod test {
         Pattern::Struct(Struct {
             name: Atom::from(name),
             patterns: vec![],
-            fields: Fields::default(),
+            fields: Params::default(),
         })
     }
 
@@ -450,40 +470,21 @@ mod test {
 
     macro_rules! record {
         (
-            @ $fieldname:ident [$fields:ident, $field_values:ident] (.. $rest:expr)
+            @ [$fields:ident] (.. $rest:expr)
         ) => {{
-            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
             Pattern::Record($fields.into(), Some(Box::new($rest.clone())))
         }};
 
         (
             @ [$fields:ident] ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
         ) => {{
-            #[allow(unused_mut)]
-            let mut field_values = vec![$pat.clone()];
-            record!(@ $fieldname [$fields, field_values] ($($($field)+)?))
+            $fields.insert(Atom::from(stringify!($fieldname)), $pat.clone());
+            record!(@ [$fields] ($($($field)+)?))
         }};
 
         (
-            @ $fieldname:ident [$fields:ident, $field_values:ident] ( $nextfield:ident: $pat:expr $(, $($field:tt)+)? )
+            @ [$fields:ident] ()
         ) => {{
-            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
-            #[allow(unused_mut)]
-            let mut field_values = vec![$pat.clone()];
-            record!(@ $nextfield [$fields, field_values] ($($($field)+)?))
-        }};
-
-        (
-            @ $fieldname:ident [$fields:ident, $field_values:ident] ( $pat:expr $(, $($field:tt)+)? )
-        ) => {{
-            $field_values.push($pat.clone());
-            record!(@ $fieldname [$fields, $field_values] ($($($field)+)?))
-        }};
-
-        (
-            @ $fieldname:ident [$fields:ident, $field_values:ident] ()
-        ) => {{
-            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
             Pattern::Record($fields.into(), None)
         }};
 

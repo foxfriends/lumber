@@ -7,8 +7,17 @@ use std::fmt::{self, Display, Formatter};
 /// may themselves be unbound.
 #[derive(Clone, Debug)]
 pub struct Record {
-    pub(crate) fields: HashMap<Atom, Vec<Option<Value>>>,
+    pub(crate) fields: HashMap<Atom, Option<Value>>,
     pub(crate) complete: bool,
+}
+
+impl Default for Record {
+    fn default() -> Self {
+        Self {
+            fields: HashMap::default(),
+            complete: true,
+        }
+    }
 }
 
 impl PartialEq for Record {
@@ -18,27 +27,39 @@ impl PartialEq for Record {
 }
 
 impl Record {
-    pub(crate) fn new(fields: HashMap<Atom, Vec<Option<Value>>>, complete: bool) -> Self {
+    pub(crate) fn new(fields: HashMap<Atom, Option<Value>>, complete: bool) -> Self {
         Self { fields, complete }
+    }
+
+    /// Sets a field of this record.
+    pub fn set(&mut self, key: impl AsRef<str>, value: Option<Value>) {
+        self.fields.insert(Atom::from(key.as_ref()), value);
+    }
+
+    /// Iterates over the entries of this record.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Option<Value>)> {
+        self.fields.iter().map(|(key, value)| (key.as_ref(), value))
+    }
+
+    /// Iterates over the entries of this record, mutably.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut Option<Value>)> {
+        self.fields
+            .iter_mut()
+            .map(|(key, value)| (key.as_ref(), value))
     }
 }
 
 impl Display for Record {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{{")?;
-        for (i, (key, values)) in self.fields.iter().enumerate() {
+        for (i, (key, value)) in self.fields.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
             write!(f, "{}: ", key)?;
-            for (i, value) in values.iter().enumerate() {
-                if i != 0 {
-                    write!(f, ", ")?;
-                }
-                match value {
-                    Some(value) => value.fmt(f)?,
-                    None => write!(f, "_")?,
-                }
+            match value {
+                Some(value) => value.fmt(f)?,
+                None => write!(f, "_")?,
             }
         }
         write!(f, "}}")?;
