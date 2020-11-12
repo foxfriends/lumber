@@ -134,6 +134,21 @@ impl Value {
 
     as_variant!(as_record, Record, Record);
     as_variant_mut!(as_record_mut, Record, Record);
+
+    /// Constructs a Lumber value by serializing a Rust value using Serde.
+    #[cfg(feature = "serde")]
+    pub fn serialize<T: serde::Serialize>(value: &T) -> crate::Result<Self> {
+        crate::ser::to_value(value)
+    }
+
+    /// Deserializes a Lumber value to a Rust value using Serde.
+    #[cfg(feature = "serde")]
+    pub fn deserialize<'de, T>(&'de self) -> crate::Result<T>
+    where
+        T: serde::Deserialize<'de>,
+    {
+        crate::de::from_value(self)
+    }
 }
 
 impl From<Int> for Value {

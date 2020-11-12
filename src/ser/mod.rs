@@ -8,7 +8,7 @@ pub struct Serializer<'p> {
 }
 
 /// Converts a Rust value to a Lumber value.
-pub fn to_value<T>(value: T) -> crate::Result<Value>
+pub fn to_value<T>(value: &T) -> crate::Result<Value>
 where
     T: Serialize,
 {
