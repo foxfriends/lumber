@@ -11,6 +11,9 @@ mod core;
 mod error;
 mod parser;
 mod program;
+
+#[cfg(feature = "serde")]
+pub mod de;
 #[cfg(feature = "serde")]
 pub mod ser;
 

@@ -2,6 +2,7 @@ use crate::{Struct, Value};
 use serde::{ser, Serialize};
 use std::collections::HashMap;
 
+/// A serializer to create a Lumber [`Value`][].
 pub struct Serializer<'p> {
     output: &'p mut Option<Value>,
 }
@@ -55,6 +56,11 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         Ok(())
     }
 
+    fn serialize_i128(self, value: i128) -> crate::Result<()> {
+        *self.output = Some(Value::integer(value));
+        Ok(())
+    }
+
     fn serialize_u8(self, value: u8) -> crate::Result<()> {
         *self.output = Some(Value::integer(value));
         Ok(())
@@ -71,6 +77,11 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
     }
 
     fn serialize_u64(self, value: u64) -> crate::Result<()> {
+        *self.output = Some(Value::integer(value));
+        Ok(())
+    }
+
+    fn serialize_u128(self, value: u128) -> crate::Result<()> {
         *self.output = Some(Value::integer(value));
         Ok(())
     }

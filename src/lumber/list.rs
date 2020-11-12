@@ -1,6 +1,7 @@
 use super::Value;
 use std::fmt::{self, Display, Formatter};
 use std::iter::FromIterator;
+use std::ops::{Index, IndexMut};
 
 /// An implementation of a list which may be incomplete, suitable for Lumber values which
 /// may themselves be unbound.
@@ -27,6 +28,25 @@ impl List {
         Option<Value>: From<V>,
     {
         self.values.push(value.into());
+    }
+
+    /// Gets the number of elements in the list. This does not include the unknown elements if the list
+    /// is incomplete.
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+}
+
+impl Index<usize> for List {
+    type Output = Option<Value>;
+    fn index(&self, index: usize) -> &Self::Output {
+        self.values.index(index)
+    }
+}
+
+impl IndexMut<usize> for List {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.values.index_mut(index)
     }
 }
 

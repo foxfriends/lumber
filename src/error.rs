@@ -1,6 +1,6 @@
 use crate::ast::Scope;
 #[cfg(feature = "serde")]
-use serde::ser;
+use serde::{de, ser};
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter, Write};
 
@@ -20,6 +20,9 @@ pub enum ErrorKind {
     /// An error has occurred during serialization of a Rust value to a Lumber value.
     #[cfg(feature = "serde")]
     Ser,
+    /// An error has occurred during deserialization of a Lumber value to a Rust value.
+    #[cfg(feature = "serde")]
+    De,
 }
 
 /// An error that has occurred within Lumber.
@@ -62,6 +65,15 @@ impl Error {
         }
     }
 
+    #[cfg(feature = "serde")]
+    pub(crate) fn de<S: Display>(message: S) -> Self {
+        Self {
+            kind: ErrorKind::De,
+            message: message.to_string(),
+            source: None,
+        }
+    }
+
     pub(crate) fn multiple_by_module(errors: HashMap<Scope, Vec<Self>>) -> Self {
         Self {
             kind: ErrorKind::Multiple,
@@ -97,6 +109,16 @@ impl ser::Error for Error {
         T: Display,
     {
         Self::ser(msg)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl de::Error for Error {
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::de(msg)
     }
 }
 

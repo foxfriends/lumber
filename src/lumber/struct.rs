@@ -84,6 +84,15 @@ impl Struct {
         self.values.is_empty() && self.fields.is_empty()
     }
 
+    /// Gets this struct's value if it is an atom, otherwise, returns `None`.
+    pub fn as_atom(&self) -> Option<&str> {
+        if self.is_atom() {
+            Some(self.name())
+        } else {
+            None
+        }
+    }
+
     /// The name or symbol of this struct or atom.
     ///
     /// # Examples
