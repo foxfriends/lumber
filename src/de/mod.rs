@@ -756,6 +756,19 @@ mod test {
     }
 
     #[test]
+    fn deserialize_unit_struct() {
+        #[derive(Deserialize, Debug, Eq, PartialEq)]
+        struct TestUnit;
+
+        assert_eq!(
+            from_value::<TestUnit>(&Value::atom("TestUnit")).unwrap(),
+            TestUnit,
+        );
+
+        assert!(from_value::<TestUnit>(&Value::atom("NotUnit")).is_err());
+    }
+
+    #[test]
     fn deserialize_unit_enum() {
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         enum Enum {

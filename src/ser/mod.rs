@@ -491,42 +491,42 @@ mod test {
 
     #[test]
     fn serialize_integer() {
-        assert_eq!(to_value(3u8).unwrap(), Value::integer(3));
-        assert_eq!(to_value(3u16).unwrap(), Value::integer(3));
-        assert_eq!(to_value(3u32).unwrap(), Value::integer(3));
-        assert_eq!(to_value(3u64).unwrap(), Value::integer(3));
-        assert_eq!(to_value(3usize).unwrap(), Value::integer(3));
-        assert_eq!(to_value(-3i8).unwrap(), Value::integer(-3));
-        assert_eq!(to_value(-3i16).unwrap(), Value::integer(-3));
-        assert_eq!(to_value(-3i32).unwrap(), Value::integer(-3));
-        assert_eq!(to_value(-3i64).unwrap(), Value::integer(-3));
-        assert_eq!(to_value(-3isize).unwrap(), Value::integer(-3));
+        assert_eq!(to_value(&3u8).unwrap(), Value::integer(3));
+        assert_eq!(to_value(&3u16).unwrap(), Value::integer(3));
+        assert_eq!(to_value(&3u32).unwrap(), Value::integer(3));
+        assert_eq!(to_value(&3u64).unwrap(), Value::integer(3));
+        assert_eq!(to_value(&3usize).unwrap(), Value::integer(3));
+        assert_eq!(to_value(&-3i8).unwrap(), Value::integer(-3));
+        assert_eq!(to_value(&-3i16).unwrap(), Value::integer(-3));
+        assert_eq!(to_value(&-3i32).unwrap(), Value::integer(-3));
+        assert_eq!(to_value(&-3i64).unwrap(), Value::integer(-3));
+        assert_eq!(to_value(&-3isize).unwrap(), Value::integer(-3));
     }
 
     #[test]
     fn serialize_bool() {
-        assert_eq!(to_value(true).unwrap(), Value::atom("true"));
-        assert_eq!(to_value(false).unwrap(), Value::atom("false"));
+        assert_eq!(to_value(&true).unwrap(), Value::atom("true"));
+        assert_eq!(to_value(&false).unwrap(), Value::atom("false"));
     }
 
     #[test]
     fn serialize_float() {
-        assert_eq!(to_value(3.5f32).unwrap(), Value::rational(3.5));
-        assert_eq!(to_value(3.5f64).unwrap(), Value::rational(3.5));
+        assert_eq!(to_value(&3.5f32).unwrap(), Value::rational(3.5));
+        assert_eq!(to_value(&3.5f64).unwrap(), Value::rational(3.5));
     }
 
     #[test]
     fn serialize_string() {
-        assert_eq!(to_value("Hello").unwrap(), Value::string("Hello"));
+        assert_eq!(to_value(&"Hello").unwrap(), Value::string("Hello"));
         assert_eq!(
-            to_value(String::from("Hello")).unwrap(),
+            to_value(&String::from("Hello")).unwrap(),
             Value::string("Hello")
         );
     }
 
     #[test]
     fn serialize_char() {
-        assert_eq!(to_value('c').unwrap(), Value::string("c"));
+        assert_eq!(to_value(&'c').unwrap(), Value::string("c"));
     }
 
     #[test]
@@ -537,7 +537,7 @@ mod test {
         let mut record = Record::default();
         record.set("goodnight", Some(Value::string("moon")));
         record.set("hello", Some(Value::string("world")));
-        assert_eq!(to_value(&map).unwrap(), Value::Record(record));
+        assert_eq!(to_value(&&map).unwrap(), Value::Record(record));
     }
 
     #[test]
@@ -560,13 +560,13 @@ mod test {
         let mut record = Record::default();
         record.set("hello", Some(Value::Record(hello_record)));
         record.set("world", Some(Value::Record(world_record)));
-        assert_eq!(to_value(&map).unwrap(), Value::Record(record));
+        assert_eq!(to_value(&&map).unwrap(), Value::Record(record));
     }
 
     #[test]
     fn serialize_vec() {
         assert_eq!(
-            to_value(vec![1, 2]).unwrap(),
+            to_value(&vec![1, 2]).unwrap(),
             Value::list(vec![Value::integer(1), Value::integer(2)]),
         );
     }
@@ -576,7 +576,7 @@ mod test {
         #[derive(Serialize)]
         struct NewType(&'static str);
         assert_eq!(
-            to_value(NewType("Hello")).unwrap(),
+            to_value(&NewType("Hello")).unwrap(),
             Value::Struct(Struct::atom("NewType").with(Some(Value::string("Hello")))),
         );
     }
@@ -586,7 +586,7 @@ mod test {
         #[derive(Serialize)]
         struct Tuple(&'static str, i32);
         assert_eq!(
-            to_value(Tuple("Hello", 3)).unwrap(),
+            to_value(&Tuple("Hello", 3)).unwrap(),
             Value::Struct(
                 Struct::atom("Tuple")
                     .with(Some(Value::string("Hello")))
@@ -603,7 +603,7 @@ mod test {
             second: i32,
         };
         assert_eq!(
-            to_value(Test {
+            to_value(&Test {
                 value: "Hello",
                 second: 3
             })
@@ -623,7 +623,7 @@ mod test {
             Variant,
         }
         assert_eq!(
-            to_value(Test::Variant).unwrap(),
+            to_value(&Test::Variant).unwrap(),
             Value::Struct(Struct::atom("Test").with(Some(Value::atom("Variant")))),
         );
     }
@@ -635,7 +635,7 @@ mod test {
             Variant(i32, i32),
         }
         assert_eq!(
-            to_value(Test::Variant(1, 2)).unwrap(),
+            to_value(&Test::Variant(1, 2)).unwrap(),
             Value::Struct(
                 Struct::atom("Test").with(Some(Value::Struct(
                     Struct::atom("Variant")
@@ -653,7 +653,7 @@ mod test {
             Variant { first: i32, second: &'static str },
         }
         assert_eq!(
-            to_value(Test::Variant {
+            to_value(&Test::Variant {
                 first: 1,
                 second: "Hello",
             })
