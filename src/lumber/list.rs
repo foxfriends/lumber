@@ -35,6 +35,12 @@ impl List {
     pub fn len(&self) -> usize {
         self.values.len()
     }
+
+    /// An iterator over the values stored in this list. Each element is optional, as it may be unbound.
+    /// Unknown list elements, in the case of an incomplete list, are not included.
+    pub fn iter(&self) -> impl Iterator<Item = Option<&Value>> {
+        self.values.iter().map(Option::as_ref)
+    }
 }
 
 impl Index<usize> for List {
