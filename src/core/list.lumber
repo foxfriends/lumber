@@ -6,3 +6,9 @@ contains(P, [_, ..Rest]) :- contains(P, Rest).
 update([], _, _, []).
 update([P, ..Rest], P, U, [U, ..Rest]).
 update([X, ..Rest], P, U, [X, ..NewRest]) :- update(Rest, P, U, NewRest).
+
+:- pub(length/2).
+length([], 0).
+length([_, ..B], Len) :-
+    length(B, BLen),
+    Len <- BLen + 1. 
