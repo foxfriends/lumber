@@ -1,3 +1,5 @@
+:- use(~(add/3)).
+
 :- pub(contains/2).
 contains(P, [P, ..]).
 contains(P, [_, ..Rest]) :- contains(P, Rest).
@@ -11,4 +13,4 @@ update([X, ..Rest], P, U, [X, ..NewRest]) :- update(Rest, P, U, NewRest).
 length([], 0).
 length([_, ..B], Len) :-
     length(B, BLen),
-    Len <- BLen + 1. 
+    add(BLen, 1, Len).
