@@ -279,7 +279,7 @@ impl Display for Value {
         match self {
             Value::Integer(int) => int.fmt(f),
             Value::Rational(rat) => rat.fmt(f),
-            Value::String(string) => string.fmt(f),
+            Value::String(string) => write!(f, "{:?}", string),
             #[cfg(feature = "builtin-sets")]
             Value::Set(set) => set.fmt(f),
             Value::List(list) => list.fmt(f),
