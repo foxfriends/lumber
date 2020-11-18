@@ -130,7 +130,7 @@ impl Index<String> for Struct {
 impl Display for Struct {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.name.fmt(f)?;
-        if !self.fields.is_empty() {
+        if !self.fields.is_empty() || !self.values.is_empty() {
             write!(f, "(")?;
             for (i, value) in self.values.iter().enumerate() {
                 if i != 0 {
@@ -142,7 +142,7 @@ impl Display for Struct {
                 }
             }
             for (i, (name, values)) in self.fields.iter().enumerate() {
-                if self.values.len() != 0 || i != 0 {
+                if !self.values.is_empty() || i != 0 {
                     write!(f, ", ")?;
                 }
                 write!(f, "{}: ", name)?;
