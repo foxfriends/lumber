@@ -54,7 +54,10 @@ pub(crate) fn unify_patterns(
             if occurs.contains(var) {
                 return None;
             }
-            let var_pat = binding.get(var).unwrap().clone();
+            let var_pat = binding
+                .get(var)
+                .expect(&format!("variable {:?} should exist", var))
+                .clone();
             let mut occurs = occurs.to_owned();
             occurs.push(var.clone());
             let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
