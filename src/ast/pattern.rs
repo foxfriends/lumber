@@ -111,9 +111,10 @@ impl Pattern {
                         .collect(),
                     None => return Self::Set(vec![], None),
                 };
-                let tail = pairs
-                    .next()
-                    .map(|pair| Box::new(Pattern::new_inner(pair, context)));
+                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
+                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
+                    None => Box::new(Pattern::Wildcard),
+                });
                 Self::Set(head, tail)
             }
             Rule::record => {
@@ -122,13 +123,14 @@ impl Pattern {
                     Some(head) => Fields::new(head, context),
                     None => return Self::Record(Fields::default(), None),
                 };
-                let tail = pairs
-                    .next()
-                    .map(|pair| Box::new(Pattern::new_inner(pair, context)));
+                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
+                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
+                    None => Box::new(Pattern::Wildcard),
+                });
                 Self::Record(head, tail)
             }
             Rule::wildcard => Self::Wildcard,
-            rule => unreachable!("encountered unexpected {:?} in pattern ({:?})", rule, pair.as_str()),
+            _ => unreachable!(),
         }
     }
 

@@ -29,3 +29,39 @@ yes! {
     test(A) :- A <- str(a, b).
     "#
 }
+
+yes! {
+    value_list => r#"
+    test(A) :- A <- [1, 2, 3].
+    "#
+}
+
+yes! {
+    value_list_with_empty_tail => r#"
+    test(A) :- A <- [1, 2, 3, ..].
+    "#
+}
+
+yes! {
+    value_list_with_tail_pattern => r#"
+    test(A) :- A <- [1, 2, 3, ..A].
+    "#
+}
+
+yes! {
+    value_record => r#"
+    test(A) :- A <- { a: 1, b: 2, c: 3 }.
+    "#
+}
+
+yes! {
+    value_record_with_empty_tail => r#"
+    test(A) :- A <- { a: 1, b: 2, c: 3, .. }.
+    "#
+}
+
+yes! {
+    value_record_with_tail_pattern => r#"
+    test(A) :- A <- { a: 1, b: 2, c: 3, ..A }.
+    "#
+}
