@@ -119,7 +119,8 @@ impl Database<'_> {
     ) -> Bindings<'a> {
         Box::new(definition.iter().flat_map(move |(head, body)| {
             let input_binding = input_binding.clone();
-            body.identifiers()
+            head.identifiers()
+                .chain(body.identifiers())
                 .collect::<Binding>()
                 .transfer_from(&input_binding, &query, &head)
                 .map(move |binding| self.unify_body(body, binding, false))

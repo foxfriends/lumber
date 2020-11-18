@@ -47,6 +47,7 @@ mod accessibility;
 mod assumption;
 mod bindings;
 mod conjunction;
+mod core;
 mod disjunction;
 mod operators;
 mod procession;
