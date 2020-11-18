@@ -128,7 +128,7 @@ impl Pattern {
                 Self::Record(head, tail)
             }
             Rule::wildcard => Self::Wildcard,
-            _ => unreachable!(),
+            rule => unreachable!("encountered unexpected {:?} in pattern", rule),
         }
     }
 
