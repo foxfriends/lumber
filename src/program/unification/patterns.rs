@@ -54,10 +54,7 @@ pub(crate) fn unify_patterns(
             if occurs.contains(var) {
                 return None;
             }
-            let var_pat = binding
-                .get(var)
-                .expect(&format!("variable {:?} should exist", var))
-                .clone();
+            let var_pat = binding.get(var).unwrap().clone();
             let mut occurs = occurs.to_owned();
             occurs.push(var.clone());
             let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
@@ -103,8 +100,9 @@ pub(crate) fn unify_patterns(
                     let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(ident.clone());
-                    let (tail, binding) =
+                    let (tail, mut binding) =
                         unify_patterns(&Pattern::List(tail, None), &tail_pat, binding, &occurs)?;
+                    binding.set(ident.clone(), tail.clone());
                     Some((Pattern::List(output, Some(Box::new(tail))), binding))
                 }
                 Pattern::Wildcard => {
@@ -162,8 +160,9 @@ pub(crate) fn unify_patterns(
                     let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(ident.clone());
-                    let (tail, binding) =
+                    let (tail, mut binding) =
                         unify_patterns(&Pattern::Record(tail, None), &tail_pat, binding, &occurs)?;
+                    binding.set(ident.clone(), tail.clone());
                     Some((Pattern::Record(output, Some(Box::new(tail))), binding))
                 }
                 Pattern::Wildcard => {

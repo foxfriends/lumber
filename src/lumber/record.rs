@@ -31,6 +31,12 @@ impl Record {
         Self { fields, complete }
     }
 
+    /// Adds a field to this record.
+    pub fn with(mut self, key: impl AsRef<str>, value: Option<Value>) -> Self {
+        self.fields.insert(Atom::from(key.as_ref()), value);
+        self
+    }
+
     /// Sets a field of this record.
     pub fn set(&mut self, key: impl AsRef<str>, value: Option<Value>) {
         self.fields.insert(Atom::from(key.as_ref()), value);
