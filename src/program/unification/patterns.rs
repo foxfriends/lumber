@@ -96,7 +96,7 @@ pub(crate) fn unify_patterns(
         | (Pattern::List(head, Some(tail)), other @ Pattern::List(full, None)) => {
             match tail.as_ref() {
                 Pattern::Variable(ident) => {
-                    let (output, tail, binding) = unify_prefix(head, full, binding, occurs)?;
+                    let (output, tail, binding) = unify_full_prefix(head, full, binding, occurs)?;
                     let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(ident.clone());
@@ -107,7 +107,7 @@ pub(crate) fn unify_patterns(
                 }
                 Pattern::Wildcard => {
                     let (mut output, mut tail, binding) =
-                        unify_prefix(head, full, binding, occurs)?;
+                        unify_full_prefix(head, full, binding, occurs)?;
                     output.append(&mut tail);
                     Some((Pattern::List(output, None), binding))
                 }
@@ -349,6 +349,26 @@ fn unify_prefix(
     }
 }
 
+fn unify_full_prefix(
+    lhs: &[Pattern],
+    rhs: &[Pattern],
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<(Vec<Pattern>, Vec<Pattern>, Binding)> {
+    if lhs.len() > rhs.len() {
+        return None;
+    }
+    let (head, binding) = lhs.iter().zip(rhs.iter()).try_fold(
+        (vec![], binding),
+        |(mut patterns, binding), (lhs, rhs)| {
+            let (pattern, binding) = unify_patterns(lhs, rhs, binding, occurs)?;
+            patterns.push(pattern);
+            Some((patterns, binding))
+        },
+    )?;
+    Some((head, rhs[lhs.len()..].to_owned(), binding))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -402,6 +422,7 @@ mod test {
     const WILD: Pattern = Pattern::Wildcard;
 
     macro_rules! list {
+        () => (Pattern::List(vec![], None));
         ($($item:expr),+) => (Pattern::List(vec![$($item.clone()),+], None));
         ($($item:expr),+ ; $rest:expr) => (Pattern::List(vec![$($item.clone()),+], Some(Box::new($rest.clone()))));
     }
@@ -721,12 +742,17 @@ mod test {
         );
         yes!(list![int(1) ; WILD], list![WILD; WILD]);
         yes!(list![int(1) ; WILD], list![int(1), int(2); WILD]);
+        yes!(list![], list![]);
+        yes!(list![int(1)], list![int(1); list![]]);
     }
 
     #[test]
     fn no_unify_list() {
         no!(list![int(1), int(2)], list![int(3), int(4)]);
         no!(list![int(1), int(2)], list![int(3); WILD]);
+        no!(list![int(1), int(2)], list![]);
+        no!(list![WILD], list![]);
+        no!(list![WILD; WILD], list![]);
         no!(list![int(1)], list![int(1), int(2)]);
     }
 }

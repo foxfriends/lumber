@@ -61,6 +61,7 @@ impl Question {
     pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
         self.body
             .identifiers()
+            .filter(|ident| !ident.is_wildcard())
             .map(|identifier| {
                 Some((
                     identifier.name().to_owned(),

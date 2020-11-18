@@ -15,3 +15,10 @@ test! {
     ?- "@core::equal({ a: 1, ..Rest }, { a: 1, b: 2, c: 3 })"
         Rest = Value::Record(Record::default().with("b", Some(Value::integer(2))).with("c", Some(Value::integer(3))));
 }
+
+test! {
+    core_list_contains => ""
+    // ?- "@core::list::contains(b, [a, b, c])";
+    ?- "@core::list::contains(d, [])"
+    // ?- "@core::list::contains(d, [a, b, c])"
+}

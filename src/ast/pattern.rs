@@ -134,6 +134,7 @@ impl Pattern {
         }
     }
 
+    /// Identifiers for every placeholder value in this pattern, including wildcards.
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
@@ -154,6 +155,8 @@ impl Pattern {
                     .flat_map(|pattern| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
+            // TODO: give these unique names, and allow user to specify wildcard names.
+            Self::Wildcard => Box::new(std::iter::once(Identifier::wildcard("_".to_owned()))),
             _ => Box::new(std::iter::empty()),
         }
     }

@@ -45,3 +45,17 @@ test! {
         A = Value::atom("b");
         A = Value::atom("b");
 }
+
+test! {
+    conjunction_different_wildcards => r#"
+    :- pub(test/1).
+    left(a).
+    right(b).
+    test(C) :-
+        left(C),
+        right(C).
+    "#
+    ?- "test(_)"
+    ?- "test(a)"
+    ?- "test(b)"
+}

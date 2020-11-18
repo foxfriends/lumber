@@ -40,13 +40,17 @@ impl Body {
     }
 
     pub fn check_variables(&self, head: &Query, context: &mut Context) {
-        let counts = self.identifiers().chain(head.identifiers()).fold(
-            HashMap::<Identifier, usize>::default(),
-            |mut map, identifier| {
-                *map.entry(identifier).or_default() += 1;
-                map
-            },
-        );
+        let counts = self
+            .identifiers()
+            .chain(head.identifiers())
+            .filter(|ident| !ident.is_wildcard())
+            .fold(
+                HashMap::<Identifier, usize>::default(),
+                |mut map, identifier| {
+                    *map.entry(identifier).or_default() += 1;
+                    map
+                },
+            );
 
         for (identifier, count) in counts {
             if count <= 1 {

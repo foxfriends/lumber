@@ -1,12 +1,22 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 /// A unique identifier for a variable.
 ///
 /// Note that the original name of the variable is stored elsewhere, as it is not relevant
 /// to the computation but is useful in output and debugging.
-#[derive(Clone, Hash, Eq, Debug)]
-pub struct Identifier(Rc<String>);
+#[derive(Clone, Eq, Debug)]
+pub struct Identifier(Rc<String>, bool);
+
+impl Hash for Identifier {
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        (Rc::as_ptr(&self.0) as usize).hash(hasher)
+    }
+}
 
 impl PartialEq for Identifier {
     fn eq(&self, other: &Self) -> bool {
@@ -28,10 +38,18 @@ impl PartialOrd for Identifier {
 
 impl Identifier {
     pub(crate) fn new(name: String) -> Self {
-        Self(Rc::new(name))
+        Self(Rc::new(name), false)
+    }
+
+    pub(crate) fn wildcard(name: String) -> Self {
+        Self(Rc::new(name), true)
     }
 
     pub fn name(&self) -> &str {
         self.0.as_str()
+    }
+
+    pub fn is_wildcard(&self) -> bool {
+        self.1
     }
 }
