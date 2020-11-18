@@ -45,3 +45,6 @@ equal(A, A).
 
 :- nat(gt/2).
 :- pub(gt/2).
+
+:- nat(print/1).
+:- pub(print/1).

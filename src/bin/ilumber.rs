@@ -45,7 +45,7 @@ fn answer(program: &Lumber, query: &str) {
     let question = match Question::try_from(query) {
         Ok(question) => question,
         Err(error) => {
-            eprintln!("{:?}", error);
+            eprintln!("{}", error);
             return;
         }
     };

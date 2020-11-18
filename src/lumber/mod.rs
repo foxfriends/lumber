@@ -33,9 +33,15 @@ pub use value::Value;
 
 /// A Lumber program, for use either as a full program, or linked to by another Lumber program
 /// as a library.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Lumber<'p> {
     pub(crate) database: Database<'p>,
+}
+
+impl Default for Lumber<'_> {
+    fn default() -> Self {
+        Self::builder().build_from_str("").unwrap()
+    }
 }
 
 impl<'p> Lumber<'p> {

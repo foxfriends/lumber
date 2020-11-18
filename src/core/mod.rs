@@ -145,6 +145,21 @@ native_function! {
     }
 }
 
+native_function! {
+    fn print(value) {
+        match value {
+            Some(value) => {
+                println!("{}", value.to_string());
+                answer![value];
+            }
+            None => {
+                println!("_");
+                answer![_];
+            }
+        }
+    }
+}
+
 thread_local! {
     pub(crate) static LIB: Lumber<'static> = Lumber::builder()
         .core(false)
@@ -160,6 +175,7 @@ thread_local! {
         .bind("geq/2", geq)
         .bind("lt/2", lt)
         .bind("gt/2", gt)
+        .bind("print/1", print)
         .build(PathBuf::from(file!()).parent().unwrap(), include_str!("core.lumber"))
         .unwrap();
 }

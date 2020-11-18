@@ -76,7 +76,6 @@ macro_rules! native_function {
 /// unbound using an underscore (`_`) in place of a value.
 #[macro_export]
 macro_rules! answer {
-    ($($answer:expr),+) => {{ yield answer![@@ $($answer),+]; }};
     (@ $($out:expr,)* @ $val:expr, $($rest:tt)+) => {
         answer![@ $($out,)* Some($val.clone().into()), @ $($rest)+]
     };
@@ -87,7 +86,8 @@ macro_rules! answer {
         answer![@ $($out,)* Some($val.clone().into()), @]
     };
     (@ $($out:expr,)* @ _) => {
-        answer![@ $($out,)* None, @ $($rest)+]
+        answer![@ $($out,)* None, @]
     };
     (@ $($out:expr,)+ @) => { vec![$($out),+] };
+    ($($answer:tt)*) => {{ yield answer![@@ $($answer)*]; }};
 }
