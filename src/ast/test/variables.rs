@@ -38,14 +38,14 @@ yes! {
 yes! {
     variable_in_struct => r#"
     check(yes).
-    test(pair(A, B)) :- check(A), check(B).
+    test(pair[A, B]) :- check(A), check(B).
     "#
 }
 
 no! {
     variable_in_struct_singleton => r#"
     check(yes).
-    test(pair(A, B)) :- check(A).
+    test(pair[A, B]) :- check(A).
     "#
 }
 

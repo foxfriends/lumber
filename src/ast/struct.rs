@@ -1,15 +1,13 @@
 use super::*;
 use crate::parser::Rule;
 
-/// A structured value.
+/// A named container, which can optionally contain a value.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub(crate) struct Struct {
     /// The tag of the struct
     pub(crate) name: Atom,
-    /// The tuple portion of the struct
-    pub(crate) patterns: Vec<Pattern>,
-    /// The record portion of the struct
-    pub(crate) fields: Params,
+    /// The contents of the struct
+    pub(crate) contents: Option<Box<Pattern>>,
 }
 
 impl Struct {
@@ -17,23 +15,19 @@ impl Struct {
         assert_eq!(pair.as_rule(), Rule::struct_);
         let mut pairs = pair.into_inner();
         let name = Atom::new(pairs.next().unwrap());
-        let (patterns, fields) = pairs
-            .next()
-            .map(|pair| Params::new(pair, context))
-            .unwrap_or((vec![], Params::default()));
-        Self::from_parts(name, patterns, fields)
+        let contents = pairs.next().map(|pair| match pair.as_rule() {
+            Rule::pattern => Box::new(Pattern::new(pair, context)),
+            _ => Box::new(Pattern::new_inner(pair, context)),
+        });
+        Self::from_parts(name, contents)
     }
 
-    pub fn from_parts(name: Atom, patterns: Vec<Pattern>, fields: Params) -> Self {
-        Self {
-            name,
-            patterns,
-            fields,
-        }
+    pub fn from_parts(name: Atom, contents: Option<Box<Pattern>>) -> Self {
+        Self { name, contents }
     }
 
     pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
-        self.patterns
+        self.contents
             .iter()
             .flat_map(|pattern| pattern.identifiers())
     }

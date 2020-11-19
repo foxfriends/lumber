@@ -29,9 +29,9 @@ test! {
 test! {
     destructuring_assumption => r#"
     :- pub(hello/3).
-    make_test!(A, B) <- test(A, B, 2).
+    make_test!(A, B) <- test[A, B, 2].
     hello(A, B, C) :-
-        test(_, _, C) <- make_test!(A, B).
+        test[_, _, C] <- make_test!(A, B).
     "#
     ?- "hello(1, 2, C)"
         C = Value::integer(2);

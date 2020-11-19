@@ -11,5 +11,4 @@ yes!(trailing_comma_function_head, Rule::function_head, "func_head!(1, 2, 3,)");
 yes!(trailing_comma_head, Rule::head, "head(1, 2, 3,)");
 yes!(trailing_comma_predicate, Rule::predicate, "pred(1, 2, 3,)");
 yes!(trailing_comma_multi_handle, Rule::multi_handle, "multi(a/1, b/1, c/1,)");
-yes!(trailing_comma_struct, Rule::struct_, "struct(1, 2, 3,)");
-yes!(trailing_comma_struct_named, Rule::struct_, "struct(a: 1, b: 2, c: 3,)");
+no!(trailing_comma_struct, Rule::struct_, "struct(1,)");

@@ -211,12 +211,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         if st.name() != name {
             return Err(Error::de(format!("expected {} found {}", name, st.name())));
         }
-        if !st.fields.is_empty() || st.values.len() != 1 {
-            return Err(Error::de(format!(
+        match st.contents() {
+            None => Err(Error::de(format!(
                 "expected a newtype wrapper around a variant struct"
-            )));
+            ))),
+            Some(contents) => {
+                visitor.visit_newtype_struct(&Deserializer::from_optional(contents.as_ref()))
+            }
         }
-        visitor.visit_newtype_struct(&Deserializer::from_optional(st.values[0].as_ref()))
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> crate::Result<V::Value>
@@ -234,11 +236,26 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         })
     }
 
-    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> crate::Result<V::Value>
+    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> crate::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::de("not implemented: cannot deserialize tuples"))
+        let list = self
+            .input
+            .and_then(Value::as_list)
+            .ok_or_else(|| Error::de("expected list"))?;
+        if list.len() != len {
+            return Err(Error::de(format!(
+                "expected a tuple of length {}, got {}",
+                len,
+                list.len()
+            )));
+        }
+        visitor.visit_seq(&mut SeqDeserializer {
+            input: list,
+            index: 0,
+            max: len,
+        })
     }
 
     fn deserialize_tuple_struct<V>(
@@ -257,17 +274,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         if st.name() != name {
             return Err(Error::de(format!("expected {} found {}", name, st.name())));
         }
-        if st.values.len() != len || !st.fields.is_empty() {
-            return Err(Error::de(format!(
+        match st.contents() {
+            Some(Some(contents))
+                if contents.as_list().map(|list| list.len()).unwrap_or(0) == len =>
+            {
+                visitor.visit_seq(&mut SeqDeserializer {
+                    input: contents.as_list().unwrap(),
+                    index: 0,
+                    max: len,
+                })
+            }
+            _ => Err(Error::de(format!(
                 "expected a tuple struct of length {}",
                 len
-            )));
+            ))),
         }
-        visitor.visit_seq(&mut SeqDeserializer {
-            input: st,
-            index: 0,
-            max: len,
-        })
     }
 
     fn deserialize_map<V>(self, visitor: V) -> crate::Result<V::Value>
@@ -300,20 +321,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         if st.name() != name {
             return Err(Error::de(format!("expected {} found {}", name, st.name())));
         }
-        if !st.values.is_empty() {
-            return Err(Error::de(format!(
-                "expected struct to only have named fields"
-            )));
+        match st.contents() {
+            Some(Some(contents)) if contents.is_record() => {
+                let record = contents.as_record().unwrap();
+                if !record.iter().all(|(key, _)| fields.contains(&key.as_ref())) {
+                    return Err(Error::de(format!(
+                        "fields of serialized value do not match struct"
+                    )));
+                }
+                visitor.visit_map(&mut MapDeserializer {
+                    input: record,
+                    index: 0,
+                })
+            }
+            _ => Err(Error::de(format!("expected a struct containing a record"))),
         }
-        if !st.fields.keys().all(|key| fields.contains(&key.as_ref())) {
-            return Err(Error::de(format!(
-                "fields of serialized value do not match struct"
-            )));
-        }
-        visitor.visit_map(&mut StructDeserializer {
-            input: st,
-            index: 0,
-        })
     }
 
     fn deserialize_enum<V>(
@@ -332,18 +354,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         if st.name() != name {
             return Err(Error::de(format!("expected {} found {}", name, st.name())));
         }
-        if !st.fields.is_empty() || st.values.len() != 1 {
-            return Err(Error::de(format!(
+        match st.contents() {
+            Some(Some(value)) => {
+                let variant_value = value
+                    .as_struct()
+                    .ok_or_else(|| Error::de("expected a variant struct"))?;
+                visitor.visit_enum(&mut EnumDeserializer {
+                    input: variant_value,
+                })
+            }
+            _ => Err(Error::de(format!(
                 "expected a newtype wrapper around a variant struct"
-            )));
+            ))),
         }
-        let variant_value = st.values[0]
-            .as_ref()
-            .and_then(Value::as_struct)
-            .ok_or_else(|| Error::de("expected a variant struct"))?;
-        visitor.visit_enum(&mut EnumDeserializer {
-            input: variant_value,
-        })
     }
 
     fn deserialize_identifier<V>(self, _visitor: V) -> crate::Result<V::Value>
@@ -428,53 +451,6 @@ impl<'de, 'a> de::MapAccess<'de> for &'a mut MapDeserializer<'de> {
     }
 }
 
-struct StructDeserializer<'de> {
-    input: &'de Struct,
-    index: usize,
-}
-
-impl<'de, 'a> de::MapAccess<'de> for &'a mut StructDeserializer<'de> {
-    type Error = Error;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> crate::Result<Option<K::Value>>
-    where
-        K: DeserializeSeed<'de>,
-    {
-        self.input
-            .fields
-            .iter()
-            .skip(self.index)
-            .next()
-            .map(|(key, _)| {
-                seed.deserialize(IntoDeserializer::<Error>::into_deserializer(key.as_ref()))
-            })
-            .transpose()
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> crate::Result<V::Value>
-    where
-        V: DeserializeSeed<'de>,
-    {
-        let element = self
-            .input
-            .fields
-            .iter()
-            .skip(self.index)
-            .next()
-            .map(|(_, value)| {
-                if value.len() != 1 {
-                    return Err(Error::de(
-                        "only structs with single valued fields can be deserialized",
-                    ));
-                }
-                seed.deserialize(&Deserializer::from_optional(value[0].as_ref()))
-            })
-            .unwrap();
-        self.index += 1;
-        element
-    }
-}
-
 struct EnumDeserializer<'de> {
     input: &'de Struct,
 }
@@ -509,27 +485,31 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        if self.input.values.len() != 1 || !self.input.fields.is_empty() {
-            return Err(Error::de("expected a newtype struct"));
+        match self.input.contents() {
+            None => Err(Error::de("expected a newtype struct")),
+            Some(value) => seed.deserialize(&Deserializer::from_optional(value.as_ref())),
         }
-        seed.deserialize(&Deserializer::from_optional(self.input[0].as_ref()))
     }
 
     fn tuple_variant<V>(self, len: usize, visitor: V) -> crate::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        if self.input.values.len() != len || !self.input.fields.is_empty() {
-            return Err(Error::de(format!(
+        match self.input.contents() {
+            Some(Some(contents))
+                if contents.as_list().map(|list| list.len()).unwrap_or(0) == len =>
+            {
+                visitor.visit_seq(&mut SeqDeserializer {
+                    input: contents.as_list().unwrap(),
+                    index: 0,
+                    max: len,
+                })
+            }
+            _ => Err(Error::de(format!(
                 "expected a tuple struct of length {}",
                 len
-            )));
+            ))),
         }
-        visitor.visit_seq(&mut SeqDeserializer {
-            input: &self.input.values,
-            index: 0,
-            max: self.input.values.len(),
-        })
     }
 
     fn struct_variant<V>(
@@ -540,10 +520,15 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_map(&mut StructDeserializer {
-            input: self.input,
-            index: 0,
-        })
+        match self.input.contents() {
+            Some(Some(contents)) if contents.is_record() => {
+                visitor.visit_map(&mut MapDeserializer {
+                    input: contents.as_record().unwrap(),
+                    index: 0,
+                })
+            }
+            _ => Err(Error::de("expected a struct containing a record")),
+        }
     }
 }
 
@@ -551,6 +536,7 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
 mod test {
     use super::*;
     use serde::Deserialize;
+    use std::collections::HashMap;
 
     #[test]
     fn deserialize_integer() {
@@ -605,13 +591,14 @@ mod test {
         struct NewType(bool);
 
         assert_eq!(
-            from_value::<NewType>(&Value::Struct(
-                Struct::atom("NewType").with(Some(Value::atom("true")))
-            ))
+            from_value::<NewType>(&Value::Struct(Struct::new(
+                "NewType",
+                Some(Value::atom("true"))
+            )))
             .unwrap(),
             NewType(true),
         );
-        assert!(from_value::<NewType>(&Value::Struct(Struct::atom("NewType").with(None))).is_err());
+        assert!(from_value::<NewType>(&Value::Struct(Struct::new("NewType", None))).is_err());
     }
 
     #[test]
@@ -620,14 +607,15 @@ mod test {
         struct OptionWrapper(Option<bool>);
 
         assert_eq!(
-            from_value::<OptionWrapper>(&Value::Struct(
-                Struct::atom("OptionWrapper").with(Some(Value::atom("true")))
-            ))
+            from_value::<OptionWrapper>(&Value::Struct(Struct::new(
+                "OptionWrapper",
+                Some(Value::atom("true"))
+            )))
             .unwrap(),
             OptionWrapper(Some(true)),
         );
         assert_eq!(
-            from_value::<OptionWrapper>(&Value::Struct(Struct::atom("OptionWrapper").with(None)))
+            from_value::<OptionWrapper>(&Value::Struct(Struct::new("OptionWrapper", None)))
                 .unwrap(),
             OptionWrapper(None),
         );
@@ -642,46 +630,49 @@ mod test {
     }
 
     #[test]
+    fn deserialize_tuple() {
+        assert_eq!(
+            from_value::<(&str, &str, &str)>(&Value::list(vec!["a", "b", "c"])).unwrap(),
+            ("a", "b", "c"),
+        );
+
+        assert!(from_value::<(&str, &str)>(&Value::list(vec!["a", "b", "c"])).is_err());
+    }
+
+    #[test]
     fn deserialize_tuple_struct() {
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct Tuple(i32, u32);
 
         assert_eq!(
-            from_value::<Tuple>(&Value::Struct(
-                Struct::atom("Tuple")
-                    .with(Some(Value::integer(-3)))
-                    .with(Some(Value::integer(3)))
-            ))
+            from_value::<Tuple>(&Value::Struct(Struct::new(
+                "Tuple",
+                Some(Value::list(vec![Value::integer(-3), Value::integer(3)]))
+            )))
             .unwrap(),
             Tuple(-3, 3),
         );
 
-        assert!(from_value::<Tuple>(&Value::Struct(
-            Struct::atom("NotTuple")
-                .with(Some(Value::integer(-3)))
-                .with(Some(Value::integer(3)))
-        ))
+        assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
+            "NotTuple",
+            Some(Value::list(vec![Value::integer(-3), Value::integer(3)]))
+        )))
         .is_err());
 
-        assert!(from_value::<Tuple>(&Value::Struct(
-            Struct::atom("Tuple").with(Some(Value::integer(-3)))
-        ))
+        assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
+            "Tuple",
+            Some(Value::integer(-3))
+        )))
         .is_err());
 
-        assert!(from_value::<Tuple>(&Value::Struct(
-            Struct::atom("Tuple")
-                .with(Some(Value::integer(3)))
-                .with(Some(Value::integer(-3)))
-                .with(Some(Value::string("hi")))
-        ))
-        .is_err());
-
-        assert!(from_value::<Tuple>(&Value::Struct(
-            Struct::atom("Tuple")
-                .with(Some(Value::integer(3)))
-                .with(Some(Value::integer(-3)))
-                .with_entry("field", vec![Some(Value::string("hi"))])
-        ))
+        assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
+            "Tuple",
+            Some(Value::list(vec![
+                Value::integer(-3),
+                Value::integer(3),
+                Value::string("hi")
+            ]))
+        )))
         .is_err());
     }
 
@@ -693,12 +684,14 @@ mod test {
             second: u32,
         }
 
+        let mut record = HashMap::new();
+        record.insert(String::from("first"), Some(Value::integer(-3)));
+        record.insert(String::from("second"), Some(Value::integer(3)));
         assert_eq!(
-            from_value::<TestStruct>(&Value::Struct(
-                Struct::atom("TestStruct")
-                    .with_entry("first", vec![Some(Value::integer(-3))])
-                    .with_entry("second", vec![Some(Value::integer(3))])
-            ))
+            from_value::<TestStruct>(&Value::Struct(Struct::new(
+                "TestStruct",
+                Some(Value::record(record.clone()))
+            )))
             .unwrap(),
             TestStruct {
                 first: -3,
@@ -706,52 +699,31 @@ mod test {
             },
         );
 
-        assert_eq!(
-            from_value::<TestStruct>(&Value::Struct(
-                Struct::atom("TestStruct")
-                    .with_entry("second", vec![Some(Value::integer(3))])
-                    .with_entry("first", vec![Some(Value::integer(-3))])
-            ))
-            .unwrap(),
-            TestStruct {
-                first: -3,
-                second: 3
-            },
-        );
-
-        assert!(from_value::<TestStruct>(&Value::Struct(
-            Struct::atom("NotStruct")
-                .with_entry("first", vec![Some(Value::integer(-3))])
-                .with_entry("second", vec![Some(Value::integer(3))])
-        ))
+        assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
+            "NotStruct",
+            Some(Value::record(record.clone()))
+        )))
         .is_err());
 
-        assert!(from_value::<TestStruct>(&Value::Struct(
-            Struct::atom("TestStruct").with_entry("first", vec![Some(Value::integer(-3))])
-        ))
+        record.remove("second");
+        assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
+            "TestStruct",
+            Some(Value::record(record.clone()))
+        )))
         .is_err());
 
-        assert!(from_value::<TestStruct>(&Value::Struct(
-            Struct::atom("TestStruct")
-                .with_entry("first", vec![Some(Value::integer(-3))])
-                .with_entry("third", vec![Some(Value::integer(3))])
-        ))
+        record.insert(String::from("third"), Some(Value::integer(3)));
+        assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
+            "TestStruct",
+            Some(Value::record(record.clone()))
+        )))
         .is_err());
 
-        assert!(from_value::<TestStruct>(&Value::Struct(
-            Struct::atom("TestStruct")
-                .with_entry("first", vec![Some(Value::integer(-3))])
-                .with_entry("second", vec![Some(Value::integer(-3))])
-                .with_entry("third", vec![Some(Value::integer(3))])
-        ))
-        .is_err());
-
-        assert!(from_value::<TestStruct>(&Value::Struct(
-            Struct::atom("TestStruct")
-                .with(Some(Value::integer(-3)))
-                .with_entry("first", vec![Some(Value::integer(-3))])
-                .with_entry("second", vec![Some(Value::integer(3))])
-        ))
+        record.insert(String::from("second"), Some(Value::integer(3)));
+        assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
+            "TestStruct",
+            Some(Value::record(record))
+        )))
         .is_err());
     }
 
@@ -777,29 +749,33 @@ mod test {
         }
 
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(
-                Struct::atom("Enum").with(Some(Value::atom("First")))
-            ))
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::atom("First"))
+            )))
             .unwrap(),
             Enum::First,
         );
 
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(
-                Struct::atom("Enum").with(Some(Value::atom("Second")))
-            ))
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::atom("Second"))
+            )))
             .unwrap(),
             Enum::Second,
         );
 
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("Enum").with(Some(Value::atom("Third")))
-        ))
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::atom("Third"))
+        )))
         .is_err());
 
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("NotEnum").with(Some(Value::atom("First")))
-        ))
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "NotEnum",
+            Some(Value::atom("First"))
+        )))
         .is_err());
 
         assert!(from_value::<Enum>(&Value::atom("Enum")).is_err());
@@ -815,56 +791,63 @@ mod test {
         }
 
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(Struct::atom("Enum").with(Some(
-                Value::Struct(Struct::atom("First").with(Some(Value::string("Hello"))))
-            ))))
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::Struct(Struct::new(
+                    "First",
+                    Some(Value::string("Hello"))
+                )))
+            )))
             .unwrap(),
             Enum::First(String::from("Hello")),
         );
 
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(Struct::atom("Enum").with(Some(
-                Value::Struct(Struct::atom("Second").with(Some(Value::string("Hello"))))
-            ))))
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::Struct(Struct::new(
+                    "Second",
+                    Some(Value::string("Hello"))
+                )))
+            )))
             .unwrap(),
             Enum::Second(String::from("Hello")),
         );
 
-        assert!(
-            from_value::<Enum>(&Value::Struct(Struct::atom("Enum").with(Some(
-                Value::Struct(Struct::atom("Third").with(Some(Value::string("Hello"))))
-            ))))
-            .is_err(),
-        );
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::Struct(Struct::new(
+                "Third",
+                Some(Value::string("Hello"))
+            )))
+        )))
+        .is_err(),);
 
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("Enum").with(Some(Value::atom("First")))
-        ))
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::atom("First"))
+        )))
         .is_err());
 
-        assert!(
-            from_value::<Enum>(&Value::Struct(Struct::atom("NotEnum").with(Some(
-                Value::Struct(Struct::atom("Second").with(Some(Value::string("Hello"))))
-            ))))
-            .is_err(),
-        );
-
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("Enum").with(Some(Value::Struct(
-                Struct::atom("Second")
-                    .with(Some(Value::string("Hello")))
-                    .with(Some(Value::string("World")))
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "NotEnum",
+            Some(Value::Struct(Struct::new(
+                "Second",
+                Some(Value::string("Hello"))
             )))
-        ))
-        .is_err());
+        )))
+        .is_err(),);
 
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("Enum").with(Some(Value::Struct(
-                Struct::atom("Second")
-                    .with(Some(Value::string("Hello")))
-                    .with_entry("field", vec![Some(Value::string("World"))])
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::Struct(Struct::new(
+                "Second",
+                Some(Value::list(vec![
+                    Value::string("Hello"),
+                    Value::string("World")
+                ]))
             )))
-        ))
+        )))
         .is_err());
     }
 
@@ -876,33 +859,41 @@ mod test {
         }
 
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(
-                Struct::atom("Enum").with(Some(Value::Struct(
-                    Struct::atom("First")
-                        .with(Some(Value::string("Hello")))
-                        .with(Some(Value::string("World")))
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::Struct(Struct::new(
+                    "First",
+                    Some(Value::list(vec![
+                        Value::string("Hello"),
+                        Value::string("World"),
+                    ]))
                 )))
-            ))
+            )))
             .unwrap(),
             Enum::First(String::from("Hello"), String::from("World")),
         );
 
-        assert!(
-            from_value::<Enum>(&Value::Struct(Struct::atom("Enum").with(Some(
-                Value::Struct(Struct::atom("First").with(Some(Value::string("World"))))
-            ))))
-            .is_err(),
-        );
-
-        assert!(from_value::<Enum>(&Value::Struct(
-            Struct::atom("Enum").with(Some(Value::Struct(
-                Struct::atom("First")
-                    .with(Some(Value::string("World")))
-                    .with(Some(Value::string("World")))
-                    .with(Some(Value::string("World")))
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::Struct(Struct::new(
+                "First",
+                Some(Value::string("World"))
             )))
-        ))
-        .is_err(),);
+        )))
+        .is_err());
+
+        assert!(from_value::<Enum>(&Value::Struct(Struct::new(
+            "Enum",
+            Some(Value::Struct(Struct::new(
+                "First",
+                Some(Value::list(vec![
+                    Value::string("World"),
+                    Value::string("World"),
+                    Value::string("World"),
+                ])),
+            )),)
+        )))
+        .is_err());
     }
 
     #[test]
@@ -912,14 +903,17 @@ mod test {
             First { a: String, b: String },
         }
 
+        let mut record = HashMap::new();
+        record.insert(String::from("a"), Some(Value::string("Hello")));
+        record.insert(String::from("b"), Some(Value::string("World")));
         assert_eq!(
-            from_value::<Enum>(&Value::Struct(
-                Struct::atom("Enum").with(Some(Value::Struct(
-                    Struct::atom("First")
-                        .with_entry("a", vec![Some(Value::string("Hello"))])
-                        .with_entry("b", vec![Some(Value::string("World"))])
+            from_value::<Enum>(&Value::Struct(Struct::new(
+                "Enum",
+                Some(Value::Struct(Struct::new(
+                    "First",
+                    Some(Value::record(record))
                 )))
-            ))
+            )))
             .unwrap(),
             Enum::First {
                 a: String::from("Hello"),

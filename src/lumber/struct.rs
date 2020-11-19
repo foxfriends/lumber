@@ -1,29 +1,32 @@
 use super::Value;
 use crate::ast::*;
-use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::ops::{Index, IndexMut};
 
 /// A Lumber structure, containing a combination of named and indexed fields. Atoms in Lumber are
 /// the same as structs with no fields.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Struct {
     pub(crate) name: Atom,
-    pub(crate) values: Vec<Option<Value>>,
-    pub(crate) fields: HashMap<Atom, Vec<Option<Value>>>,
+    pub(crate) contents: Option<Box<Option<Value>>>,
 }
 
 impl Struct {
-    pub(crate) fn new(
-        name: Atom,
-        values: Vec<Option<Value>>,
-        fields: HashMap<Atom, Vec<Option<Value>>>,
-    ) -> Self {
-        Struct {
-            name,
-            values,
-            fields,
-        }
+    pub(crate) fn raw(name: Atom, contents: Option<Box<Option<Value>>>) -> Self {
+        Self { name, contents }
+    }
+
+    /// Constructs a structure, with a (possibly unknown) value inside.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::Struct;
+    /// let structure = Struct::new("hello", None);
+    /// assert!(!structure.is_atom());
+    /// ```
+    #[inline(always)]
+    pub fn new(name: impl Into<String>, contents: Option<Value>) -> Self {
+        Self::raw(Atom::from(name.into()), Some(Box::new(contents)))
     }
 
     /// Constructs an atom.
@@ -35,40 +38,9 @@ impl Struct {
     /// let atom = Struct::atom("hello");
     /// assert!(atom.is_atom());
     /// ```
+    #[inline(always)]
     pub fn atom(name: impl Into<String>) -> Self {
-        Self {
-            name: Atom::from(name.into()),
-            values: vec![],
-            fields: HashMap::new(),
-        }
-    }
-
-    /// Adds an unnamed value to the end of this Struct.
-    pub fn push(&mut self, value: Option<Value>) {
-        self.values.push(value);
-    }
-
-    /// Adds an unnamed value to the end of this Struct.
-    pub fn with(mut self, value: Option<Value>) -> Self {
-        self.values.push(value);
-        self
-    }
-
-    /// Sets the values of a named field in this Struct.
-    ///
-    /// Until tuples are properly implemented, this function takes a `Vec` because struct
-    /// fields may have multiple values.
-    pub fn set(&mut self, field: impl AsRef<str>, value: Vec<Option<Value>>) {
-        self.fields.insert(Atom::from(field.as_ref()), value);
-    }
-
-    /// Sets the values of a named field in this Struct.
-    ///
-    /// Until tuples are properly implemented, this function takes a `Vec` because struct
-    /// fields may have multiple values.
-    pub fn with_entry(mut self, field: impl AsRef<str>, value: Vec<Option<Value>>) -> Self {
-        self.fields.insert(Atom::from(field.as_ref()), value);
-        self
+        Self::raw(Atom::from(name.into()), None)
     }
 
     /// Checks if this struct is actually just an atom. An atom is a struct with no fields.
@@ -81,7 +53,7 @@ impl Struct {
     /// assert!(atom.is_atom());
     /// ```
     pub fn is_atom(&self) -> bool {
-        self.values.is_empty() && self.fields.is_empty()
+        self.contents.is_none()
     }
 
     /// Gets this struct's value if it is an atom, otherwise, returns `None`.
@@ -105,58 +77,34 @@ impl Struct {
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
-}
 
-impl Index<usize> for Struct {
-    type Output = Option<Value>;
-    fn index(&self, index: usize) -> &Self::Output {
-        self.values.index(index)
+    /// The contents of this struct, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::{Value, Struct};
+    /// let structure = Struct::new("hello", Some(Value::from("world")));
+    /// assert_eq!(structure.contents().unwrap(), &Some(Value::string("world")));
+    /// ```
+    pub fn contents(&self) -> Option<&Option<Value>> {
+        self.contents.as_deref()
     }
-}
 
-impl IndexMut<usize> for Struct {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.values.index_mut(index)
-    }
-}
-
-impl Index<String> for Struct {
-    type Output = Vec<Option<Value>>;
-    fn index(&self, index: String) -> &Self::Output {
-        self.fields.index(&Atom::from(index))
+    /// The contents of this struct, if any, accessed mutably.
+    pub fn contents_mut(&mut self) -> Option<&mut Option<Value>> {
+        self.contents.as_deref_mut()
     }
 }
 
 impl Display for Struct {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.name.fmt(f)?;
-        if !self.fields.is_empty() || !self.values.is_empty() {
-            write!(f, "(")?;
-            for (i, value) in self.values.iter().enumerate() {
-                if i != 0 {
-                    write!(f, ", ")?;
-                }
-                match value {
-                    Some(value) => value.fmt(f)?,
-                    None => write!(f, "_")?,
-                }
+        if let Some(contents) = &self.contents {
+            match contents.as_ref() {
+                Some(contents) => write!(f, "({})", contents)?,
+                None => write!(f, "(_)")?,
             }
-            for (i, (name, values)) in self.fields.iter().enumerate() {
-                if !self.values.is_empty() || i != 0 {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{}: ", name)?;
-                for (i, value) in values.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    match value {
-                        Some(value) => value.fmt(f)?,
-                        None => write!(f, "_")?,
-                    }
-                }
-            }
-            write!(f, ")")?;
         }
         Ok(())
     }

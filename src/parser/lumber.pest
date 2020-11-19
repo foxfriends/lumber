@@ -50,7 +50,7 @@ aggregation_body  =  { pattern ~ ":" ~ disjunction }
 
 call              =  { scope ~ "!" ~ ( "(" ~ params ~ ","? ~ ")" )? }
 predicate         =  { scope ~ ( "(" ~ params ~ ","? ~ ")" )? }
-struct_           =  { atom ~ ( "(" ~ params ~ ","? ~ ")" )? }
+struct_           =  { atom ~ ( "(" ~ pattern ~ ")" | list | record | set)? }
 
 params            =  { named_params | bare_params ~ ("," ~ named_params)? }
 named_params      =  { named_param ~ ("," ~ named_param)* }

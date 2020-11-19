@@ -66,20 +66,25 @@ pub(crate) fn unify_patterns(
             Some((Pattern::Literal(lhs.clone()), binding.clone()))
         }
         (Pattern::Literal(..), Pattern::Literal(..)) => None,
-        // Structs must match in name and arity, and then all their fields must match as well.
+        // Structs must match in name, and then their contents must match
         (Pattern::Struct(lhs), Pattern::Struct(rhs))
-            if lhs.name == rhs.name
-                && lhs.patterns.len() == rhs.patterns.len()
-                && lhs.fields.similar(&rhs.fields) =>
+            if lhs.name == rhs.name && lhs.contents.is_none() && rhs.contents.is_none() =>
         {
-            let (patterns, binding) =
-                unify_sequence(&lhs.patterns, &rhs.patterns, binding, occurs)?;
-            let (fields, binding) = unify_params(&lhs.fields, &rhs.fields, binding, occurs)?;
+            Some((Pattern::Struct(lhs.clone()), binding))
+        }
+        (Pattern::Struct(lhs), Pattern::Struct(rhs))
+            if lhs.name == rhs.name && lhs.contents.is_some() && rhs.contents.is_some() =>
+        {
+            let (contents, binding) = unify_patterns(
+                lhs.contents.as_ref().unwrap(),
+                rhs.contents.as_ref().unwrap(),
+                binding,
+                &occurs,
+            )?;
             Some((
                 Pattern::Struct(Struct {
                     name: lhs.name.clone(),
-                    patterns,
-                    fields,
+                    contents: Some(Box::new(contents)),
                 }),
                 binding,
             ))
@@ -229,26 +234,6 @@ fn unify_sequence(
         })
 }
 
-fn unify_params(
-    lhs: &Params,
-    rhs: &Params,
-    binding: Binding,
-    occurs: &[Identifier],
-) -> Option<(Params, Binding)> {
-    if !lhs.similar(rhs) {
-        return None;
-    }
-    let (params, binding) = lhs.iter().zip(rhs.iter()).try_fold(
-        (BTreeMap::default(), binding),
-        |(mut params, binding), (lhs, rhs)| {
-            let (patterns, binding) = unify_sequence(&lhs.1, &rhs.1, binding, occurs)?;
-            params.insert(lhs.0.clone(), patterns);
-            Some((params, binding))
-        },
-    )?;
-    Some((Params::from(params), binding))
-}
-
 fn unify_fields(
     lhs: &Fields,
     rhs: &Fields,
@@ -394,11 +379,7 @@ mod test {
     }
 
     fn atom(name: &str) -> Pattern {
-        Pattern::Struct(Struct {
-            name: Atom::from(name),
-            patterns: vec![],
-            fields: Params::default(),
-        })
+        Pattern::Struct(Struct::from_parts(Atom::from(name), None))
     }
 
     fn id(name: &str, binding: &mut Binding) -> Pattern {
@@ -429,66 +410,13 @@ mod test {
 
     macro_rules! structure {
         (
-            $name:ident ( $($field:tt)+ )
-        ) => {{
-            #[allow(unused_mut)]
-            let mut patterns = vec![];
-            #[allow(unused_mut)]
-            let mut fields = BTreeMap::default();
-            structure!(@[patterns, fields] $name ($($field)+))
-        }};
-
-        (
-            @ [$patterns:ident, $fields:ident] $name:ident ( $fieldname:ident: $pat:expr $(, $($field:tt)+)? )
-        ) => {{
-            #[allow(unused_mut)]
-            let mut field_values = vec![$pat.clone()];
-            structure!(@ $fieldname [$patterns, $fields, field_values] $name ($($($field)+)?))
-        }};
-
-        (
-            @ [$patterns:ident, $fields:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
-        ) => {{
-            $patterns.push($pat.clone());
-            structure!(@[$patterns, $fields] $name ($($($field)+)?))
-        }};
-
-        (
-            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ( $nextfield:ident: $pat:expr $(, $($field:tt)+)? )
-        ) => {{
-            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
-            #[allow(unused_mut)]
-            let mut field_values = vec![$pat.clone()];
-            structure!(@ $nextfield [$patterns, $fields, field_values] $name ($($($field)+)?))
-        }};
-
-        (
-            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ( $pat:expr $(, $($field:tt)+)? )
-        ) => {{
-            $field_values.push($pat.clone());
-            structure!(@ $fieldname [$patterns, $fields, $field_values] $name ($($($field)+)?))
-        }};
-
-        (
-            @ [$patterns:ident, $fields:ident] $name:ident ()
-        ) => {{
+            $name:ident ($contents:expr)
+        ) => {
             Pattern::Struct(Struct::from_parts(
                 Atom::from(stringify!($name)),
-                $patterns,
-                $fields.into(),
+                Some(Box::new($contents.clone())),
             ))
-        }};
-
-        (
-            @ $fieldname:ident [$patterns:ident, $fields:ident, $field_values:ident] $name:ident ()
-        ) => {{
-            $fields.insert(Atom::from(stringify!($fieldname)), $field_values);
-            Pattern::Struct(Struct::from_parts(
-                Atom::from(stringify!($name)),
-                $patterns,
-                $fields.into(),
-            ))
-        }};
+        };
     }
 
     macro_rules! record {
@@ -568,23 +496,15 @@ mod test {
         );
 
         yes!(
-            structure!(hello(atom("hello"), list![rat(1)])),
-            structure!(hello(atom("hello"), list![rat(1)])),
+            structure!(hello(list![rat(1)])),
+            structure!(hello(list![rat(1)])),
         );
 
-        yes!(
-            structure!(hello(WILD, list![rat(1)])),
-            structure!(hello(atom("hello"), WILD)),
-        );
+        yes!(structure!(hello(WILD)), structure!(hello(atom("hello"))),);
 
         yes!(
-            structure!(hello(int(3), a: int(1), b: int(2))),
-            structure!(hello(int(3), a: int(1), b: int(2))),
-        );
-
-        yes!(
-            structure!(hello(int(3), a: int(1), b: int(2))),
-            structure!(hello(int(3), b: int(2), a: int(1))),
+            structure!(hello(record! { a: int(1), b: int(2) })),
+            structure!(hello(record! { a: int(1), b: int(2) })),
         );
     }
 
@@ -595,30 +515,7 @@ mod test {
             structure!(world(atom("world"))),
         );
 
-        no!(
-            structure!(hello(atom("hello"), list![rat(1)])),
-            structure!(hello(atom("world"), list![rat(1)])),
-        );
-
-        no!(
-            structure!(hello(int(3), a: int(1), b: int(2))),
-            structure!(hello(int(3), b: int(1), a: int(2))),
-        );
-
-        no!(
-            structure!(hello(int(3), a: int(1))),
-            structure!(hello(int(3), b: int(1), a: int(1))),
-        );
-
-        no!(
-            structure!(hello(int(3), b: int(1), a: int(1))),
-            structure!(hello(int(3), a: int(1))),
-        );
-
-        no!(
-            structure!(hello(int(3), b: int(1))),
-            structure!(hello(int(3), a: int(1))),
-        );
+        no!(atom("world"), structure!(world(atom("world"))),);
     }
 
     #[test]
@@ -669,7 +566,7 @@ mod test {
         yes!(x, y, binding);
         yes!(x, int(3), binding);
         yes!(x, atom("hello"), binding);
-        yes!(x, structure!(hello(int(3), rat(4))), binding);
+        yes!(x, structure!(hello(int(3))), binding);
         yes!(x, list![int(3), int(4)], binding);
         yes!(x, list![y], binding);
     }
@@ -679,26 +576,30 @@ mod test {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
         let y = id("y", &mut binding);
-        yes!(structure!(test(x, y)), WILD, binding);
-        yes!(structure!(test(x, y)), structure!(test(int(3), x)), binding);
+        yes!(structure!(test(list![x, y])), WILD, binding);
         yes!(
-            structure!(test(x, y)),
-            structure!(test(int(3), int(4))),
-            binding
-        );
-        no!(
-            structure!(test(x, x)),
-            structure!(test(int(3), int(4))),
+            structure!(test(list![x, y])),
+            structure!(test(list![int(3), x])),
             binding
         );
         yes!(
-            structure!(test(int(3), y)),
-            structure!(test(x, int(4))),
+            structure!(test(list![x, y])),
+            structure!(test(list![int(3), int(4)])),
             binding
         );
         no!(
-            structure!(test(int(3), x)),
-            structure!(test(x, int(4))),
+            structure!(test(list![x, x])),
+            structure!(test(list![int(3), int(4)])),
+            binding
+        );
+        yes!(
+            structure!(test(list![int(3), y])),
+            structure!(test(list![x, int(4)])),
+            binding
+        );
+        no!(
+            structure!(test(list![int(3), x])),
+            structure!(test(list![x, int(4)])),
             binding
         );
         yes!(list![x, y], list![int(1), int(2)], binding);

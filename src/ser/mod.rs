@@ -145,9 +145,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         _index: u32,
         variant: &'static str,
     ) -> crate::Result<()> {
-        *self.output = Some(Value::Struct(
-            Struct::atom(name).with(Some(Value::atom(variant))),
-        ));
+        *self.output = Some(Value::Struct(Struct::new(name, Some(Value::atom(variant)))));
         Ok(())
     }
 
@@ -160,7 +158,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
             output: &mut output,
         };
         value.serialize(&mut serializer)?;
-        *self.output = Some(Value::Struct(Struct::atom(name).with(output)));
+        *self.output = Some(Value::Struct(Struct::new(name, output)));
         Ok(())
     }
 
@@ -179,9 +177,10 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
             output: &mut output,
         };
         value.serialize(&mut serializer)?;
-        *self.output = Some(Value::Struct(
-            Struct::atom(name).with(Some(Value::Struct(Struct::atom(variant).with(output)))),
-        ));
+        *self.output = Some(Value::Struct(Struct::new(
+            name,
+            Some(Value::Struct(Struct::new(variant, output))),
+        )));
         Ok(())
     }
 
@@ -190,10 +189,9 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         Ok(self)
     }
 
-    fn serialize_tuple(self, _: usize) -> crate::Result<Self::SerializeTuple> {
-        Err(crate::Error::ser(
-            "tuples cannot yet be represented by Lumber",
-        ))
+    fn serialize_tuple(self, len: usize) -> crate::Result<Self::SerializeTuple> {
+        *self.output = Some(Value::from(Vec::<Value>::with_capacity(len)));
+        Ok(self)
     }
 
     fn serialize_tuple_struct(
@@ -201,7 +199,10 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         name: &'static str,
         _index: usize,
     ) -> crate::Result<Self::SerializeTupleStruct> {
-        *self.output = Some(Value::atom(name));
+        *self.output = Some(Value::Struct(Struct::new(
+            name,
+            Some(Value::list(vec![] as Vec<Value>)),
+        )));
         Ok(self)
     }
 
@@ -212,9 +213,13 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         variant: &'static str,
         _len: usize,
     ) -> crate::Result<Self::SerializeTupleVariant> {
-        *self.output = Some(Value::Struct(
-            Struct::atom(name).with(Some(Value::atom(variant))),
-        ));
+        *self.output = Some(Value::Struct(Struct::new(
+            name,
+            Some(Value::Struct(Struct::new(
+                variant,
+                Some(Value::list(vec![] as Vec<Value>)),
+            ))),
+        )));
         Ok(self)
     }
 
@@ -228,7 +233,10 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         name: &'static str,
         _len: usize,
     ) -> crate::Result<Self::SerializeStruct> {
-        *self.output = Some(Value::atom(name));
+        *self.output = Some(Value::Struct(Struct::new(
+            name,
+            Some(Value::record(Default::default())),
+        )));
         Ok(self)
     }
 
@@ -239,9 +247,13 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         variant: &'static str,
         _len: usize,
     ) -> crate::Result<Self::SerializeStructVariant> {
-        *self.output = Some(Value::Struct(
-            Struct::atom(name).with(Some(Value::atom(variant))),
-        ));
+        *self.output = Some(Value::Struct(Struct::new(
+            name,
+            Some(Value::Struct(Struct::new(
+                variant,
+                Some(Value::record(Default::default())),
+            ))),
+        )));
         Ok(self)
     }
 }
@@ -277,11 +289,22 @@ impl<'a, 'p> ser::SerializeTuple for &'a mut Serializer<'p> {
     type Ok = ();
     type Error = crate::Error;
 
-    fn serialize_element<T>(&mut self, _value: &T) -> crate::Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> crate::Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!()
+        let mut output = None;
+        let mut serializer = Serializer {
+            output: &mut output,
+        };
+        value.serialize(&mut serializer)?;
+        self.output
+            .as_mut()
+            .unwrap()
+            .as_list_mut()
+            .unwrap()
+            .push(output);
+        Ok(())
     }
 
     fn end(self) -> crate::Result<()> {
@@ -307,6 +330,12 @@ impl<'a, 'p> ser::SerializeTupleStruct for &'a mut Serializer<'p> {
             .unwrap()
             .as_struct_mut()
             .unwrap()
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_list_mut()
+            .unwrap()
             .push(output);
         Ok(())
     }
@@ -329,10 +358,22 @@ impl<'a, 'p> ser::SerializeTupleVariant for &'a mut Serializer<'p> {
             output: &mut output,
         };
         value.serialize(&mut serializer)?;
-        self.output.as_mut().unwrap().as_struct_mut().unwrap()[0]
+        self.output
             .as_mut()
             .unwrap()
             .as_struct_mut()
+            .unwrap()
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_struct_mut()
+            .unwrap()
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_list_mut()
             .unwrap()
             .push(output);
         Ok(())
@@ -447,7 +488,13 @@ impl<'a, 'p> ser::SerializeStruct for &'a mut Serializer<'p> {
             .unwrap()
             .as_struct_mut()
             .unwrap()
-            .set(key.to_owned(), vec![output]);
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_record_mut()
+            .unwrap()
+            .set(key.to_owned(), output);
         Ok(())
     }
 
@@ -469,12 +516,24 @@ impl<'a, 'p> ser::SerializeStructVariant for &'a mut Serializer<'p> {
             output: &mut output,
         };
         value.serialize(&mut serializer)?;
-        self.output.as_mut().unwrap().as_struct_mut().unwrap()[0]
+        self.output
             .as_mut()
             .unwrap()
             .as_struct_mut()
             .unwrap()
-            .set(key.to_owned(), vec![output]);
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_struct_mut()
+            .unwrap()
+            .contents_mut()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .as_record_mut()
+            .unwrap()
+            .set(key.to_owned(), output);
         Ok(())
     }
 
@@ -572,12 +631,20 @@ mod test {
     }
 
     #[test]
+    fn serialize_tuple() {
+        assert_eq!(
+            to_value(&(1, 2)).unwrap(),
+            Value::list(vec![Value::integer(1), Value::integer(2)]),
+        );
+    }
+
+    #[test]
     fn serialize_newtype_struct() {
         #[derive(Serialize)]
         struct NewType(&'static str);
         assert_eq!(
             to_value(&NewType("Hello")).unwrap(),
-            Value::Struct(Struct::atom("NewType").with(Some(Value::string("Hello")))),
+            Value::Struct(Struct::new("NewType", Some(Value::string("Hello")))),
         );
     }
 
@@ -587,11 +654,10 @@ mod test {
         struct Tuple(&'static str, i32);
         assert_eq!(
             to_value(&Tuple("Hello", 3)).unwrap(),
-            Value::Struct(
-                Struct::atom("Tuple")
-                    .with(Some(Value::string("Hello")))
-                    .with(Some(Value::integer(3)))
-            ),
+            Value::Struct(Struct::new(
+                "Tuple",
+                Some(Value::list(vec![Value::string("Hello"), Value::integer(3)])),
+            )),
         );
     }
 
@@ -602,17 +668,16 @@ mod test {
             value: &'static str,
             second: i32,
         };
+        let mut record = HashMap::new();
+        record.insert(String::from("value"), Some(Value::string("Hello")));
+        record.insert(String::from("second"), Some(Value::integer(3)));
         assert_eq!(
             to_value(&Test {
                 value: "Hello",
                 second: 3
             })
             .unwrap(),
-            Value::Struct(
-                Struct::atom("Test")
-                    .with_entry("value", vec![Some(Value::string("Hello"))])
-                    .with_entry("second", vec![Some(Value::integer(3))]),
-            ),
+            Value::Struct(Struct::new("Test", Some(Value::record(record)))),
         );
     }
 
@@ -624,7 +689,7 @@ mod test {
         }
         assert_eq!(
             to_value(&Test::Variant).unwrap(),
-            Value::Struct(Struct::atom("Test").with(Some(Value::atom("Variant")))),
+            Value::Struct(Struct::new("Test", Some(Value::atom("Variant")))),
         );
     }
 
@@ -636,13 +701,13 @@ mod test {
         }
         assert_eq!(
             to_value(&Test::Variant(1, 2)).unwrap(),
-            Value::Struct(
-                Struct::atom("Test").with(Some(Value::Struct(
-                    Struct::atom("Variant")
-                        .with(Some(Value::integer(1)))
-                        .with(Some(Value::integer(2)))
+            Value::Struct(Struct::new(
+                "Test",
+                Some(Value::Struct(Struct::new(
+                    "Variant",
+                    Some(Value::list(vec![Value::integer(1), Value::integer(2)]))
                 )))
-            ),
+            )),
         );
     }
 
@@ -652,19 +717,22 @@ mod test {
         enum Test {
             Variant { first: i32, second: &'static str },
         }
+        let mut record = HashMap::new();
+        record.insert(String::from("first"), Some(Value::integer(1)));
+        record.insert(String::from("second"), Some(Value::string("Hello")));
         assert_eq!(
             to_value(&Test::Variant {
                 first: 1,
                 second: "Hello",
             })
             .unwrap(),
-            Value::Struct(
-                Struct::atom("Test").with(Some(Value::Struct(
-                    Struct::atom("Variant")
-                        .with_entry("first", vec![Some(Value::integer(1))])
-                        .with_entry("second", vec![Some(Value::string("Hello"))])
+            Value::Struct(Struct::new(
+                "Test",
+                Some(Value::Struct(Struct::new(
+                    "Variant",
+                    Some(Value::record(record))
                 )))
-            ),
+            ))
         );
     }
 }

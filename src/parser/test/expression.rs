@@ -1,6 +1,6 @@
 use super::*;
 
-yes!(expression_struct, Rule::expression, "hello(A, B)");
+yes!(expression_struct, Rule::expression, "hello[A, B]");
 yes!(expression_var, Rule::expression, "Y");
 yes!(expression_call, Rule::expression, "call!(test, A)");
 yes!(expression_operation, Rule::expression, "(3 + A)");

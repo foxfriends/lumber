@@ -48,6 +48,15 @@ impl PartialEq for Value {
     }
 }
 
+macro_rules! is_variant {
+    ($name:ident, $variant:ident) => {
+        /// Gets this value as a $ty.
+        pub fn $name(&self) -> bool {
+            matches!(self, Self::$variant(..))
+        }
+    };
+}
+
 macro_rules! as_variant {
     ($name:ident, $ty:ty, $variant:ident) => {
         /// Gets this value as a $ty.
@@ -78,6 +87,7 @@ impl Value {
         Self::Integer(int.into())
     }
 
+    is_variant!(is_integer, Integer);
     as_variant!(as_integer, Int, Integer);
     as_variant_mut!(as_integer_mut, Int, Integer);
 
@@ -86,6 +96,7 @@ impl Value {
         Self::Rational(rat.into())
     }
 
+    is_variant!(is_rational, Rational);
     as_variant!(as_rational, Rational, Rational);
     as_variant_mut!(as_rational_mut, Rational, Rational);
 
@@ -94,6 +105,7 @@ impl Value {
         Self::String(string.into())
     }
 
+    is_variant!(is_string, String);
     as_variant!(as_string, String, String);
     as_variant_mut!(as_string_mut, String, String);
 
@@ -102,6 +114,7 @@ impl Value {
         Self::Struct(Struct::atom(name))
     }
 
+    is_variant!(is_struct, Struct);
     as_variant!(as_struct, Struct, Struct);
     as_variant_mut!(as_struct_mut, Struct, Struct);
 
@@ -118,6 +131,7 @@ impl Value {
         Self::List(values.into_iter().collect())
     }
 
+    is_variant!(is_list, List);
     as_variant!(as_list, List, List);
     as_variant_mut!(as_list_mut, List, List);
 
@@ -132,6 +146,7 @@ impl Value {
         ))
     }
 
+    is_variant!(is_record, Record);
     as_variant!(as_record, Record, Record);
     as_variant_mut!(as_record_mut, Record, Record);
 
@@ -212,17 +227,10 @@ impl From<Pattern> for Option<Value> {
                 Some(Value::Record(Record::new(values, complete)))
             }
             Pattern::Struct(structure) => {
-                let values = structure.patterns.into_iter().map(Into::into).collect();
-                let fields = structure
-                    .fields
-                    .into_iter()
-                    .map(|(field, values)| (field, values.into_iter().map(Into::into).collect()))
-                    .collect();
-                Some(Value::Struct(Struct::new(
-                    structure.name.clone(),
-                    values,
-                    fields,
-                )))
+                let contents = structure
+                    .contents
+                    .map(|contents| Box::new((*contents).into()));
+                Some(Value::Struct(Struct::raw(structure.name.clone(), contents)))
             }
             Pattern::Any(any) => Some(Value::Any(any)),
         }
@@ -257,17 +265,9 @@ impl Into<Pattern> for Option<Value> {
                     Some(Box::new(Pattern::Wildcard))
                 },
             ),
-            Some(Value::Struct(Struct {
-                name,
-                values,
-                fields,
-            })) => {
-                let patterns = values.into_iter().map(Into::into).collect();
-                let fields = fields
-                    .into_iter()
-                    .map(|(key, values)| (key, values.into_iter().map(Into::into).collect()))
-                    .collect();
-                Pattern::Struct(crate::ast::Struct::from_parts(name, patterns, fields))
+            Some(Value::Struct(Struct { name, contents })) => {
+                let contents = contents.map(|contents| Box::new((*contents).into()));
+                Pattern::Struct(crate::ast::Struct::from_parts(name, contents))
             }
             Some(Value::Any(any)) => Pattern::Any(any),
         }

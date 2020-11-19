@@ -26,7 +26,7 @@ yes! {
 
 yes! {
     value_struct => r#"
-    test(A) :- A <- str(a, b).
+    test(A) :- A <- str(a).
     "#
 }
 

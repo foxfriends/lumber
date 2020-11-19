@@ -31,14 +31,14 @@ yes! {
 yes! {
     function_aggregate_set => r#"
     node(_, _, _).
-    test!(A, B) <- { pair(X, Y) : node(A, X, _), node(B, _, Y) }.
+    test!(A, B) <- { pair[X, Y] : node(A, X, _), node(B, _, Y) }.
     "#
 }
 
 yes! {
     function_aggregate_list => r#"
     node(_, _, _).
-    test!(A, B) <- [ pair(X, Y) : node(A, X, _), node(B, _, Y) ].
+    test!(A, B) <- [ pair[X, Y] : node(A, X, _), node(B, _, Y) ].
     "#
 }
 
@@ -54,7 +54,7 @@ no! {
 
 yes! {
     function_return_struct => r#"
-    test!(A, B) <- test(A, B).
+    test!(A, B) <- test [A, B].
     "#
 }
 

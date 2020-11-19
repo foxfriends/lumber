@@ -133,31 +133,15 @@ impl Binding {
                     .flatten();
                 Ok(Pattern::Record(fields, rest))
             }
-            Pattern::Struct(crate::ast::Struct {
-                name,
-                patterns,
-                fields,
-            }) => {
-                let patterns = patterns
-                    .iter()
-                    .map(|pattern| self.apply(pattern))
-                    .collect::<crate::Result<Vec<_>>>()?;
-                let fields = fields
-                    .iter()
-                    .map(|(field, patterns)| {
-                        Ok((
-                            field.clone(),
-                            patterns
-                                .iter()
-                                .map(|pattern| self.apply(pattern))
-                                .collect::<crate::Result<Vec<_>>>()?,
-                        ))
-                    })
-                    .collect::<crate::Result<Params>>()?;
+            Pattern::Struct(crate::ast::Struct { name, contents }) => {
+                let contents = contents
+                    .as_deref()
+                    .map(|contents| self.apply(&contents))
+                    .transpose()?
+                    .map(Box::new);
                 Ok(Pattern::Struct(crate::ast::Struct {
                     name: name.clone(),
-                    patterns,
-                    fields,
+                    contents: contents,
                 }))
             }
             Pattern::Literal(..) => Ok(pattern.clone()),
