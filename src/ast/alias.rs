@@ -34,8 +34,7 @@ impl Alias {
                         }
                         Rule::alias => {
                             let mut pairs = pair.into_inner();
-                            let input =
-                                Handle::new_in_scope(scope.clone(), pairs.next().unwrap());
+                            let input = Handle::new_in_scope(scope.clone(), pairs.next().unwrap());
                             let output = Handle::new(pairs.next().unwrap(), context);
                             if !output.can_alias(&input) {
                                 context.error_invalid_alias_arity(&input, &output);

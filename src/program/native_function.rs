@@ -5,7 +5,8 @@ use std::rc::Rc;
 // TODO: figure out the parameter/return type of this function
 #[derive(Clone)]
 pub struct NativeFunction<'p> {
-    function: Rc<Box<dyn Fn(Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> + 'p>>,
+    function:
+        Rc<Box<dyn Fn(Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> + 'p>>,
 }
 
 impl<'p> NativeFunction<'p> {
@@ -18,7 +19,10 @@ impl<'p> NativeFunction<'p> {
         }
     }
 
-    pub(crate) fn call(&self, values: Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
+    pub(crate) fn call(
+        &self,
+        values: Vec<Option<Value>>,
+    ) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> {
         (self.function)(values)
     }
 }
