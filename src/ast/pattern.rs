@@ -26,6 +26,10 @@ pub(crate) enum Pattern {
     Wildcard,
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
+    /// A value that must already be bound, at the time of checking (not wildcard)
+    Bound(Box<Pattern>),
+    /// A value that must already not be bound, at the time of checking (wildcard only)
+    Unbound(Box<Pattern>),
 }
 
 impl Default for Pattern {
@@ -49,6 +53,8 @@ impl PartialEq for Pattern {
             }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             (Pattern::Wildcard, Pattern::Wildcard) => true,
+            (Pattern::Bound(lhs), Pattern::Bound(rhs)) => lhs.eq(rhs),
+            (Pattern::Unbound(lhs), Pattern::Unbound(rhs)) => lhs.eq(rhs),
             _ => false,
         }
     }
@@ -57,15 +63,17 @@ impl PartialEq for Pattern {
 impl Hash for Pattern {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
-            Pattern::Struct(value) => value.hash(hasher),
-            Pattern::Variable(value) => value.hash(hasher),
-            Pattern::Literal(value) => value.hash(hasher),
+            Pattern::Struct(value) => ("struct", value).hash(hasher),
+            Pattern::Variable(value) => ("variable", value).hash(hasher),
+            Pattern::Literal(value) => ("literal", value).hash(hasher),
             #[cfg(feature = "builtin-sets")]
-            Pattern::Set(value, tail) => (value, tail).hash(hasher),
-            Pattern::List(value, tail) => (value, tail).hash(hasher),
-            Pattern::Record(value, tail) => (value, tail).hash(hasher),
-            Pattern::Any(value) => Rc::as_ptr(value).hash(hasher),
-            Pattern::Wildcard => ().hash(hasher),
+            Pattern::Set(value, tail) => ("set", value, tail).hash(hasher),
+            Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
+            Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
+            Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
+            Pattern::Wildcard => "wildcard".hash(hasher),
+            Pattern::Bound(pattern) => ("bound", pattern).hash(hasher),
+            Pattern::Unbound(pattern) => ("unbound", pattern).hash(hasher),
         }
     }
 }
@@ -79,6 +87,20 @@ impl Pattern {
 
     pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
         match pair.as_rule() {
+            Rule::bindable_pattern => Self::new_inner(just!(pair.into_inner()), context),
+            Rule::value_pattern => Self::new_inner(just!(pair.into_inner()), context),
+            Rule::bound_pattern => Self::Bound(Box::new(
+                pair.into_inner()
+                    .next()
+                    .map(|pair| Self::new_inner(pair, context))
+                    .unwrap_or(Self::Wildcard),
+            )),
+            Rule::unbound_pattern => Self::Unbound(Box::new(
+                pair.into_inner()
+                    .next()
+                    .map(|pair| Self::new_inner(pair, context))
+                    .unwrap_or(Self::Wildcard),
+            )),
             Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => Self::Literal(Literal::new(pair)),
             Rule::variable => Self::Variable(context.get_variable(pair.as_str())),
@@ -138,6 +160,8 @@ impl Pattern {
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
+            Self::Unbound(inner) => Box::new(inner.identifiers()),
+            Self::Bound(inner) => Box::new(inner.identifiers()),
             Self::Variable(identifier) => Box::new(std::iter::once(identifier.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()

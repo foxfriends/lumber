@@ -63,14 +63,18 @@ quoted_atom       = @{ PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 
 operator          =  { named_operator | symbolic_operator }
 named_operator    = ${ "`" ~ scope ~ "`" }
-symbolic_operator = ${ !"->" ~ !"<-" ~ (operator_symbol+) }
+symbolic_operator = ${ !"->" ~ !"<-" ~ !"!" ~ !"?" ~ (operator_symbol+) }
 operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" }
 
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_CONTINUE* }
 wildcard          = @{ "_" ~ XID_CONTINUE* }
 
-value             =  { literal | call | struct_ | variable | list | record | set }
-pattern           =  { literal | struct_ | variable | list | record | set | wildcard }
+value             =  { call | variable | value_pattern }
+pattern           =  { bound_pattern | unbound_pattern | bindable_pattern | value_pattern }
+unbound_pattern   =  { "?" ~ (bindable_pattern | value_pattern)? }
+bound_pattern     =  { "!" ~ (bindable_pattern | value_pattern)? }
+bindable_pattern  =  { variable | wildcard }
+value_pattern     =  { literal | struct_ | list | record | set }
 
 literal           =  { decimal | integer | string }
 

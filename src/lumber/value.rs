@@ -204,6 +204,7 @@ impl From<Pattern> for Option<Value> {
         match pattern {
             Pattern::Variable(..) => None,
             Pattern::Wildcard => None,
+            Pattern::Bound(inner) | Pattern::Unbound(inner) => (*inner).into(),
             Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int.to_owned())),
             Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat.to_owned())),
             Pattern::Literal(Literal::String(string)) => Some(Value::String(string.to_owned())),

@@ -17,6 +17,13 @@ pub(crate) fn unify_patterns(
         (Pattern::Any(lhs), Pattern::Any(rhs)) if Rc::ptr_eq(lhs, rhs) => {
             Some((Pattern::Any(lhs.clone()), binding))
         }
+        // The "bound" pattern requires the other value to already be bound, so this is the only way
+        // a wildcard unification will fail.
+        (Pattern::Wildcard, Pattern::Bound(..)) | (Pattern::Bound(..), Pattern::Wildcard) => None,
+        // The "unbound" pattern requires the other value is not bound. That is: it will only unify
+        // with a wildcard (or a variable that has resolved to a wildcard).
+        (Pattern::Wildcard, Pattern::Unbound(pattern))
+        | (Pattern::Unbound(pattern), Pattern::Wildcard) => Some(((**pattern).clone(), binding)),
         // Unifying wildcards provides no additional info. It is at this point that an explicit
         // occurs check must be made (it will be caught recursively in other cases).
         (Pattern::Wildcard, other) | (other, Pattern::Wildcard)
@@ -58,9 +65,22 @@ pub(crate) fn unify_patterns(
             let mut occurs = occurs.to_owned();
             occurs.push(var.clone());
             let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
-            binding.set(var.clone(), pattern.clone());
-            Some((pattern, binding))
+            match pattern {
+                Pattern::Variable(new_var) => unify_patterns(
+                    &Pattern::Variable(var.clone()),
+                    &Pattern::Variable(new_var),
+                    binding,
+                    &occurs,
+                ),
+                _ => {
+                    binding.set(var.clone(), pattern.clone());
+                    Some((pattern, binding))
+                }
+            }
         }
+        // If not with a variable, a "bound" pattern unifies normally
+        (lhs, Pattern::Bound(rhs)) => unify_patterns(lhs, rhs, binding, occurs),
+        (Pattern::Bound(lhs), rhs) => unify_patterns(lhs, rhs, binding, occurs),
         // Literals must match exactly.
         (Pattern::Literal(lhs), Pattern::Literal(rhs)) if lhs == rhs => {
             Some((Pattern::Literal(lhs.clone()), binding.clone()))
@@ -448,6 +468,14 @@ mod test {
         () => { Pattern::Record(Default::default(), None) }
     }
 
+    fn unbound(pattern: Pattern) -> Pattern {
+        Pattern::Unbound(Box::new(pattern))
+    }
+
+    fn bound(pattern: Pattern) -> Pattern {
+        Pattern::Bound(Box::new(pattern))
+    }
+
     #[test]
     fn unify_literal_integer() {
         yes!(int(3), int(3));
@@ -655,5 +683,45 @@ mod test {
         no!(list![WILD], list![]);
         no!(list![WILD; WILD], list![]);
         no!(list![int(1)], list![int(1), int(2)]);
+    }
+
+    #[test]
+    fn unify_unbound() {
+        let mut binding = Binding::default();
+        let x = id("x", &mut binding);
+        yes!(unbound(WILD), WILD);
+        yes!(unbound(int(3)), x, binding);
+        yes!(unbound(x.clone()), WILD, binding);
+        yes!(list![unbound(x.clone()), x], list![WILD, int(3)], binding);
+        yes!(list![x, unbound(x.clone())], list![int(3), WILD], binding);
+    }
+
+    #[test]
+    fn no_unify_unbound() {
+        let mut binding = Binding::default();
+        let x = id("x", &mut binding);
+        no!(unbound(WILD), int(3));
+        no!(unbound(int(3)), int(3));
+        no!(unbound(x), int(3), binding);
+    }
+
+    #[test]
+    fn unify_bound() {
+        let mut binding = Binding::default();
+        let x = id("x", &mut binding);
+        yes!(bound(WILD), int(3));
+        yes!(bound(int(3)), int(3));
+        yes!(bound(x), int(3), binding);
+    }
+
+    #[test]
+    fn no_unify_bound() {
+        let mut binding = Binding::default();
+        let x = id("x", &mut binding);
+        no!(bound(WILD), WILD);
+        no!(bound(int(3)), x, binding);
+        no!(bound(x.clone()), WILD, binding);
+        no!(list![bound(x.clone()), x], list![WILD, int(3)], binding);
+        no!(list![x, bound(x.clone())], list![int(3), WILD], binding);
     }
 }

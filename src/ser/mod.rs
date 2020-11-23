@@ -129,9 +129,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
     }
 
     fn serialize_unit(self) -> crate::Result<()> {
-        Err(crate::Error::ser(
-            "unit cannot yet be meaningfully represented by Lumber",
-        ))
+        Ok(())
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> crate::Result<()> {
