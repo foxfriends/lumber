@@ -1,4 +1,4 @@
-:- use(~(add/3)).
+:- use(~(add/3, false/0)).
 
 :- pub(contains/2).
 contains(P, [P, ..]).
@@ -14,3 +14,12 @@ length([], 0).
 length([_, ..B], Len) :-
     length(B, BLen),
     add(BLen, 1, Len).
+
+:- pub(in/2).
+in(T, [T, ..]).
+in(T, [_, ..R]) :- in(T, R).
+
+:- pub(notin/2).
+notin(_, []).
+notin(T, [T, ..]) :- false.
+notin(T, [_, ..R]) :- notin(T, R).
