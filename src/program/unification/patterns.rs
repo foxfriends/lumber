@@ -13,17 +13,24 @@ pub(crate) fn unify_patterns(
     occurs: &[Identifier],
 ) -> Option<(Pattern, Binding)> {
     match (lhs, rhs) {
+        // The All pattern just... unifies all of them
+        (Pattern::All(patterns), other) | (other, Pattern::All(patterns)) => patterns
+            .iter()
+            .try_fold((other.clone(), binding), |(other, binding), pattern| {
+                unify_patterns(&other, pattern, binding, occurs)
+            }),
         // Any values must be the exact same value. We know nothing else about them.
         (Pattern::Any(lhs), Pattern::Any(rhs)) if Rc::ptr_eq(lhs, rhs) => {
             Some((Pattern::Any(lhs.clone()), binding))
         }
         // The "bound" pattern requires the other value to already be bound, so this is the only way
         // a wildcard unification will fail.
-        (Pattern::Wildcard, Pattern::Bound(..)) | (Pattern::Bound(..), Pattern::Wildcard) => None,
+        (Pattern::Wildcard, Pattern::Bound) | (Pattern::Bound, Pattern::Wildcard) => None,
         // The "unbound" pattern requires the other value is not bound. That is: it will only unify
         // with a wildcard (or a variable that has resolved to a wildcard).
-        (Pattern::Wildcard, Pattern::Unbound(pattern))
-        | (Pattern::Unbound(pattern), Pattern::Wildcard) => Some(((**pattern).clone(), binding)),
+        (Pattern::Wildcard, Pattern::Unbound) | (Pattern::Unbound, Pattern::Wildcard) => {
+            Some((Pattern::Wildcard, binding))
+        }
         // Unifying wildcards provides no additional info. It is at this point that an explicit
         // occurs check must be made (it will be caught recursively in other cases).
         (Pattern::Wildcard, other) | (other, Pattern::Wildcard)
@@ -79,8 +86,7 @@ pub(crate) fn unify_patterns(
             }
         }
         // If not with a variable, a "bound" pattern unifies normally
-        (lhs, Pattern::Bound(rhs)) => unify_patterns(lhs, rhs, binding, occurs),
-        (Pattern::Bound(lhs), rhs) => unify_patterns(lhs, rhs, binding, occurs),
+        (lhs, Pattern::Bound) | (Pattern::Bound, lhs) => Some((lhs.clone(), binding)),
         // Literals must match exactly.
         (Pattern::Literal(lhs), Pattern::Literal(rhs)) if lhs == rhs => {
             Some((Pattern::Literal(lhs.clone()), binding.clone()))
@@ -421,6 +427,8 @@ mod test {
     }
 
     const WILD: Pattern = Pattern::Wildcard;
+    const UNBOUND: Pattern = Pattern::Unbound;
+    const BOUND: Pattern = Pattern::Bound;
 
     macro_rules! list {
         () => (Pattern::List(vec![], None));
@@ -468,12 +476,10 @@ mod test {
         () => { Pattern::Record(Default::default(), None) }
     }
 
-    fn unbound(pattern: Pattern) -> Pattern {
-        Pattern::Unbound(Box::new(pattern))
-    }
-
-    fn bound(pattern: Pattern) -> Pattern {
-        Pattern::Bound(Box::new(pattern))
+    macro_rules! all {
+        ($($pat:expr),+) => {
+            Pattern::All(vec![$($pat.clone()),+])
+        };
     }
 
     #[test]
@@ -689,39 +695,39 @@ mod test {
     fn unify_unbound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        yes!(unbound(WILD), WILD);
-        yes!(unbound(int(3)), x, binding);
-        yes!(unbound(x.clone()), WILD, binding);
-        yes!(list![unbound(x.clone()), x], list![WILD, int(3)], binding);
-        yes!(list![x, unbound(x.clone())], list![int(3), WILD], binding);
+        yes!(UNBOUND, WILD);
+        yes!(all![UNBOUND, int(3)], x, binding);
+        yes!(all![UNBOUND, x], WILD, binding);
+        yes!(list![all![UNBOUND, x], x], list![WILD, int(3)], binding);
+        yes!(list![x, all![UNBOUND, x]], list![int(3), WILD], binding);
     }
 
     #[test]
     fn no_unify_unbound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        no!(unbound(WILD), int(3));
-        no!(unbound(int(3)), int(3));
-        no!(unbound(x), int(3), binding);
+        no!(UNBOUND, int(3));
+        no!(all![UNBOUND, int(3)], int(3));
+        no!(all![UNBOUND, x], int(3), binding);
     }
 
     #[test]
     fn unify_bound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        yes!(bound(WILD), int(3));
-        yes!(bound(int(3)), int(3));
-        yes!(bound(x), int(3), binding);
+        yes!(BOUND, int(3));
+        yes!(all![BOUND, int(3)], int(3));
+        yes!(all![BOUND, x], int(3), binding);
     }
 
     #[test]
     fn no_unify_bound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        no!(bound(WILD), WILD);
-        no!(bound(int(3)), x, binding);
-        no!(bound(x.clone()), WILD, binding);
-        no!(list![bound(x.clone()), x], list![WILD, int(3)], binding);
-        no!(list![x, bound(x.clone())], list![int(3), WILD], binding);
+        no!(BOUND, WILD);
+        no!(all![BOUND, int(3)], x, binding);
+        no!(all![BOUND, x], WILD, binding);
+        no!(list![all![BOUND, x], x], list![WILD, int(3)], binding);
+        no!(list![x, all![BOUND, x]], list![int(3), WILD], binding);
     }
 }

@@ -204,7 +204,7 @@ impl From<Pattern> for Option<Value> {
         match pattern {
             Pattern::Variable(..) => None,
             Pattern::Wildcard => None,
-            Pattern::Bound(inner) | Pattern::Unbound(inner) => (*inner).into(),
+            Pattern::Bound | Pattern::Unbound => None,
             Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int.to_owned())),
             Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat.to_owned())),
             Pattern::Literal(Literal::String(string)) => Some(Value::String(string.to_owned())),
@@ -234,6 +234,7 @@ impl From<Pattern> for Option<Value> {
                 Some(Value::Struct(Struct::raw(structure.name.clone(), contents)))
             }
             Pattern::Any(any) => Some(Value::Any(any)),
+            Pattern::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
         }
     }
 }

@@ -83,7 +83,7 @@ impl Binding {
                                 Ok(rest)
                             }
                             Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
-                            _ => panic!("We have unified a list with a non-list value. This should not happen."),
+                            v => panic!("We have unified a list with a non-list value ({:?}). This should not happen.", v),
                         }
                     })
                     .transpose()?
@@ -105,7 +105,7 @@ impl Binding {
                                 Ok(rest)
                             }
                             Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
-                            _ => panic!("We have unified a set with a non-set value. This should not happen."),
+                            v => panic!("We have unified a set with a non-set value ({:?}). This should not happen.", v),
                         }
                     })
                     .transpose()?
@@ -126,7 +126,7 @@ impl Binding {
                                 Ok(rest)
                             }
                             Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
-                            _ => panic!("We have unified a record with a non-record value. This should not happen."),
+                            v => panic!("We have unified a record with a non-record value ({:?}). This should not happen.", v),
                         }
                     })
                     .transpose()?
@@ -146,8 +146,15 @@ impl Binding {
             }
             Pattern::Literal(..) => Ok(pattern.clone()),
             Pattern::Any(..) => Ok(pattern.clone()),
-            Pattern::Bound(inner) | Pattern::Unbound(inner) => Ok(self.apply(inner)?),
+            Pattern::Bound => Ok(Pattern::Bound),
+            Pattern::Unbound => Ok(Pattern::Unbound),
             Pattern::Wildcard => Ok(Pattern::Wildcard),
+            Pattern::All(inner) => Ok(Pattern::All(
+                inner
+                    .iter()
+                    .map(|pattern| self.apply(&pattern))
+                    .collect::<crate::Result<Vec<_>>>()?,
+            )),
         }
     }
 }

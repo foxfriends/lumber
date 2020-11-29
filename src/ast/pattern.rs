@@ -27,9 +27,11 @@ pub(crate) enum Pattern {
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
     /// A value that must already be bound, at the time of checking (not wildcard)
-    Bound(Box<Pattern>),
+    Bound,
     /// A value that must already not be bound, at the time of checking (wildcard only)
-    Unbound(Box<Pattern>),
+    Unbound,
+    /// A value that must match multiple patterns
+    All(Vec<Pattern>),
 }
 
 impl Default for Pattern {
@@ -53,8 +55,9 @@ impl PartialEq for Pattern {
             }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             (Pattern::Wildcard, Pattern::Wildcard) => true,
-            (Pattern::Bound(lhs), Pattern::Bound(rhs)) => lhs.eq(rhs),
-            (Pattern::Unbound(lhs), Pattern::Unbound(rhs)) => lhs.eq(rhs),
+            (Pattern::Bound, Pattern::Bound) => true,
+            (Pattern::Unbound, Pattern::Unbound) => true,
+            (Pattern::All(lhs), Pattern::All(rhs)) => lhs.eq(rhs),
             _ => false,
         }
     }
@@ -72,8 +75,9 @@ impl Hash for Pattern {
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
             Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
             Pattern::Wildcard => "wildcard".hash(hasher),
-            Pattern::Bound(pattern) => ("bound", pattern).hash(hasher),
-            Pattern::Unbound(pattern) => ("unbound", pattern).hash(hasher),
+            Pattern::Bound => "bound".hash(hasher),
+            Pattern::Unbound => "unbound".hash(hasher),
+            Pattern::All(patterns) => ("all", patterns).hash(hasher),
         }
     }
 }
@@ -89,18 +93,20 @@ impl Pattern {
         match pair.as_rule() {
             Rule::bindable_pattern => Self::new_inner(just!(pair.into_inner()), context),
             Rule::value_pattern => Self::new_inner(just!(pair.into_inner()), context),
-            Rule::bound_pattern => Self::Bound(Box::new(
-                pair.into_inner()
-                    .next()
-                    .map(|pair| Self::new_inner(pair, context))
-                    .unwrap_or(Self::Wildcard),
-            )),
-            Rule::unbound_pattern => Self::Unbound(Box::new(
-                pair.into_inner()
-                    .next()
-                    .map(|pair| Self::new_inner(pair, context))
-                    .unwrap_or(Self::Wildcard),
-            )),
+            Rule::bound_pattern => match pair.into_inner().next() {
+                Some(pair) => {
+                    let inner = Self::new_inner(pair, context);
+                    Self::All(vec![Self::Bound, inner])
+                }
+                None => Self::Bound,
+            },
+            Rule::unbound_pattern => match pair.into_inner().next() {
+                Some(pair) => {
+                    let inner = Self::new_inner(pair, context);
+                    Self::All(vec![Self::Unbound, inner])
+                }
+                None => Self::Unbound,
+            },
             Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => Self::Literal(Literal::new(pair)),
             Rule::variable => Self::Variable(context.get_variable(pair.as_str())),
@@ -160,8 +166,6 @@ impl Pattern {
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Struct(s) => Box::new(s.identifiers()),
-            Self::Unbound(inner) => Box::new(inner.identifiers()),
-            Self::Bound(inner) => Box::new(inner.identifiers()),
             Self::Variable(identifier) => Box::new(std::iter::once(identifier.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()
@@ -181,6 +185,9 @@ impl Pattern {
             ),
             // TODO: give these unique names, and allow user to specify wildcard names.
             Self::Wildcard => Box::new(std::iter::once(Identifier::wildcard("_".to_owned()))),
+            Self::All(patterns) => {
+                Box::new(patterns.iter().flat_map(|pattern| pattern.identifiers()))
+            }
             _ => Box::new(std::iter::empty()),
         }
     }
