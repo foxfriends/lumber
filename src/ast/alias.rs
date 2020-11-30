@@ -11,6 +11,7 @@ pub(crate) struct Alias {
 }
 
 impl Alias {
+    #[allow(clippy::needless_collect)]
     pub fn unpack_multiple(
         pair: crate::Pair,
         context: &mut Context,

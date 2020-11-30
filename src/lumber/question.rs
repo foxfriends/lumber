@@ -65,7 +65,7 @@ impl Question {
             .map(|identifier| {
                 Some((
                     identifier.name().to_owned(),
-                    binding.extract(binding.get(&identifier)?).ok()?,
+                    binding.extract(binding.get(&identifier)?.as_ref()).ok()?,
                 ))
             })
             .collect()

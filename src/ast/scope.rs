@@ -160,6 +160,6 @@ impl<'a> IntoIterator for &'a Scope {
     type IntoIter = <&'a [Atom] as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.path).into_iter()
+        self.path.iter()
     }
 }

@@ -3,11 +3,12 @@ use crate::ast::*;
 use crate::program::unification::unify_patterns;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+use std::rc::Rc;
 
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
 #[derive(Default, Clone, Debug)]
-pub struct Binding(pub(crate) HashMap<Identifier, Pattern>);
+pub struct Binding(pub(crate) HashMap<Identifier, Rc<Pattern>>);
 
 impl Binding {
     pub(crate) fn transfer_from(
@@ -22,26 +23,28 @@ impl Binding {
             .zip(destination.patterns.iter())
             .try_fold(self, |binding, (source, destination)| {
                 let applied = input_binding.apply(source).unwrap();
-                let (_, binding) = unify_patterns(&applied, destination, binding, &[])?;
+                let binding = unify_patterns(&applied, destination, binding, &[])?;
                 Some(binding)
             })
     }
 
-    pub(crate) fn get(&self, identifier: &Identifier) -> Option<&Pattern> {
+    pub(crate) fn get(&self, identifier: &Identifier) -> Option<Rc<Pattern>> {
         let pattern = self.0.get(identifier)?;
-        match &pattern {
+        match pattern.as_ref() {
             Pattern::Variable(identifier) => self.get(identifier),
-            _ => Some(pattern),
+            _ => Some(pattern.clone()),
         }
     }
 
-    pub(crate) fn set(&mut self, identifier: Identifier, pattern: Pattern) {
-        self.0.insert(identifier, pattern);
+    pub(crate) fn set(&mut self, identifier: Identifier, pattern: Pattern) -> Rc<Pattern> {
+        let rc = Rc::new(pattern);
+        self.0.insert(identifier, rc.clone());
+        rc
     }
 
     pub(crate) fn fresh_variable(&mut self) -> Identifier {
         let var = Identifier::new(format!("##{}", self.0.len()));
-        self.0.insert(var.clone(), Pattern::Wildcard);
+        self.0.insert(var.clone(), Rc::new(Pattern::Wildcard));
         var
     }
 
@@ -141,7 +144,7 @@ impl Binding {
                     .map(Box::new);
                 Ok(Pattern::Struct(crate::ast::Struct {
                     name: name.clone(),
-                    contents: contents,
+                    contents,
                 }))
             }
             Pattern::Literal(..) => Ok(pattern.clone()),
@@ -166,7 +169,7 @@ impl FromIterator<Identifier> for Binding {
     {
         Self(
             iter.into_iter()
-                .map(|ident| (ident, Pattern::default()))
+                .map(|ident| (ident, Rc::new(Pattern::default())))
                 .collect(),
         )
     }

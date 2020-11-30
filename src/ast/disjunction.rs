@@ -22,7 +22,7 @@ impl Disjunction {
         self.cases.iter_mut().flat_map(|case| case.handles_mut())
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.cases.iter().flat_map(|case| case.identifiers())
     }
 }

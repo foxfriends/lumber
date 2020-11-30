@@ -33,7 +33,7 @@ impl Body {
             .flat_map(|disjunction| disjunction.handles_mut())
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.0
             .iter()
             .flat_map(|disjunction| disjunction.identifiers())

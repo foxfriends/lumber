@@ -204,7 +204,7 @@ impl<'p> Context<'p> {
             .unwrap()
             .resolve(handle, in_scope, self);
         match resolved {
-            Ok(resolved) => return Some(resolved.clone()),
+            Ok(resolved) => Some(resolved.clone()),
             Err(error) => {
                 self.current_errors_mut().push(error);
                 None

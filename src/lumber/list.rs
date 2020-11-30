@@ -36,6 +36,11 @@ impl List {
         self.values.len()
     }
 
+    /// Checks whether this list is empty. This does not take into account the unknown elements.
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     /// An iterator over the values stored in this list. Each element is optional, as it may be unbound.
     /// Unknown list elements, in the case of an incomplete list, are not included.
     pub fn iter(&self) -> impl Iterator<Item = Option<&Value>> {
