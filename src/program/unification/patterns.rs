@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::Binding;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
@@ -7,8 +8,23 @@ use std::rc::Rc;
 // TODO: This function could be wrapped so it does not return the output pattern, as that is only really
 //       used internally.
 pub(crate) fn unify_patterns(
-    lhs: &Pattern,
-    rhs: &Pattern,
+    lhs: impl AsRef<Pattern>,
+    rhs: impl AsRef<Pattern>,
+    binding: Binding,
+    occurs: &[Identifier],
+) -> Option<Binding> {
+    unify_patterns_inner(
+        Cow::borrowed(lhs.as_ref()),
+        Cow::borrowed(rhs.as_ref()),
+        binding,
+        occurs,
+    )?
+    .1
+}
+
+fn unify_patterns_inner<'p>(
+    lhs: Cow<'p, Pattern>,
+    rhs: Cow<'p, Pattern>,
     binding: Binding,
     occurs: &[Identifier],
 ) -> Option<(Pattern, Binding)> {
@@ -17,7 +33,7 @@ pub(crate) fn unify_patterns(
         (Pattern::All(patterns), other) | (other, Pattern::All(patterns)) => patterns
             .iter()
             .try_fold((other.clone(), binding), |(other, binding), pattern| {
-                unify_patterns(&other, pattern, binding, occurs)
+                unify_patterns_inner(&other, pattern, binding, occurs)
             }),
         // Any values must be the exact same value. We know nothing else about them.
         (Pattern::Any(lhs), Pattern::Any(rhs)) if Rc::ptr_eq(lhs, rhs) => {
@@ -55,7 +71,8 @@ pub(crate) fn unify_patterns(
             let mut occurs = occurs.to_owned();
             occurs.push(lhs.clone());
             occurs.push(rhs.clone());
-            let (pattern, mut binding) = unify_patterns(&lhs_pat, &rhs_pat, binding, &occurs)?;
+            let (pattern, mut binding) =
+                unify_patterns_inner(&lhs_pat, &rhs_pat, binding, &occurs)?;
             let min = Identifier::min(lhs.clone(), rhs.clone());
             let max = Identifier::max(lhs.clone(), rhs.clone());
             binding.set(min.clone(), pattern.clone());
@@ -71,9 +88,9 @@ pub(crate) fn unify_patterns(
             let var_pat = binding.get(var).unwrap().clone();
             let mut occurs = occurs.to_owned();
             occurs.push(var.clone());
-            let (pattern, mut binding) = unify_patterns(&var_pat, pattern, binding, &occurs)?;
+            let (pattern, mut binding) = unify_patterns_inner(&var_pat, pattern, binding, &occurs)?;
             match pattern {
-                Pattern::Variable(new_var) => unify_patterns(
+                Pattern::Variable(new_var) => unify_patterns_inner(
                     &Pattern::Variable(var.clone()),
                     &Pattern::Variable(new_var),
                     binding,
@@ -101,7 +118,7 @@ pub(crate) fn unify_patterns(
         (Pattern::Struct(lhs), Pattern::Struct(rhs))
             if lhs.name == rhs.name && lhs.contents.is_some() && rhs.contents.is_some() =>
         {
-            let (contents, binding) = unify_patterns(
+            let (contents, binding) = unify_patterns_inner(
                 lhs.contents.as_ref().unwrap(),
                 rhs.contents.as_ref().unwrap(),
                 binding,
@@ -131,8 +148,12 @@ pub(crate) fn unify_patterns(
                     let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(ident.clone());
-                    let (tail, mut binding) =
-                        unify_patterns(&Pattern::List(tail, None), &tail_pat, binding, &occurs)?;
+                    let (tail, mut binding) = unify_patterns_inner(
+                        &Pattern::List(tail, None),
+                        &tail_pat,
+                        binding,
+                        &occurs,
+                    )?;
                     binding.set(ident.clone(), tail.clone());
                     Some((Pattern::List(output, Some(Box::new(tail))), binding))
                 }
@@ -146,7 +167,7 @@ pub(crate) fn unify_patterns(
                     let mut combined = head.to_owned();
                     combined.extend_from_slice(&cont);
                     let lhs = Pattern::List(combined, tail.clone());
-                    unify_patterns(&lhs, other, binding, occurs)
+                    unify_patterns_inner(&lhs, other, binding, occurs)
                 }
                 // If the tail cannot unify with a list, then there is a problem.
                 _ => None,
@@ -159,14 +180,14 @@ pub(crate) fn unify_patterns(
             // The shorter one is the one that is now "done", so we match it's tail with
             // the remaining head and tail of the other list.
             let (suffix, binding) = if lhs.len() < rhs.len() {
-                unify_patterns(
+                unify_patterns_inner(
                     lhs_tail.as_ref(),
                     &Pattern::List(remaining, Some(rhs_tail.clone())),
                     binding,
                     occurs,
                 )?
             } else {
-                unify_patterns(
+                unify_patterns_inner(
                     &Pattern::List(remaining, Some(lhs_tail.clone())),
                     rhs_tail.as_ref(),
                     binding,
@@ -191,8 +212,12 @@ pub(crate) fn unify_patterns(
                     let tail_pat = binding.get(ident).unwrap().clone();
                     let mut occurs = occurs.to_owned();
                     occurs.push(ident.clone());
-                    let (tail, mut binding) =
-                        unify_patterns(&Pattern::Record(tail, None), &tail_pat, binding, &occurs)?;
+                    let (tail, mut binding) = unify_patterns_inner(
+                        &Pattern::Record(tail, None),
+                        &tail_pat,
+                        binding,
+                        &occurs,
+                    )?;
                     binding.set(ident.clone(), tail.clone());
                     Some((Pattern::Record(output, Some(Box::new(tail))), binding))
                 }
@@ -206,7 +231,7 @@ pub(crate) fn unify_patterns(
                     let mut combined = head.clone();
                     combined.append(&mut cont.clone());
                     let lhs = Pattern::Record(combined, tail.clone());
-                    unify_patterns(&lhs, other, binding, occurs)
+                    unify_patterns_inner(&lhs, other, binding, occurs)
                 }
                 // If the tail cannot unify with a record, then there is a problem.
                 _ => None,
@@ -230,8 +255,8 @@ pub(crate) fn unify_patterns(
             lhs_rest.append(&mut rhs_rest);
             let out_tail =
                 Pattern::Record(lhs_rest, Some(Box::new(Pattern::Variable(unknown_tail))));
-            let (_, binding) = unify_patterns(lhs_tail, &new_lhs_tail, binding, occurs)?;
-            let (_, binding) = unify_patterns(rhs_tail, &new_rhs_tail, binding, occurs)?;
+            let (_, binding) = unify_patterns_inner(lhs_tail, &new_lhs_tail, binding, occurs)?;
+            let (_, binding) = unify_patterns_inner(rhs_tail, &new_rhs_tail, binding, occurs)?;
             Some((
                 Pattern::Record(intersection, Some(Box::new(out_tail))),
                 binding,
@@ -254,7 +279,7 @@ fn unify_sequence(
     lhs.iter()
         .zip(rhs.iter())
         .try_fold((vec![], binding), |(mut patterns, binding), (lhs, rhs)| {
-            let (pattern, binding) = unify_patterns(lhs, rhs, binding, occurs)?;
+            let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding, occurs)?;
             patterns.push(pattern);
             Some((patterns, binding))
         })
@@ -272,7 +297,7 @@ fn unify_fields(
     let (fields, binding) = lhs.iter().zip(rhs.iter()).try_fold(
         (BTreeMap::default(), binding),
         |(mut fields, binding), (lhs, rhs)| {
-            let (pattern, binding) = unify_patterns(&lhs.1, &rhs.1, binding, occurs)?;
+            let (pattern, binding) = unify_patterns_inner(&lhs.1, &rhs.1, binding, occurs)?;
             fields.insert(lhs.0.clone(), pattern);
             Some((fields, binding))
         },
@@ -291,7 +316,7 @@ fn unify_fields_partial(
         (BTreeMap::new(), binding),
         |(mut fields, binding), (key, pattern)| {
             let (unified, binding) =
-                unify_patterns(&pattern, &full.remove(&key)?, binding, occurs)?;
+                unify_patterns_inner(&pattern, &full.remove(&key)?, binding, occurs)?;
             fields.insert(key.clone(), unified);
             Some((fields, binding))
         },
@@ -316,7 +341,7 @@ fn unify_fields_difference(
             rhs.remove(&key),
         ) {
             (Some(lhs), Some(rhs)) => {
-                let (patterns, binding) = unify_patterns(&lhs, &rhs, binding, occurs)?;
+                let (patterns, binding) = unify_patterns_inner(&lhs, &rhs, binding, occurs)?;
                 intersection.insert(key, patterns);
                 Some((intersection, lhs_rest, rhs_rest, binding))
             }
@@ -348,7 +373,7 @@ fn unify_prefix(
     let (head, binding) = lhs.iter().zip(rhs.iter()).try_fold(
         (vec![], binding),
         |(mut patterns, binding), (lhs, rhs)| {
-            let (pattern, binding) = unify_patterns(lhs, rhs, binding, occurs)?;
+            let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding, occurs)?;
             patterns.push(pattern);
             Some((patterns, binding))
         },
@@ -372,7 +397,7 @@ fn unify_full_prefix(
     let (head, binding) = lhs.iter().zip(rhs.iter()).try_fold(
         (vec![], binding),
         |(mut patterns, binding), (lhs, rhs)| {
-            let (pattern, binding) = unify_patterns(lhs, rhs, binding, occurs)?;
+            let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding, occurs)?;
             patterns.push(pattern);
             Some((patterns, binding))
         },
@@ -386,10 +411,10 @@ mod test {
 
     macro_rules! yes {
         ($lhs:expr, $rhs:expr $(,)?) => {
-            assert!(unify_patterns(&$lhs, &$rhs, Binding::default(), &[]).is_some())
+            assert!(unify_patterns_inner(&$lhs, &$rhs, Binding::default(), &[]).is_some())
         };
         ($lhs:expr, $rhs:expr, $binding:expr $(,)?) => {{
-            let output = unify_patterns(&$lhs, &$rhs, $binding.clone(), &[]);
+            let output = unify_patterns_inner(&$lhs, &$rhs, $binding.clone(), &[]);
             assert!(output.is_some());
             output.unwrap()
         }};
@@ -397,10 +422,10 @@ mod test {
 
     macro_rules! no {
         ($lhs:expr, $rhs:expr $(,)?) => {
-            assert!(unify_patterns(&$lhs, &$rhs, Binding::default(), &[]).is_none())
+            assert!(unify_patterns_inner(&$lhs, &$rhs, Binding::default(), &[]).is_none())
         };
         ($lhs:expr, $rhs:expr, $binding:expr $(,)?) => {
-            assert!(unify_patterns(&$lhs, &$rhs, $binding.clone(), &[]).is_none())
+            assert!(unify_patterns_inner(&$lhs, &$rhs, $binding.clone(), &[]).is_none())
         };
     }
 
