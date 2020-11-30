@@ -58,7 +58,7 @@ fn answer(program: &Lumber, query: &str) {
                 format!(
                     "{} = {}",
                     var,
-                    val.map(|val| val.to_string()).unwrap_or("_".into())
+                    val.map(|val| val.to_string()).unwrap_or_else(|| "_".into())
                 )
             })
             .collect::<Vec<_>>()

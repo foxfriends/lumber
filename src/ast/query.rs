@@ -77,7 +77,7 @@ impl Query {
         Some(Query { handle, patterns })
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.patterns
             .iter()
             .flat_map(|pattern| pattern.identifiers())
@@ -99,21 +99,18 @@ fn params(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
         );
         arity.len = patterns.len() as u32;
     }
-    match pairs.next() {
-        Some(pair) => {
-            assert_eq!(pair.as_rule(), Rule::named_params);
-            for pair in pair.into_inner() {
-                let mut pairs = pair.into_inner();
-                let name = Atom::new(pairs.next().unwrap());
-                let values = just!(Rule::bare_params, pairs)
-                    .into_inner()
-                    .map(|pair| Pattern::new(pair, context))
-                    .collect::<Vec<_>>();
-                arity.push(name, values.len() as u32);
-                patterns.extend(values);
-            }
+    if let Some(pair) = pairs.next() {
+        assert_eq!(pair.as_rule(), Rule::named_params);
+        for pair in pair.into_inner() {
+            let mut pairs = pair.into_inner();
+            let name = Atom::new(pairs.next().unwrap());
+            let values = just!(Rule::bare_params, pairs)
+                .into_inner()
+                .map(|pair| Pattern::new(pair, context))
+                .collect::<Vec<_>>();
+            arity.push(name, values.len() as u32);
+            patterns.extend(values);
         }
-        None => {}
     }
     (arity, patterns)
 }

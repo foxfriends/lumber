@@ -98,7 +98,7 @@ impl ModuleHeader {
             path.push(handle);
             return Err(crate::Error::parse(&format!(
                 "Alias loop detected: {}",
-                path.into_iter()
+                path.iter_mut()
                     .map(|handle| handle.to_string())
                     .collect::<Vec<_>>()
                     .join(" -> "),
@@ -135,9 +135,9 @@ impl ModuleHeader {
                 })
                 .collect::<crate::Result<Vec<_>>>()?;
 
-            match candidates.as_slice() {
-                &[] => return Ok(None),
-                &[handle] => handle,
+            match *candidates.as_slice() {
+                [] => return Ok(None),
+                [handle] => handle,
                 _ => {
                     return Err(crate::Error::parse(&format!(
                         "Ambiguous reference {}. Could be referring to any of:\n{}",
@@ -167,10 +167,10 @@ impl ModuleHeader {
         handle: &Handle,
         from_scope: &Scope,
         context: &'a Context,
-        path: &Vec<&'b Handle>,
+        path: &[&'b Handle],
     ) -> crate::Result<Option<&'a Handle>> {
         let handle = handle.relocate(&self.scope);
-        self.resolve_inner(&handle, from_scope, context, &mut path.clone())
+        self.resolve_inner(&handle, from_scope, context, &mut path.to_vec())
     }
 
     pub fn globbed_modules(&self) -> impl Iterator<Item = &Scope> {
@@ -217,7 +217,7 @@ impl ModuleHeader {
             }
         }
         for export in &self.exports {
-            if !self.resolve(export, &self.scope, context).is_ok() {
+            if self.resolve(export, &self.scope, context).is_err() {
                 errors.push(crate::Error::parse(&format!(
                     "Exported predicate {} cannot be found.",
                     export.head(),

@@ -1,3 +1,4 @@
+#![allow(clippy::redundant_allocation)]
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{List, Record, Struct};
@@ -205,9 +206,9 @@ impl From<Pattern> for Option<Value> {
             Pattern::Variable(..) => None,
             Pattern::Wildcard => None,
             Pattern::Bound | Pattern::Unbound => None,
-            Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int.to_owned())),
-            Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat.to_owned())),
-            Pattern::Literal(Literal::String(string)) => Some(Value::String(string.to_owned())),
+            Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
+            Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
+            Pattern::Literal(Literal::String(string)) => Some(Value::String(string)),
             Pattern::List(patterns, rest) => {
                 let values = patterns.into_iter().map(Into::into).collect();
                 let complete = rest.is_none();
@@ -231,7 +232,7 @@ impl From<Pattern> for Option<Value> {
                 let contents = structure
                     .contents
                     .map(|contents| Box::new((*contents).into()));
-                Some(Value::Struct(Struct::raw(structure.name.clone(), contents)))
+                Some(Value::Struct(Struct::raw(structure.name, contents)))
             }
             Pattern::Any(any) => Some(Value::Any(any)),
             Pattern::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),

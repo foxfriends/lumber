@@ -1,3 +1,4 @@
+#![allow(clippy::redundant_allocation)]
 use super::*;
 use crate::parser::Rule;
 use std::any::Any;

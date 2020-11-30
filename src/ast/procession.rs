@@ -22,7 +22,7 @@ impl Procession {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.steps.iter().flat_map(|step| step.identifiers())
     }
 }

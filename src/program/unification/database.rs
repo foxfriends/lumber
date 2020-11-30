@@ -51,7 +51,7 @@ impl Database<'_> {
         binding: Binding,
         public: bool,
     ) -> Bindings<'a> {
-        let bindings = Box::new(std::iter::once(binding.clone()));
+        let bindings = Box::new(std::iter::once(binding));
         procession
             .steps
             .iter()

@@ -7,15 +7,15 @@ use pest::Parser as _;
 pub(crate) struct Parser;
 
 impl Parser {
-    pub fn parse_module<'i>(source_code: &'i str) -> crate::Result<crate::Pairs<'i>> {
+    pub fn parse_module(source_code: &str) -> crate::Result<crate::Pairs> {
         Ok(Self::parse(Rule::module, source_code)?)
     }
 
-    pub fn parse_handle<'i>(source_code: &'i str) -> crate::Result<crate::Pairs<'i>> {
+    pub fn parse_handle(source_code: &str) -> crate::Result<crate::Pairs> {
         Ok(Self::parse(Rule::external_handle, source_code)?)
     }
 
-    pub fn parse_question<'i>(source_code: &'i str) -> crate::Result<crate::Pairs<'i>> {
+    pub fn parse_question(source_code: &str) -> crate::Result<crate::Pairs> {
         Ok(Self::parse(Rule::question, source_code)?)
     }
 }

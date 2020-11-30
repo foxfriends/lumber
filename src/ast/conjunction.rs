@@ -22,7 +22,7 @@ impl Conjunction {
         self.terms.iter_mut().flat_map(|term| term.handles_mut())
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.terms.iter().flat_map(|term| term.identifiers())
     }
 }

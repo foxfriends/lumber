@@ -26,7 +26,7 @@ impl Struct {
         Self { name, contents }
     }
 
-    pub fn identifiers<'a>(&'a self) -> impl Iterator<Item = Identifier> + 'a {
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.contents
             .iter()
             .flat_map(|pattern| pattern.identifiers())

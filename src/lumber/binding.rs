@@ -144,7 +144,7 @@ impl Binding {
                     .map(Box::new);
                 Ok(Pattern::Struct(crate::ast::Struct {
                     name: name.clone(),
-                    contents: contents,
+                    contents,
                 }))
             }
             Pattern::Literal(..) => Ok(pattern.clone()),
