@@ -466,8 +466,8 @@ mod test {
     macro_rules! yes {
         ($lhs:expr, $rhs:expr $(,)?) => {
             assert!(unify_patterns_inner(
-                Cow::Borrowed(&$lhs),
-                Cow::Borrowed(&$rhs),
+                Cow::Owned($lhs.clone()),
+                Cow::Owned($rhs.clone()),
                 Binding::default(),
                 &[]
             )
@@ -475,8 +475,8 @@ mod test {
         };
         ($lhs:expr, $rhs:expr, $binding:expr $(,)?) => {{
             let output = unify_patterns_inner(
-                Cow::Borrowed(&$lhs),
-                Cow::Borrowed(&$rhs),
+                Cow::Owned($lhs.clone()),
+                Cow::Owned($rhs.clone()),
                 $binding.clone(),
                 &[],
             );
@@ -512,7 +512,9 @@ mod test {
 
     fn id(name: &str, binding: &mut Binding) -> Pattern {
         let identifier = Identifier::new(name.to_owned());
-        binding.0.insert(identifier.clone(), Pattern::Wildcard);
+        binding
+            .0
+            .insert(identifier.clone(), Rc::new(Pattern::Wildcard));
         Pattern::Variable(identifier)
     }
 
