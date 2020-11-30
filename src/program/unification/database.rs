@@ -93,7 +93,7 @@ impl Database<'_> {
                                 .map(Into::into)
                                 .zip(query.patterns.iter())
                                 .try_fold(binding.clone(), |binding, (lhs, rhs)| {
-                                    Some(unify_patterns(&lhs, rhs, binding, &[])?.1)
+                                    Some(unify_patterns(&lhs, rhs, binding, &[])?)
                                 });
                             values
                         }))
@@ -105,7 +105,7 @@ impl Database<'_> {
             Unification::Assumption(output, expression) => Box::new(
                 self.unify_expression(expression, binding, public)
                     .filter_map(move |(binding, pattern)| {
-                        Some(unify_patterns(&output, &pattern, binding, &[])?.1)
+                        Some(unify_patterns(&output, &pattern, binding, &[])?)
                     }),
             ),
         }
