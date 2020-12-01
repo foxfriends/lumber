@@ -23,7 +23,9 @@ impl Body {
             .map(|term| Procession { steps: vec![term] })
             .collect();
         Self(Some(Disjunction {
-            cases: vec![Conjunction { terms }],
+            cases: vec![Branch {
+                steps: vec![Conjunction { terms }],
+            }],
         }))
     }
 

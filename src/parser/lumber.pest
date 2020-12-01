@@ -28,15 +28,20 @@ arity             =  { "/" ~ integer_10 ~ (":" ~ atom ~ ("/" ~ !"0" ~ !"1" ~ int
 
 clause            =  { fact | rule | function }
 fact              =  { head ~ "." }
-rule              =  { head ~ ":-" ~ body ~ "." }
-function          =  { function_head ~ "<-" ~ evaluation ~ "." }
+rule              =  { head ~ (rule_once | rule_multi) ~ body ~ "." }
+rule_multi        =  { ":-" }
+rule_once         =  { "::-" }
+function          =  { function_head ~ (function_once | function_multi) ~ evaluation ~ "." }
+function_multi    =  { "<-" }
+function_once     =  { "<<-" }
 
 head              =  { atom ~ ( "(" ~ params ~ ","? ~ ")" )? }
 function_head     =  { atom ~ "!" ~ ( "(" ~ params ~ ","?  ~ ")" )? }
 body              =  { disjunction }
 evaluation        =  { (assumption ~ ",")* ~ operation }
 
-disjunction       =  { conjunction ~ (";" ~ conjunction)* }
+disjunction       =  { branch ~ (";" ~ branch)* }
+branch            =  { conjunction ~ ("->>" ~ conjunction)* }
 conjunction       =  { procession ~ ("," ~ procession)* }
 procession        =  { unification ~ ("->" ~ unification)* }
 unification       =  { assumption | predicate | "(" ~ disjunction ~ ")" }

@@ -1,19 +1,19 @@
 use super::*;
 use crate::parser::Rule;
 
-/// A sequence of narrowing steps.
+/// A disjunction of conjunctions.
 #[derive(Default, Clone, Debug)]
-pub(crate) struct Procession {
-    /// Steps after which backtracking is skipped.
-    pub(crate) steps: Vec<Unification>,
+pub(crate) struct Branch {
+    /// Steps between which backtracking is prevented.
+    pub(crate) steps: Vec<Conjunction>,
 }
 
-impl Procession {
+impl Branch {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::procession);
+        assert_eq!(pair.as_rule(), Rule::branch);
         let steps = pair
             .into_inner()
-            .map(|pair| Unification::new(pair, context))
+            .map(|pair| Conjunction::new(pair, context))
             .collect::<Option<_>>()?;
         Some(Self { steps })
     }

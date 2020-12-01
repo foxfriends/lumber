@@ -29,7 +29,21 @@ impl Database<'_> {
             disjunction
                 .cases
                 .iter()
-                .flat_map(move |case| self.unify_conjunction(case, binding.clone(), public)),
+                .flat_map(move |case| self.unify_branch(case, binding.clone(), public)),
+        )
+    }
+
+    fn unify_branch<'a>(
+        &'a self,
+        branch: &'a Branch,
+        binding: Binding,
+        public: bool,
+    ) -> Bindings<'a> {
+        Box::new(
+            branch
+                .steps
+                .iter()
+                .flat_map(move |step| self.unify_conjunction(step, binding.clone(), public)),
         )
     }
 
@@ -117,21 +131,34 @@ impl Database<'_> {
         definition: &'a Definition,
         input_binding: Binding,
     ) -> Bindings<'a> {
-        Box::new(definition.iter().flat_map(move |(head, body)| {
-            let input_binding = input_binding.clone();
-            head.identifiers()
-                .chain(body.identifiers())
-                .collect::<Binding>()
-                .transfer_from(&input_binding, &query, &head)
-                .map(move |binding| self.unify_body(body, binding, false))
-                .into_iter()
-                .flatten()
-                .filter_map(move |output_binding| {
-                    input_binding
-                        .clone()
-                        .transfer_from(&output_binding, &head, &query)
+        Box::new(
+            definition
+                .iter()
+                .flat_map(move |(head, kind, body)| {
+                    let input_binding = input_binding.clone();
+                    head.identifiers()
+                        .chain(body.identifiers())
+                        .collect::<Binding>()
+                        .transfer_from(&input_binding, &query, &head)
+                        .map(move |binding| self.unify_body(body, binding, false))
+                        .into_iter()
+                        .flatten()
+                        .filter_map(move |output_binding| {
+                            input_binding
+                                .clone()
+                                .transfer_from(&output_binding, &head, &query)
+                        })
+                        .map(move |output| (output, *kind))
                 })
-        }))
+                .scan(RuleKind::Multi, |kind, (value, newkind)| {
+                    if let RuleKind::Once = kind {
+                        return None;
+                    }
+                    *kind = newkind;
+                    Some(value)
+                })
+                .fuse(),
+        )
     }
 
     fn unify_expression<'a>(

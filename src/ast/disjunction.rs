@@ -5,7 +5,7 @@ use crate::parser::Rule;
 #[derive(Default, Clone, Debug)]
 pub(crate) struct Disjunction {
     /// Cases between which variable bindings are not shared.
-    pub(crate) cases: Vec<Conjunction>,
+    pub(crate) cases: Vec<Branch>,
 }
 
 impl Disjunction {
@@ -13,7 +13,7 @@ impl Disjunction {
         assert_eq!(pair.as_rule(), Rule::disjunction);
         let cases = pair
             .into_inner()
-            .map(|pair| Conjunction::new(pair, context))
+            .map(|pair| Branch::new(pair, context))
             .collect::<Option<_>>()?;
         Some(Self { cases })
     }
