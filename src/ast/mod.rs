@@ -27,7 +27,7 @@ pub(crate) use arity::Arity;
 pub(crate) use atom::Atom;
 pub(crate) use body::Body;
 pub(crate) use conjunction::Conjunction;
-pub(crate) use definition::Definition;
+pub(crate) use definition::{Definition, RuleKind};
 pub(crate) use disjunction::Disjunction;
 pub(crate) use expression::Expression;
 pub(crate) use fields::Fields;

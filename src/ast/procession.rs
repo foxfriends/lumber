@@ -1,10 +1,10 @@
 use super::*;
 use crate::parser::Rule;
 
-/// A sequence of steps.
+/// A sequence of narrowing steps.
 #[derive(Default, Clone, Debug)]
 pub(crate) struct Procession {
-    /// Steps between which backtracking is skipped..
+    /// Steps after which backtracking is skipped.
     pub(crate) steps: Vec<Unification>,
 }
 

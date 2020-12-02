@@ -69,17 +69,23 @@ impl Module {
                 Rule::clause => {
                     context.reset_environment();
                     let pair = just!(pair.into_inner());
-                    let (head, body) = match pair.as_rule() {
+                    let (head, kind, body) = match pair.as_rule() {
                         Rule::fact => {
                             let pair = just!(pair.into_inner());
                             let query = Query::from_head(pair, context);
-                            (query, Body::default())
+                            // TODO: is there a way to define "Once" rules?
+                            (query, RuleKind::Multi, Body::default())
                         }
                         Rule::rule => {
                             let mut pairs = pair.into_inner();
                             let head = Query::from_head(pairs.next().unwrap(), context);
+                            let kind = match pairs.next().unwrap().as_rule() {
+                                Rule::rule_multi => RuleKind::Multi,
+                                Rule::rule_once => RuleKind::Once,
+                                _ => unreachable!(),
+                            };
                             if let Some(body) = Body::new(pairs.next().unwrap(), context) {
-                                (head, body)
+                                (head, kind, body)
                             } else {
                                 continue;
                             }
@@ -92,6 +98,11 @@ impl Module {
                                 context,
                                 output.clone(),
                             );
+                            let kind = match pairs.next().unwrap().as_rule() {
+                                Rule::function_multi => RuleKind::Multi,
+                                Rule::function_once => RuleKind::Once,
+                                _ => unreachable!(),
+                            };
                             let mut pairs = just!(Rule::evaluation, pairs).into_inner();
                             let mut unifications = vec![];
                             while pairs.peek().unwrap().as_rule() == Rule::assumption {
@@ -110,7 +121,7 @@ impl Module {
                                 }
                                 None => continue,
                             }
-                            (head, Body::new_evaluation(unifications))
+                            (head, kind, Body::new_evaluation(unifications))
                         }
                         _ => unreachable!(),
                     };
@@ -119,7 +130,7 @@ impl Module {
                     definitions
                         .entry(head.as_ref().clone())
                         .or_default()
-                        .insert(head, body);
+                        .insert(head, kind, body);
                 }
                 Rule::EOI => {}
                 _ => unreachable!(),
