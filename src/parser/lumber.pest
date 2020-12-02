@@ -41,7 +41,7 @@ body              =  { disjunction }
 evaluation        =  { (assumption ~ ",")* ~ operation }
 
 disjunction       =  { branch ~ (";" ~ branch)* }
-branch            =  { conjunction ~ ("->>" ~ conjunction)* }
+branch            =  { conjunction ~ ("->>" ~ conjunction)? }
 conjunction       =  { procession ~ ("," ~ procession)* }
 procession        =  { unification ~ ("->" ~ unification)* }
 unification       =  { assumption | predicate | "(" ~ disjunction ~ ")" }

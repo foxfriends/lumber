@@ -29,21 +29,29 @@ impl Database<'_> {
             disjunction
                 .cases
                 .iter()
-                .flat_map(move |case| self.unify_branch(case, binding.clone(), public)),
-        )
-    }
-
-    fn unify_branch<'a>(
-        &'a self,
-        branch: &'a Branch,
-        binding: Binding,
-        public: bool,
-    ) -> Bindings<'a> {
-        Box::new(
-            branch
-                .steps
-                .iter()
-                .flat_map(move |step| self.unify_conjunction(step, binding.clone(), public)),
+                .flat_map(move |(head, tail)| {
+                    let head_bindings = self.unify_conjunction(head, binding.clone(), public);
+                    match tail {
+                        None => Box::new(head_bindings.map(|binding| (binding, false)))
+                            as Box<dyn Iterator<Item = (Binding, bool)>>,
+                        Some(tail) => Box::new(
+                            head_bindings
+                                .flat_map(move |binding| {
+                                    self.unify_conjunction(tail, binding, public)
+                                })
+                                .map(|binding| (binding, true)),
+                        ),
+                    }
+                })
+                .scan(false, |stop, (binding, done)| {
+                    if *stop {
+                        None
+                    } else {
+                        *stop = done;
+                        Some(binding)
+                    }
+                })
+                .fuse(),
         )
     }
 

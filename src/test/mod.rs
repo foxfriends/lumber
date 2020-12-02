@@ -49,6 +49,7 @@ mod bindings;
 mod conjunction;
 mod core;
 mod disjunction;
+mod once;
 mod operators;
 mod procession;
 mod records;
