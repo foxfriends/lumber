@@ -17,8 +17,8 @@ test! {
 }
 
 test! {
-    core_list_contains => ""
-    ?- "@core::list::contains(b, [a, b, c])";
-    ?- "@core::list::contains(d, [])"
-    ?- "@core::list::contains(d, [a, b, c])"
+    core_list_in => ""
+    ?- "@core::list::in(b, [a, b, c])";
+    ?- "@core::list::in(d, [])"
+    ?- "@core::list::in(d, [a, b, c])"
 }

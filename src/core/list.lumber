@@ -1,8 +1,4 @@
-:- use(~(add/3, false/0)).
-
-:- pub(contains/2).
-contains(P, [P, ..]).
-contains(P, [_, ..Rest]) :- contains(P, Rest).
+:- use(~(add/3, false/0, true/0)).
 
 :- pub(update/4).
 update([], _, _, []).
@@ -21,5 +17,5 @@ in(T, [_, ..R]) :- in(T, R).
 
 :- pub(notin/2).
 notin(_, []).
-notin(T, [T, ..]) :- false.
+notin(T, [T, ..]) ::- false.
 notin(T, [_, ..R]) :- notin(T, R).

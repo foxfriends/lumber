@@ -22,8 +22,11 @@ impl Binding {
             .patterns
             .iter()
             .zip(destination.patterns.iter())
-            .try_fold(output_binding, |binding, (source, destination)| {
+            .try_fold(output_binding, |mut binding, (source, destination)| {
                 let applied = input_binding.apply(source).unwrap();
+                for identifier in applied.identifiers() {
+                    binding.to_mut().set(identifier, Pattern::Wildcard);
+                }
                 let binding = unify_patterns(
                     Cow::Owned(applied),
                     Cow::Borrowed(destination),
@@ -76,7 +79,10 @@ impl Binding {
                         "The pattern contains variables that are not relevant to this binding.",
                     )
                 })?;
-                self.apply(pattern)
+                match self.apply(pattern) {
+                    Ok(Pattern::Wildcard) => Ok(Pattern::Variable(identifier.clone())),
+                    pattern => pattern,
+                }
             }
             Pattern::List(patterns, rest) => {
                 let mut patterns = patterns
@@ -91,7 +97,7 @@ impl Binding {
                                 patterns.append(&mut head);
                                 Ok(rest)
                             }
-                            Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a list with a non-list value ({:?}). This should not happen.", v),
                         }
                     })
@@ -113,7 +119,7 @@ impl Binding {
                                 patterns.append(&mut head);
                                 Ok(rest)
                             }
-                            Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a set with a non-set value ({:?}). This should not happen.", v),
                         }
                     })
@@ -134,7 +140,7 @@ impl Binding {
                                 fields.append(&mut head);
                                 Ok(rest)
                             }
-                            Pattern::Wildcard => Ok(Some(Box::new(Pattern::Wildcard))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a record with a non-record value ({:?}). This should not happen.", v),
                         }
                     })
