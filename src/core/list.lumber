@@ -2,7 +2,7 @@
 
 :- pub(update/4).
 update([], _, _, []).
-update([P, ..Rest], P, U, [U, ..Rest]).
+update([P, ..Rest], P, U, [U, ..Rest]) ::- true.
 update([X, ..Rest], P, U, [X, ..NewRest]) :- update(Rest, P, U, NewRest).
 
 :- pub(length/2).

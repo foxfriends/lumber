@@ -22,3 +22,17 @@ test! {
     ?- "@core::list::in(d, [])"
     ?- "@core::list::in(d, [a, b, c])"
 }
+
+test! {
+    core_list_update => ""
+    ?- "@core::list::update([a, b, c], c, d, O)"
+        O = Value::List(List::new(vec![Some(Value::atom("a")), Some(Value::atom("b")), Some(Value::atom("d"))], true));
+    ?- "@core::list::update([c, c, c], c, d, O)"
+        O = Value::List(List::new(vec![Some(Value::atom("d")), Some(Value::atom("c")), Some(Value::atom("c"))], true));
+    ?- "@core::list::update([{ a: a, b: b }, { a: a, c: c }], { a: a, ..B }, { a: b, ..B }, O)"
+        B = Value::Record(Record::default().with("b", Some(Value::atom("b")))),
+        O = Value::List(List::new(vec![
+            Some(Value::Record(Record::default().with("a", Some(Value::atom("b"))).with("b", Some(Value::atom("b"))))),
+            Some(Value::Record(Record::default().with("a", Some(Value::atom("a"))).with("c", Some(Value::atom("c"))))),
+        ], true));
+}
