@@ -2,6 +2,7 @@ use super::super::{Database, DatabaseDefinition};
 use super::{unify_patterns, Bindings};
 use crate::ast::*;
 use crate::{Binding, Question};
+use std::borrow::Cow;
 
 impl Database<'_> {
     pub(crate) fn unify_question<'a>(
@@ -9,10 +10,16 @@ impl Database<'_> {
         question: &'a Question,
     ) -> impl Iterator<Item = Binding> + 'a {
         let body = question.as_ref();
-        self.unify_body(body, question.initial_binding.clone(), true)
+        self.unify_body(body, Cow::Borrowed(&question.initial_binding), true)
+            .map(|cow| cow.into_owned()) // TODO: do we even need to owned it here?
     }
 
-    fn unify_body<'a>(&'a self, body: &'a Body, binding: Binding, public: bool) -> Bindings<'a> {
+    fn unify_body<'a>(
+        &'a self,
+        body: &'a Body,
+        binding: Cow<'a, Binding>,
+        public: bool,
+    ) -> Bindings<'a> {
         match &body.0 {
             Some(disjunction) => self.unify_disjunction(disjunction, binding, public),
             None => Box::new(std::iter::once(binding)),
@@ -22,7 +29,7 @@ impl Database<'_> {
     fn unify_disjunction<'a>(
         &'a self,
         disjunction: &'a Disjunction,
-        binding: Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
         Box::new(
@@ -33,7 +40,7 @@ impl Database<'_> {
                     let head_bindings = self.unify_conjunction(head, binding.clone(), public);
                     match tail {
                         None => Box::new(head_bindings.map(|binding| (binding, false)))
-                            as Box<dyn Iterator<Item = (Binding, bool)>>,
+                            as Box<dyn Iterator<Item = (Cow<'a, Binding>, bool)>>,
                         Some(tail) => Box::new(
                             head_bindings
                                 .flat_map(move |binding| {
@@ -58,7 +65,7 @@ impl Database<'_> {
     fn unify_conjunction<'a>(
         &'a self,
         conjunction: &'a Conjunction,
-        binding: Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
         let bindings = Box::new(std::iter::once(binding));
@@ -70,7 +77,7 @@ impl Database<'_> {
     fn unify_procession<'a>(
         &'a self,
         procession: &'a Procession,
-        binding: Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
         let bindings = Box::new(std::iter::once(binding));
@@ -86,7 +93,7 @@ impl Database<'_> {
     fn perform_unification<'a>(
         &'a self,
         unification: &'a Unification,
-        binding: Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
         match unification {
@@ -115,7 +122,12 @@ impl Database<'_> {
                                 .map(Into::into)
                                 .zip(query.patterns.iter())
                                 .try_fold(binding.clone(), |binding, (lhs, rhs)| {
-                                    Some(unify_patterns(&lhs, rhs, binding, &[])?)
+                                    Some(unify_patterns(
+                                        Cow::Borrowed(&lhs),
+                                        Cow::Borrowed(rhs),
+                                        binding,
+                                        &[],
+                                    )?)
                                 });
                             values
                         }))
@@ -127,7 +139,12 @@ impl Database<'_> {
             Unification::Assumption(output, expression) => Box::new(
                 self.unify_expression(expression, binding, public)
                     .filter_map(move |(binding, pattern)| {
-                        Some(unify_patterns(&output, &pattern, binding, &[])?)
+                        Some(unify_patterns(
+                            Cow::Borrowed(&output),
+                            Cow::Owned(pattern),
+                            binding,
+                            &[],
+                        )?)
                     }),
             ),
         }
@@ -137,26 +154,35 @@ impl Database<'_> {
         &'a self,
         query: &'a Query,
         definition: &'a Definition,
-        input_binding: Binding,
+        input_binding: Cow<'a, Binding>,
     ) -> Bindings<'a> {
         Box::new(
             definition
                 .iter()
                 .flat_map(move |(head, kind, body)| {
                     let input_binding = input_binding.clone();
-                    head.identifiers()
+                    let output_binding = head
+                        .identifiers()
                         .chain(body.identifiers())
-                        .collect::<Binding>()
-                        .transfer_from(&input_binding, &query, &head)
-                        .map(move |binding| self.unify_body(body, binding, false))
-                        .into_iter()
-                        .flatten()
-                        .filter_map(move |output_binding| {
-                            input_binding
-                                .clone()
-                                .transfer_from(&output_binding, &head, &query)
-                        })
-                        .map(move |output| (output, *kind))
+                        .collect::<Binding>();
+                    Binding::transfer_from(
+                        Cow::Owned(output_binding),
+                        &input_binding,
+                        &query,
+                        &head,
+                    )
+                    .map(move |binding| self.unify_body(body, binding, false))
+                    .into_iter()
+                    .flatten()
+                    .filter_map(move |output_binding| {
+                        Binding::transfer_from(
+                            input_binding.clone(),
+                            &output_binding,
+                            &head,
+                            &query,
+                        )
+                    })
+                    .map(move |output| (output, *kind))
                 })
                 .scan(RuleKind::Multi, |kind, (value, newkind)| {
                     if let RuleKind::Once = kind {
@@ -172,9 +198,9 @@ impl Database<'_> {
     fn unify_expression<'a>(
         &'a self,
         expression: &'a Expression,
-        binding: Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
-    ) -> Box<dyn Iterator<Item = (Binding, Pattern)> + 'a> {
+    ) -> Box<dyn Iterator<Item = (Cow<'a, Binding>, Pattern)> + 'a> {
         match expression {
             Expression::Operation(pattern, unifications) => Box::new(
                 unifications

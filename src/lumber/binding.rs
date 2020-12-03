@@ -1,6 +1,7 @@
 use super::Value;
 use crate::ast::*;
 use crate::program::unification::unify_patterns;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::rc::Rc;
@@ -11,19 +12,24 @@ use std::rc::Rc;
 pub struct Binding(pub(crate) HashMap<Identifier, Rc<Pattern>>);
 
 impl Binding {
-    pub(crate) fn transfer_from(
-        self,
+    pub(crate) fn transfer_from<'a, 'b>(
+        output_binding: Cow<'b, Self>,
         input_binding: &Self,
-        source: &Query,
-        destination: &Query,
-    ) -> Option<Self> {
+        source: &'a Query,
+        destination: &'a Query,
+    ) -> Option<Cow<'b, Self>> {
         source
             .patterns
             .iter()
             .zip(destination.patterns.iter())
-            .try_fold(self, |binding, (source, destination)| {
+            .try_fold(output_binding, |binding, (source, destination)| {
                 let applied = input_binding.apply(source).unwrap();
-                let binding = unify_patterns(&applied, destination, binding, &[])?;
+                let binding = unify_patterns(
+                    Cow::Owned(applied),
+                    Cow::Borrowed(destination),
+                    binding,
+                    &[],
+                )?;
                 Some(binding)
             })
     }

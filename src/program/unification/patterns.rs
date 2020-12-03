@@ -7,21 +7,21 @@ use std::rc::Rc;
 // TODO: unification of sets will end up being a big change, as set unification is not deterministic.
 // TODO: This function could be wrapped so it does not return the output pattern, as that is only really
 //       used internally.
-pub(crate) fn unify_patterns(
-    lhs: &Pattern,
-    rhs: &Pattern,
-    binding: Binding,
-    occurs: &[Identifier],
-) -> Option<Binding> {
-    Some(unify_patterns_inner(Cow::Borrowed(lhs), Cow::Borrowed(rhs), binding, occurs)?.1)
-}
-
-fn unify_patterns_inner<'p>(
+pub(crate) fn unify_patterns<'p, 'b>(
     lhs: Cow<'p, Pattern>,
     rhs: Cow<'p, Pattern>,
-    binding: Binding,
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Cow<'p, Pattern>, Binding)> {
+) -> Option<Cow<'b, Binding>> {
+    Some(unify_patterns_inner(lhs, rhs, binding, occurs)?.1)
+}
+
+fn unify_patterns_inner<'p, 'b>(
+    lhs: Cow<'p, Pattern>,
+    rhs: Cow<'p, Pattern>,
+    binding: Cow<'b, Binding>,
+    occurs: &[Identifier],
+) -> Option<(Cow<'p, Pattern>, Cow<'b, Binding>)> {
     match (lhs.as_ref(), rhs.as_ref()) {
         // The All pattern just... unifies all of them
         (Pattern::All(patterns), other) | (other, Pattern::All(patterns)) => patterns
@@ -77,8 +77,10 @@ fn unify_patterns_inner<'p>(
             )?;
             let min = Identifier::min(lhs_var.clone(), rhs_var.clone());
             let max = Identifier::max(lhs_var.clone(), rhs_var.clone());
-            binding.set(min.clone(), pattern.clone().into_owned());
-            binding.set(max, Pattern::Variable(min));
+            binding
+                .to_mut()
+                .set(min.clone(), pattern.clone().into_owned());
+            binding.to_mut().set(max, Pattern::Variable(min));
             Some((Cow::Owned(pattern.into_owned()), binding))
         }
         // A x unified with a value should attempt to dereference the x and then
@@ -104,7 +106,7 @@ fn unify_patterns_inner<'p>(
                     &occurs,
                 ),
                 val => {
-                    binding.set(var.clone(), val.clone());
+                    binding.to_mut().set(var.clone(), val.clone());
                     Some((Cow::Owned(pattern.into_owned()), binding))
                 }
             }
@@ -174,7 +176,9 @@ fn unify_patterns_inner<'p>(
                         binding,
                         &occurs,
                     )?;
-                    binding.set(ident.clone(), tail.clone().into_owned());
+                    binding
+                        .to_mut()
+                        .set(ident.clone(), tail.clone().into_owned());
                     Some((
                         Cow::Owned(Pattern::List(output, Some(Box::new(tail.into_owned())))),
                         binding,
@@ -246,7 +250,9 @@ fn unify_patterns_inner<'p>(
                         binding,
                         &occurs,
                     )?;
-                    binding.set(ident.clone(), tail.clone().into_owned());
+                    binding
+                        .to_mut()
+                        .set(ident.clone(), tail.clone().into_owned());
                     Some((
                         Cow::Owned(Pattern::Record(output, Some(Box::new(tail.into_owned())))),
                         binding,
@@ -274,7 +280,7 @@ fn unify_patterns_inner<'p>(
         (Pattern::Record(lhs, Some(lhs_tail)), Pattern::Record(rhs, Some(rhs_tail))) => {
             let (intersection, mut lhs_rest, mut rhs_rest, mut binding) =
                 unify_fields_difference(lhs, rhs, binding, occurs)?;
-            let unknown_tail = binding.fresh_variable();
+            let unknown_tail = binding.to_mut().fresh_variable();
             let new_rhs_tail = Pattern::Record(
                 lhs_rest.clone(),
                 Some(Box::new(Pattern::Variable(unknown_tail.clone()))),
@@ -308,12 +314,12 @@ fn unify_patterns_inner<'p>(
     }
 }
 
-fn unify_sequence<'p>(
+fn unify_sequence<'p, 'b>(
     lhs: &'p [Pattern],
     rhs: &'p [Pattern],
-    binding: Binding,
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Vec<Cow<'p, Pattern>>, Binding)> {
+) -> Option<(Vec<Cow<'p, Pattern>>, Cow<'b, Binding>)> {
     if lhs.len() != rhs.len() {
         return None;
     }
@@ -327,12 +333,12 @@ fn unify_sequence<'p>(
         })
 }
 
-fn unify_fields(
-    lhs: &Fields,
-    rhs: &Fields,
-    binding: Binding,
+fn unify_fields<'p, 'b>(
+    lhs: &'p Fields,
+    rhs: &'p Fields,
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Fields, Binding)> {
+) -> Option<(Fields, Cow<'b, Binding>)> {
     if lhs.len() != rhs.len() {
         return None;
     }
@@ -352,12 +358,12 @@ fn unify_fields(
     Some((Fields::from(fields), binding))
 }
 
-fn unify_fields_partial(
-    part: &Fields,
-    full: &Fields,
-    binding: Binding,
+fn unify_fields_partial<'p, 'b>(
+    part: &'p Fields,
+    full: &'p Fields,
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Fields, Fields, Binding)> {
+) -> Option<(Fields, Fields, Cow<'b, Binding>)> {
     let mut full: BTreeMap<_, _> = full.clone().into();
     let (fields, binding) = part.iter().try_fold(
         (BTreeMap::new(), binding),
@@ -375,12 +381,12 @@ fn unify_fields_partial(
     Some((fields.into(), full.into(), binding))
 }
 
-fn unify_fields_difference(
-    lhs: &Fields,
-    rhs: &Fields,
-    binding: Binding,
+fn unify_fields_difference<'p, 'b>(
+    lhs: &'p Fields,
+    rhs: &'p Fields,
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Fields, Fields, Fields, Binding)> {
+) -> Option<(Fields, Fields, Fields, Cow<'b, Binding>)> {
     let mut lhs: BTreeMap<_, _> = lhs.clone().into();
     let mut rhs: BTreeMap<_, _> = rhs.clone().into();
     let all_keys: HashSet<_> = lhs.keys().chain(rhs.keys()).cloned().collect();
@@ -416,12 +422,12 @@ fn unify_fields_difference(
     ))
 }
 
-fn unify_prefix(
-    lhs: &[Pattern],
-    rhs: &[Pattern],
-    binding: Binding,
+fn unify_prefix<'p, 'b>(
+    lhs: &'p [Pattern],
+    rhs: &'p [Pattern],
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Vec<Pattern>, Vec<Pattern>, Binding)> {
+) -> Option<(Vec<Pattern>, Vec<Pattern>, Cow<'b, Binding>)> {
     let (head, binding) = lhs.iter().zip(rhs.iter()).try_fold(
         (vec![], binding),
         |(mut patterns, binding), (lhs, rhs)| {
@@ -438,12 +444,12 @@ fn unify_prefix(
     }
 }
 
-fn unify_full_prefix(
-    lhs: &[Pattern],
-    rhs: &[Pattern],
-    binding: Binding,
+fn unify_full_prefix<'p, 'b>(
+    lhs: &'p [Pattern],
+    rhs: &'p [Pattern],
+    binding: Cow<'b, Binding>,
     occurs: &[Identifier],
-) -> Option<(Vec<Pattern>, Vec<Pattern>, Binding)> {
+) -> Option<(Vec<Pattern>, Vec<Pattern>, Cow<'b, Binding>)> {
     if lhs.len() > rhs.len() {
         return None;
     }
@@ -468,7 +474,7 @@ mod test {
             assert!(unify_patterns_inner(
                 Cow::Owned($lhs.clone()),
                 Cow::Owned($rhs.clone()),
-                Binding::default(),
+                Cow::Owned(Binding::default()),
                 &[]
             )
             .is_some())
@@ -477,7 +483,7 @@ mod test {
             let output = unify_patterns_inner(
                 Cow::Owned($lhs.clone()),
                 Cow::Owned($rhs.clone()),
-                $binding.clone(),
+                Cow::Owned($binding.clone()),
                 &[],
             );
             assert!(output.is_some());
@@ -488,9 +494,9 @@ mod test {
     macro_rules! no {
         ($lhs:expr, $rhs:expr $(,)?) => {
             assert!(unify_patterns_inner(
-                Cow::Borrowed(&$lhs),
-                Cow::Borrowed(&$rhs),
-                Binding::default(),
+                Cow::Owned($lhs.clone()),
+                Cow::Owned($rhs.clone()),
+                Cow::Owned(Binding::default()),
                 &[]
             )
             .is_none())
@@ -499,7 +505,7 @@ mod test {
             assert!(unify_patterns_inner(
                 Cow::Borrowed(&$lhs),
                 Cow::Borrowed(&$rhs),
-                $binding.clone(),
+                Cow::Owned($binding.clone()),
                 &[]
             )
             .is_none())
