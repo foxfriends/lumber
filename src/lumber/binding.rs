@@ -2,7 +2,7 @@ use super::Value;
 use crate::ast::*;
 use crate::program::unification::unify_patterns;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::rc::Rc;
 
@@ -24,9 +24,15 @@ impl Binding {
             .iter()
             .zip(destination.patterns.iter())
             .try_fold(output_binding, |mut binding, (source, destination)| {
-                let applied = input_binding.apply(source).unwrap();
-                for identifier in applied.identifiers() {
-                    binding.to_mut().set(identifier, Pattern::Wildcard);
+                let mut applied = input_binding.apply(source).unwrap();
+                let identifiers_map = applied
+                    .identifiers()
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .map(|ident| (ident, binding.to_mut().fresh_variable()))
+                    .collect::<HashMap<_, _>>();
+                for identifier in applied.identifiers_mut() {
+                    *identifier = identifiers_map.get(identifier).unwrap().clone();
                 }
                 let binding = unify_patterns(
                     Cow::Owned(applied),
@@ -53,8 +59,12 @@ impl Binding {
     }
 
     pub(crate) fn fresh_variable(&mut self) -> Identifier {
-        let var = Identifier::new(format!("##{}", self.0.len()));
-        self.0.insert(var.clone(), Rc::new(Pattern::Wildcard));
+        let name = format!("##{}", self.0.len());
+        let var = Identifier::new(name.clone());
+        self.0.insert(
+            var.clone(),
+            Rc::new(Pattern::Wildcard(Identifier::wildcard(name))),
+        );
         var
     }
 
@@ -77,6 +87,7 @@ impl Binding {
         let _guard = {
             let name = match pattern {
                 Pattern::Variable(identifier) => format!("var {}", identifier.name()),
+                Pattern::Wildcard(identifier) => format!("wild {}", identifier.name()),
                 Pattern::List(..) => "list".to_owned(),
                 #[cfg(feature = "builtin-sets")]
                 Pattern::Set(..) => "set".to_owned(),
@@ -98,7 +109,7 @@ impl Binding {
                     )
                 })?;
                 match self.apply(pattern) {
-                    Ok(Pattern::Wildcard) => Ok(Pattern::Variable(identifier.clone())),
+                    Ok(Pattern::Wildcard(..)) => Ok(Pattern::Variable(identifier.clone())),
                     pattern => pattern,
                 }
             }
@@ -115,7 +126,7 @@ impl Binding {
                                 patterns.append(&mut head);
                                 Ok(rest)
                             }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a list with a non-list value ({:?}). This should not happen.", v),
                         }
                     })
@@ -137,7 +148,7 @@ impl Binding {
                                 patterns.append(&mut head);
                                 Ok(rest)
                             }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a set with a non-set value ({:?}). This should not happen.", v),
                         }
                     })
@@ -158,7 +169,7 @@ impl Binding {
                                 fields.append(&mut head);
                                 Ok(rest)
                             }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard => Ok(Some(Box::new(pat))),
+                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a record with a non-record value ({:?}). This should not happen.", v),
                         }
                     })
@@ -181,7 +192,7 @@ impl Binding {
             Pattern::Any(..) => Ok(pattern.clone()),
             Pattern::Bound => Ok(Pattern::Bound),
             Pattern::Unbound => Ok(Pattern::Unbound),
-            Pattern::Wildcard => Ok(Pattern::Wildcard),
+            Pattern::Wildcard(id) => Ok(Pattern::Wildcard(id.clone())),
             Pattern::All(inner) => Ok(Pattern::All(
                 inner
                     .iter()

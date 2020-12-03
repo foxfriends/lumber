@@ -2,7 +2,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{List, Record, Struct};
-use crate::ast::{Atom, Literal, Pattern};
+use crate::ast::{Atom, Identifier, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -204,7 +204,7 @@ impl From<Pattern> for Option<Value> {
     fn from(pattern: Pattern) -> Self {
         match pattern {
             Pattern::Variable(..) => None,
-            Pattern::Wildcard => None,
+            Pattern::Wildcard(..) => None,
             Pattern::Bound | Pattern::Unbound => None,
             Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
             Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
@@ -243,7 +243,7 @@ impl From<Pattern> for Option<Value> {
 impl Into<Pattern> for Option<Value> {
     fn into(self) -> Pattern {
         match self {
-            None => Pattern::Wildcard,
+            None => Pattern::Wildcard(Identifier::wildcard("_from_none")),
             Some(Value::Integer(int)) => Pattern::Literal(Literal::Integer(int)),
             Some(Value::Rational(rat)) => Pattern::Literal(Literal::Rational(rat)),
             Some(Value::String(string)) => Pattern::Literal(Literal::String(string)),
@@ -252,7 +252,9 @@ impl Into<Pattern> for Option<Value> {
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Wildcard))
+                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
+                        "_from_list_tail",
+                    ))))
                 },
             ),
             #[cfg(feature = "builtin-sets")]
@@ -265,7 +267,9 @@ impl Into<Pattern> for Option<Value> {
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Wildcard))
+                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
+                        "_from_record_tail",
+                    ))))
                 },
             ),
             Some(Value::Struct(Struct { name, contents })) => {

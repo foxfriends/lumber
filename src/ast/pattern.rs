@@ -24,7 +24,7 @@ pub(crate) enum Pattern {
     /// A record, containing a set of fields.
     Record(Fields, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
-    Wildcard,
+    Wildcard(Identifier),
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
     /// A value that must already be bound, at the time of checking (not wildcard)
@@ -37,7 +37,7 @@ pub(crate) enum Pattern {
 
 impl Default for Pattern {
     fn default() -> Self {
-        Self::Wildcard
+        Self::Wildcard(Identifier::wildcard("_default"))
     }
 }
 
@@ -55,7 +55,7 @@ impl PartialEq for Pattern {
                 lhs == rhs && ltail == rtail
             }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
-            (Pattern::Wildcard, Pattern::Wildcard) => true,
+            (Pattern::Wildcard(lhs), Pattern::Wildcard(rhs)) => lhs == rhs,
             (Pattern::Bound, Pattern::Bound) => true,
             (Pattern::Unbound, Pattern::Unbound) => true,
             (Pattern::All(lhs), Pattern::All(rhs)) => lhs.eq(rhs),
@@ -75,7 +75,7 @@ impl Hash for Pattern {
             Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
             Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
-            Pattern::Wildcard => "wildcard".hash(hasher),
+            Pattern::Wildcard(value) => ("wildcard", value).hash(hasher),
             Pattern::Bound => "bound".hash(hasher),
             Pattern::Unbound => "unbound".hash(hasher),
             Pattern::All(patterns) => ("all", patterns).hash(hasher),
@@ -122,7 +122,7 @@ impl Pattern {
                 };
                 let tail = pairs.next().map(|pair| match pair.into_inner().next() {
                     Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard),
+                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_list_tail"))),
                 });
                 Self::List(head, tail)
             }
@@ -142,7 +142,7 @@ impl Pattern {
                 };
                 let tail = pairs.next().map(|pair| match pair.into_inner().next() {
                     Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard),
+                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_set_tail"))),
                 });
                 Self::Set(head, tail)
             }
@@ -154,11 +154,11 @@ impl Pattern {
                 };
                 let tail = pairs.next().map(|pair| match pair.into_inner().next() {
                     Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard),
+                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_record_tail"))),
                 });
                 Self::Record(head, tail)
             }
-            Rule::wildcard => Self::Wildcard,
+            Rule::wildcard => Self::Wildcard(Identifier::wildcard(pair.as_str())),
             _ => unreachable!(),
         }
     }
@@ -184,11 +184,50 @@ impl Pattern {
                     .flat_map(|pattern| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
-            // TODO: give these unique names, and allow user to specify wildcard names.
-            Self::Wildcard => Box::new(std::iter::once(Identifier::wildcard("_".to_owned()))),
+            Self::Wildcard(identifier) => Box::new(std::iter::once(identifier.clone())),
             Self::All(patterns) => {
                 Box::new(patterns.iter().flat_map(|pattern| pattern.identifiers()))
             }
+            _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    /// Identifiers for every placeholder value in this pattern, including wildcards.
+    pub fn identifiers_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Identifier> + 'a> {
+        match self {
+            Self::Struct(s) => Box::new(s.identifiers_mut()),
+            Self::Variable(identifier) => Box::new(std::iter::once(identifier)),
+            Self::List(head, tail) => Box::new(
+                head.iter_mut()
+                    .flat_map(|pattern| pattern.identifiers_mut())
+                    .chain(
+                        tail.iter_mut()
+                            .flat_map(|pattern| pattern.identifiers_mut()),
+                    ),
+            ),
+            Self::Record(head, tail) => Box::new(
+                head.iter_mut()
+                    .flat_map(|(_, pattern)| pattern.identifiers_mut())
+                    .chain(
+                        tail.iter_mut()
+                            .flat_map(|pattern| pattern.identifiers_mut()),
+                    ),
+            ),
+            #[cfg(feature = "builtin-sets")]
+            Self::Set(head, tail) => Box::new(
+                head.iter_mut()
+                    .flat_map(|pattern| pattern.identifiers_mut())
+                    .chain(
+                        tail.iter_mut()
+                            .flat_map(|pattern| pattern.identifiers_mut()),
+                    ),
+            ),
+            Self::Wildcard(identifier) => Box::new(std::iter::once(identifier)),
+            Self::All(patterns) => Box::new(
+                patterns
+                    .iter_mut()
+                    .flat_map(|pattern| pattern.identifiers_mut()),
+            ),
             _ => Box::new(std::iter::empty()),
         }
     }

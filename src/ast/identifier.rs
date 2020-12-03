@@ -41,8 +41,8 @@ impl Identifier {
         Self(Rc::new(name), false)
     }
 
-    pub(crate) fn wildcard(name: String) -> Self {
-        Self(Rc::new(name), true)
+    pub(crate) fn wildcard<S: Into<String>>(name: S) -> Self {
+        Self(Rc::new(name.into()), true)
     }
 
     pub fn name(&self) -> &str {

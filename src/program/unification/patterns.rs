@@ -41,17 +41,17 @@ fn unify_patterns_inner<'p, 'b>(
         }
         // The "bound" pattern requires the other value to already be bound, so this is the only way
         // a wildcard unification will fail.
-        (Pattern::Wildcard, Pattern::Bound) | (Pattern::Bound, Pattern::Wildcard) => None,
+        (Pattern::Wildcard(..), Pattern::Bound) | (Pattern::Bound, Pattern::Wildcard(..)) => None,
         // The "unbound" pattern requires the other value is not bound. That is: it will only unify
         // with a wildcard (or a variable that has resolved to a wildcard).
-        (Pattern::Wildcard, Pattern::Unbound) => Some((lhs, binding)),
-        (Pattern::Unbound, Pattern::Wildcard) => Some((rhs, binding)),
+        (Pattern::Wildcard(..), Pattern::Unbound) => Some((lhs, binding)),
+        (Pattern::Unbound, Pattern::Wildcard(..)) => Some((rhs, binding)),
         // Unifying wildcards provides no additional info. It is at this point that an explicit
         // occurs check must be made (it will be caught recursively in other cases).
-        (Pattern::Wildcard, other) if !other.identifiers().any(|id| occurs.contains(&id)) => {
+        (Pattern::Wildcard(..), other) if !other.identifiers().any(|id| occurs.contains(&id)) => {
             Some((rhs, binding))
         }
-        (other, Pattern::Wildcard) if !other.identifiers().any(|id| occurs.contains(&id)) => {
+        (other, Pattern::Wildcard(..)) if !other.identifiers().any(|id| occurs.contains(&id)) => {
             Some((lhs, binding))
         }
         // Unifying a x with itself succeeds with no additional info.
@@ -186,7 +186,7 @@ fn unify_patterns_inner<'p, 'b>(
                         binding,
                     ))
                 }
-                Pattern::Wildcard => {
+                Pattern::Wildcard(..) => {
                     let (mut output, mut tail, binding) =
                         unify_full_prefix(head, full, binding, occurs)?;
                     output.append(&mut tail);
@@ -260,7 +260,7 @@ fn unify_patterns_inner<'p, 'b>(
                         binding,
                     ))
                 }
-                Pattern::Wildcard => {
+                Pattern::Wildcard(..) => {
                     let (mut output, mut tail, binding) =
                         unify_fields_partial(head, full, binding, occurs)?;
                     output.append(&mut tail);
@@ -541,9 +541,10 @@ mod test {
 
     fn id(name: &str, binding: &mut Binding) -> Pattern {
         let identifier = Identifier::new(name.to_owned());
-        binding
-            .0
-            .insert(identifier.clone(), Rc::new(Pattern::Wildcard));
+        binding.0.insert(
+            identifier.clone(),
+            Rc::new(Pattern::Wildcard(Identifier::wildcard("_"))),
+        );
         Pattern::Variable(identifier)
     }
 
@@ -559,7 +560,10 @@ mod test {
         Pattern::Literal(Literal::String(val.into()))
     }
 
-    const WILD: Pattern = Pattern::Wildcard;
+    fn wild() -> Pattern {
+        Pattern::Wildcard(Identifier::wildcard("_"))
+    }
+
     const UNBOUND: Pattern = Pattern::Unbound;
     const BOUND: Pattern = Pattern::Bound;
 
@@ -667,7 +671,7 @@ mod test {
             structure!(hello(list![rat(1)])),
         );
 
-        yes!(structure!(hello(WILD)), structure!(hello(atom("hello"))),);
+        yes!(structure!(hello(wild())), structure!(hello(atom("hello"))),);
 
         yes!(
             structure!(hello(record! { a: int(1), b: int(2) })),
@@ -689,18 +693,18 @@ mod test {
     fn unify_record() {
         yes!(record! {}, record! {});
         yes!(record! { a: int(1) }, record! { a: int(1) });
-        yes!(record! { a: int(1) }, record! { a: int(1), ..WILD });
+        yes!(record! { a: int(1) }, record! { a: int(1), ..wild() });
         yes!(
             record! { a: int(1), b: int(2) },
-            record! { a: int(1), ..WILD }
+            record! { a: int(1), ..wild() }
         );
         yes!(
-            record! { a: int(1), b: int(2), ..WILD },
-            record! { a: int(1), ..WILD }
+            record! { a: int(1), b: int(2), ..wild() },
+            record! { a: int(1), ..wild() }
         );
         yes!(
-            record! { a: int(1), b: int(2), ..WILD },
-            record! { a: int(1), c: int(3), ..WILD }
+            record! { a: int(1), b: int(2), ..wild() },
+            record! { a: int(1), c: int(3), ..wild() }
         );
     }
 
@@ -708,19 +712,19 @@ mod test {
     fn no_unify_record() {
         no!(record! {}, record! { a: int(1) });
         no!(record! { a: int(1) }, record! { a: int(2) });
-        no!(record! { a: int(2) }, record! { a: int(1), ..WILD });
+        no!(record! { a: int(2) }, record! { a: int(1), ..wild() });
         no!(
-            record! { a: int(1), b: int(2), ..WILD },
-            record! { a: int(1), b: int(3), ..WILD }
+            record! { a: int(1), b: int(2), ..wild() },
+            record! { a: int(1), b: int(3), ..wild() }
         );
     }
 
     #[test]
     fn unify_wildcard() {
-        yes!(WILD, WILD);
-        yes!(WILD, atom("anything"));
-        yes!(WILD, int(3));
-        yes!(WILD, list![WILD, atom("anything"); WILD]);
+        yes!(wild(), wild());
+        yes!(wild(), atom("anything"));
+        yes!(wild(), int(3));
+        yes!(wild(), list![wild(), atom("anything"); wild()]);
     }
 
     #[test]
@@ -728,7 +732,7 @@ mod test {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
         let y = id("y", &mut binding);
-        yes!(x, WILD, binding);
+        yes!(x, wild(), binding);
         yes!(x, x, binding);
         yes!(x, y, binding);
         yes!(x, int(3), binding);
@@ -743,7 +747,7 @@ mod test {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
         let y = id("y", &mut binding);
-        yes!(structure!(test(list![x, y])), WILD, binding);
+        yes!(structure!(test(list![x, y])), wild(), binding);
         yes!(
             structure!(test(list![x, y])),
             structure!(test(list![int(3), x])),
@@ -777,7 +781,7 @@ mod test {
 
         yes!(
             record! { a: x, b: int(0), ..x },
-            record! { c: int(1), d: int(2), ..WILD },
+            record! { c: int(1), d: int(2), ..wild() },
             binding,
         );
         yes!(
@@ -800,16 +804,19 @@ mod test {
     #[test]
     fn unify_list() {
         yes!(list![int(1), int(2)], list![int(1), int(2)]);
-        yes!(list![int(1), int(2) ; WILD], list![int(1), int(2), int(3)]);
-        yes!(list![int(1), int(2) ; WILD], list![int(1), int(2)]);
-        yes!(list![int(1) ; WILD], list![int(1), int(2), int(3)]);
+        yes!(
+            list![int(1), int(2) ; wild()],
+            list![int(1), int(2), int(3)]
+        );
+        yes!(list![int(1), int(2) ; wild()], list![int(1), int(2)]);
+        yes!(list![int(1) ; wild()], list![int(1), int(2), int(3)]);
         yes!(list![int(1) ; list![int(2)]], list![int(1), int(2)]);
         yes!(
-            list![int(1) ; list![WILD; list![int(2)]]],
+            list![int(1) ; list![wild(); list![int(2)]]],
             list![int(1), int(3), int(2)]
         );
-        yes!(list![int(1) ; WILD], list![WILD; WILD]);
-        yes!(list![int(1) ; WILD], list![int(1), int(2); WILD]);
+        yes!(list![int(1) ; wild()], list![wild(); wild()]);
+        yes!(list![int(1) ; wild()], list![int(1), int(2); wild()]);
         yes!(list![], list![]);
         yes!(list![int(1)], list![int(1); list![]]);
     }
@@ -817,10 +824,10 @@ mod test {
     #[test]
     fn no_unify_list() {
         no!(list![int(1), int(2)], list![int(3), int(4)]);
-        no!(list![int(1), int(2)], list![int(3); WILD]);
+        no!(list![int(1), int(2)], list![int(3); wild()]);
         no!(list![int(1), int(2)], list![]);
-        no!(list![WILD], list![]);
-        no!(list![WILD; WILD], list![]);
+        no!(list![wild()], list![]);
+        no!(list![wild(); wild()], list![]);
         no!(list![int(1)], list![int(1), int(2)]);
     }
 
@@ -828,11 +835,11 @@ mod test {
     fn unify_unbound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        yes!(UNBOUND, WILD);
+        yes!(UNBOUND, wild());
         yes!(all![UNBOUND, int(3)], x, binding);
-        yes!(all![UNBOUND, x], WILD, binding);
-        yes!(list![all![UNBOUND, x], x], list![WILD, int(3)], binding);
-        yes!(list![x, all![UNBOUND, x]], list![int(3), WILD], binding);
+        yes!(all![UNBOUND, x], wild(), binding);
+        yes!(list![all![UNBOUND, x], x], list![wild(), int(3)], binding);
+        yes!(list![x, all![UNBOUND, x]], list![int(3), wild()], binding);
     }
 
     #[test]
@@ -857,10 +864,10 @@ mod test {
     fn no_unify_bound() {
         let mut binding = Binding::default();
         let x = id("x", &mut binding);
-        no!(BOUND, WILD);
+        no!(BOUND, wild());
         no!(all![BOUND, int(3)], x, binding);
-        no!(all![BOUND, x], WILD, binding);
-        no!(list![all![BOUND, x], x], list![WILD, int(3)], binding);
-        no!(list![x, all![BOUND, x]], list![int(3), WILD], binding);
+        no!(all![BOUND, x], wild(), binding);
+        no!(list![all![BOUND, x], x], list![wild(), int(3)], binding);
+        no!(list![x, all![BOUND, x]], list![int(3), wild()], binding);
     }
 }
