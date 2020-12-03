@@ -12,6 +12,7 @@ use std::rc::Rc;
 pub struct Binding(pub(crate) HashMap<Identifier, Rc<Pattern>>);
 
 impl Binding {
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub(crate) fn transfer_from<'a, 'b>(
         output_binding: Cow<'b, Self>,
         input_binding: &Self,
@@ -72,6 +73,23 @@ impl Binding {
     }
 
     pub(crate) fn apply(&self, pattern: &Pattern) -> crate::Result<Pattern> {
+        #[cfg(feature = "test-perf")]
+        let _guard = {
+            let name = match pattern {
+                Pattern::Variable(identifier) => format!("var {}", identifier.name()),
+                Pattern::List(..) => "list".to_owned(),
+                #[cfg(feature = "builtin-sets")]
+                Pattern::Set(..) => "set".to_owned(),
+                Pattern::Record(..) => "record".to_owned(),
+                Pattern::Struct(s) => format!("struct {}", s.name),
+                Pattern::Literal(..) => "literal".to_owned(),
+                Pattern::All(..) => "all".to_owned(),
+                Pattern::Any(..) => "any".to_owned(),
+                _ => format!("{:?}", pattern.to_owned()),
+            };
+            flame::start_guard(format!("apply({})", name))
+        };
+
         match pattern {
             Pattern::Variable(identifier) => {
                 let pattern = self.0.get(identifier).ok_or_else(|| {
@@ -105,7 +123,7 @@ impl Binding {
                     .flatten();
                 Ok(Pattern::List(patterns, rest))
             }
-            #[cfg(features = "builtin-sets")]
+            #[cfg(feature = "builtin-sets")]
             Pattern::Set(patterns, rest) => {
                 let mut patterns = patterns
                     .iter()

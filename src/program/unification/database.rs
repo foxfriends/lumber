@@ -4,16 +4,48 @@ use crate::ast::*;
 use crate::{Binding, Question};
 use std::borrow::Cow;
 
+#[cfg(feature = "test-perf")]
+struct FlameIterator<I>(I, usize);
+
+#[cfg(feature = "test-perf")]
+impl<I> Iterator for FlameIterator<I>
+where
+    I: Iterator,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.1 += 1;
+        flame::start("FlameIterator::next");
+        let output = self.0.next();
+        flame::end("FlameIterator::next");
+        flame::dump_html(std::fs::File::create(format!("Flame-{}.html", self.1)).unwrap()).unwrap();
+        flame::clear();
+        output
+    }
+}
+
 impl Database<'_> {
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub(crate) fn unify_question<'a>(
         &'a self,
         question: &'a Question,
     ) -> impl Iterator<Item = Binding> + 'a {
         let body = question.as_ref();
-        self.unify_body(body, Cow::Borrowed(&question.initial_binding), true)
-            .map(|cow| cow.into_owned()) // TODO: do we even need to owned it here?
+        let answers = self
+            .unify_body(body, Cow::Borrowed(&question.initial_binding), true)
+            .map(|cow| cow.into_owned()); // TODO: do we even need to owned it here?
+        #[cfg(feature = "test-perf")]
+        {
+            FlameIterator(answers, 0)
+        }
+        #[cfg(not(feature = "test-perf"))]
+        {
+            answers
+        }
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_body<'a>(
         &'a self,
         body: &'a Body,
@@ -26,6 +58,7 @@ impl Database<'_> {
         }
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_disjunction<'a>(
         &'a self,
         disjunction: &'a Disjunction,
@@ -62,6 +95,7 @@ impl Database<'_> {
         )
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_conjunction<'a>(
         &'a self,
         conjunction: &'a Conjunction,
@@ -74,6 +108,7 @@ impl Database<'_> {
         })
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_procession<'a>(
         &'a self,
         procession: &'a Procession,
@@ -90,6 +125,7 @@ impl Database<'_> {
             })
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn perform_unification<'a>(
         &'a self,
         unification: &'a Unification,
@@ -150,6 +186,7 @@ impl Database<'_> {
         }
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_definition<'a>(
         &'a self,
         query: &'a Query,
@@ -195,6 +232,7 @@ impl Database<'_> {
         )
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_expression<'a>(
         &'a self,
         expression: &'a Expression,

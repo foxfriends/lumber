@@ -27,6 +27,10 @@ impl Fields {
         self.fields.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
+    }
+
     pub fn append(&mut self, other: &mut Self) {
         self.fields.append(&mut other.fields);
     }

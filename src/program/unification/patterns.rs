@@ -7,6 +7,7 @@ use std::rc::Rc;
 // TODO: unification of sets will end up being a big change, as set unification is not deterministic.
 // TODO: This function could be wrapped so it does not return the output pattern, as that is only really
 //       used internally.
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 pub(crate) fn unify_patterns<'p, 'b>(
     lhs: Cow<'p, Pattern>,
     rhs: Cow<'p, Pattern>,
@@ -16,6 +17,7 @@ pub(crate) fn unify_patterns<'p, 'b>(
     Some(unify_patterns_inner(lhs, rhs, binding, occurs)?.1)
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_patterns_inner<'p, 'b>(
     lhs: Cow<'p, Pattern>,
     rhs: Cow<'p, Pattern>,
@@ -280,6 +282,21 @@ fn unify_patterns_inner<'p, 'b>(
         (Pattern::Record(lhs, Some(lhs_tail)), Pattern::Record(rhs, Some(rhs_tail))) => {
             let (intersection, mut lhs_rest, mut rhs_rest, mut binding) =
                 unify_fields_difference(lhs, rhs, binding, occurs)?;
+            if intersection.is_empty() {
+                let (tail, binding) = unify_patterns_inner(
+                    Cow::Borrowed(lhs_tail.as_ref()),
+                    Cow::Borrowed(rhs_tail.as_ref()),
+                    binding,
+                    occurs,
+                )?;
+                return Some((
+                    Cow::Owned(Pattern::Record(
+                        intersection,
+                        Some(Box::new(tail.into_owned())),
+                    )),
+                    binding,
+                ));
+            }
             let unknown_tail = binding.to_mut().fresh_variable();
             let new_rhs_tail = Pattern::Record(
                 lhs_rest.clone(),
@@ -314,6 +331,7 @@ fn unify_patterns_inner<'p, 'b>(
     }
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_sequence<'p, 'b>(
     lhs: &'p [Pattern],
     rhs: &'p [Pattern],
@@ -333,6 +351,7 @@ fn unify_sequence<'p, 'b>(
         })
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_fields<'p, 'b>(
     lhs: &'p Fields,
     rhs: &'p Fields,
@@ -358,6 +377,7 @@ fn unify_fields<'p, 'b>(
     Some((Fields::from(fields), binding))
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_fields_partial<'p, 'b>(
     part: &'p Fields,
     full: &'p Fields,
@@ -381,6 +401,7 @@ fn unify_fields_partial<'p, 'b>(
     Some((fields.into(), full.into(), binding))
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_fields_difference<'p, 'b>(
     lhs: &'p Fields,
     rhs: &'p Fields,
@@ -422,6 +443,7 @@ fn unify_fields_difference<'p, 'b>(
     ))
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_prefix<'p, 'b>(
     lhs: &'p [Pattern],
     rhs: &'p [Pattern],
@@ -444,6 +466,7 @@ fn unify_prefix<'p, 'b>(
     }
 }
 
+#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_full_prefix<'p, 'b>(
     lhs: &'p [Pattern],
     rhs: &'p [Pattern],
