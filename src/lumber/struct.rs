@@ -102,6 +102,7 @@ impl Display for Struct {
         self.name.fmt(f)?;
         if let Some(contents) = &self.contents {
             match contents.as_ref() {
+                Some(contents) if contents.is_container() => write!(f, " {}", contents)?,
                 Some(contents) => write!(f, "({})", contents)?,
                 None => write!(f, "(_)")?,
             }

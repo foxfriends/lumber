@@ -2,7 +2,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{List, Record, Struct};
-use crate::ast::{Atom, Identifier, Literal, Pattern};
+use crate::ast::{Identifier, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -137,19 +137,23 @@ impl Value {
     as_variant_mut!(as_list_mut, List, List);
 
     /// Constructs a Lumber value containing a record.
-    pub fn record(values: HashMap<String, Option<Value>>) -> Self {
-        Self::Record(Record::new(
-            values
-                .into_iter()
-                .map(|(k, v)| (Atom::from(k), v))
-                .collect(),
-            true,
-        ))
+    pub fn record(fields: HashMap<String, Option<Value>>) -> Self {
+        Self::Record(Record::new(fields))
     }
 
     is_variant!(is_record, Record);
     as_variant!(as_record, Record, Record);
     as_variant_mut!(as_record_mut, Record, Record);
+
+    /// Checks whether this value is a container (list or record).
+    pub fn is_container(&self) -> bool {
+        match self {
+            Self::List(..) | Self::Record(..) => true,
+            #[cfg(feature = "builtin-sets")]
+            Self::Set(..) => true,
+            _ => false,
+        }
+    }
 
     /// Constructs a Lumber value by serializing a Rust value using Serde.
     #[cfg(feature = "serde")]
@@ -167,29 +171,57 @@ impl Value {
     }
 }
 
-impl From<Int> for Value {
-    fn from(int: Int) -> Self {
-        Self::Integer(int)
-    }
+macro_rules! from_int {
+    ($t:ty) => {
+        impl From<$t> for Value {
+            fn from(int: $t) -> Self {
+                Self::integer(int)
+            }
+        }
+    };
 }
 
-impl From<Rational> for Value {
-    fn from(rat: Rational) -> Self {
-        Self::Rational(rat)
-    }
+from_int!(Int);
+from_int!(u8);
+from_int!(u16);
+from_int!(u32);
+from_int!(u64);
+from_int!(u128);
+from_int!(usize);
+from_int!(i8);
+from_int!(i16);
+from_int!(i32);
+from_int!(i64);
+from_int!(i128);
+from_int!(isize);
+
+macro_rules! from_float {
+    ($t:ty) => {
+        impl From<$t> for Value {
+            fn from(rat: $t) -> Self {
+                Self::rational(rat)
+            }
+        }
+    };
 }
 
-impl From<String> for Value {
-    fn from(string: String) -> Self {
-        Self::String(string)
-    }
+from_float!(Rational);
+from_float!(f32);
+from_float!(f64);
+
+macro_rules! from_string {
+    ($t:ty) => {
+        impl From<$t> for Value {
+            fn from(string: $t) -> Self {
+                Self::string(string)
+            }
+        }
+    };
 }
 
-impl From<&str> for Value {
-    fn from(string: &str) -> Self {
-        Self::String(string.to_owned())
-    }
-}
+from_string!(String);
+from_string!(&str);
+from_string!(char);
 
 impl<V> From<Vec<V>> for Value
 where
@@ -212,7 +244,7 @@ impl From<Pattern> for Option<Value> {
             Pattern::List(patterns, rest) => {
                 let values = patterns.into_iter().map(Into::into).collect();
                 let complete = rest.is_none();
-                Some(Value::List(List::new(values, complete)))
+                Some(Value::List(List { values, complete }))
             }
             #[cfg(feature = "builtin-sets")]
             Pattern::Set(patterns, rest) => {
@@ -221,12 +253,12 @@ impl From<Pattern> for Option<Value> {
                 Some(Value::Set(Set::new(values, complete)))
             }
             Pattern::Record(fields, rest) => {
-                let values = fields
+                let fields = fields
                     .into_iter()
                     .map(|(key, pattern)| (key, pattern.into()))
                     .collect();
                 let complete = rest.is_none();
-                Some(Value::Record(Record::new(values, complete)))
+                Some(Value::Record(Record { fields, complete }))
             }
             Pattern::Struct(structure) => {
                 let contents = structure
@@ -285,7 +317,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Value::Integer(int) => int.fmt(f),
-            Value::Rational(rat) => rat.fmt(f),
+            Value::Rational(rat) => rat.to_f64().fmt(f),
             Value::String(string) => write!(f, "{:?}", string),
             #[cfg(feature = "builtin-sets")]
             Value::Set(set) => set.fmt(f),
@@ -294,5 +326,44 @@ impl Display for Value {
             Value::Struct(structure) => structure.fmt(f),
             Value::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn display_integer() {
+        assert_eq!(&format!("{}", Value::integer(15)), "15");
+    }
+
+    #[test]
+    fn display_rational() {
+        assert_eq!(&format!("{}", Value::rational(15.5)), "15.5");
+    }
+
+    #[test]
+    fn display_string() {
+        assert_eq!(
+            &format!("{}", Value::string("hello world")),
+            "\"hello world\""
+        );
+        assert_eq!(
+            &format!("{}", Value::string(r#"he said "hello world""#)),
+            r#""he said \"hello world\"""#
+        );
+    }
+
+    #[test]
+    fn display_list() {
+        assert_eq!(
+            &format!("{}", Value::string("hello world")),
+            "\"hello world\""
+        );
+        assert_eq!(
+            &format!("{}", Value::string(r#"he said "hello world""#)),
+            r#""he said \"hello world\"""#
+        );
     }
 }

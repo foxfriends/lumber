@@ -27,8 +27,15 @@ impl PartialEq for Record {
 }
 
 impl Record {
-    pub(crate) fn new(fields: HashMap<Atom, Option<Value>>, complete: bool) -> Self {
-        Self { fields, complete }
+    /// Creates a new Lumber record value from a map of possibly unbound Values.
+    pub fn new(fields: HashMap<String, Option<Value>>) -> Self {
+        Self {
+            fields: fields
+                .into_iter()
+                .map(|(key, value)| (Atom::from(key), value))
+                .collect(),
+            complete: true,
+        }
     }
 
     /// Adds a field to this record.

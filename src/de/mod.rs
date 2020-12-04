@@ -536,7 +536,6 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
 mod test {
     use super::*;
     use serde::Deserialize;
-    use std::collections::HashMap;
 
     #[test]
     fn deserialize_integer() {
@@ -624,7 +623,7 @@ mod test {
     #[test]
     fn deserialize_list() {
         assert_eq!(
-            from_value::<Vec<&str>>(&Value::list(vec!["a", "b", "c"])).unwrap(),
+            from_value::<Vec<&str>>(&list!["a", "b", "c"]).unwrap(),
             vec!["a", "b", "c"],
         );
     }
@@ -632,11 +631,11 @@ mod test {
     #[test]
     fn deserialize_tuple() {
         assert_eq!(
-            from_value::<(&str, &str, &str)>(&Value::list(vec!["a", "b", "c"])).unwrap(),
+            from_value::<(&str, &str, &str)>(&list!["a", "b", "c"]).unwrap(),
             ("a", "b", "c"),
         );
 
-        assert!(from_value::<(&str, &str)>(&Value::list(vec!["a", "b", "c"])).is_err());
+        assert!(from_value::<(&str, &str)>(&list!["a", "b", "c"]).is_err());
     }
 
     #[test]
@@ -645,19 +644,14 @@ mod test {
         struct Tuple(i32, u32);
 
         assert_eq!(
-            from_value::<Tuple>(&Value::Struct(Struct::new(
-                "Tuple",
-                Some(Value::list(vec![Value::integer(-3), Value::integer(3)]))
-            )))
-            .unwrap(),
+            from_value::<Tuple>(&Value::Struct(Struct::new("Tuple", Some(list![-3, 3])))).unwrap(),
             Tuple(-3, 3),
         );
 
-        assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
-            "NotTuple",
-            Some(Value::list(vec![Value::integer(-3), Value::integer(3)]))
-        )))
-        .is_err());
+        assert!(
+            from_value::<Tuple>(&Value::Struct(Struct::new("NotTuple", Some(list![-3, 3]))))
+                .is_err()
+        );
 
         assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
             "Tuple",
@@ -667,11 +661,7 @@ mod test {
 
         assert!(from_value::<Tuple>(&Value::Struct(Struct::new(
             "Tuple",
-            Some(Value::list(vec![
-                Value::integer(-3),
-                Value::integer(3),
-                Value::string("hi")
-            ]))
+            Some(list![-3, 3, "hi"])
         )))
         .is_err());
     }
@@ -684,13 +674,13 @@ mod test {
             second: u32,
         }
 
-        let mut record = HashMap::new();
-        record.insert(String::from("first"), Some(Value::integer(-3)));
-        record.insert(String::from("second"), Some(Value::integer(3)));
         assert_eq!(
             from_value::<TestStruct>(&Value::Struct(Struct::new(
                 "TestStruct",
-                Some(Value::record(record.clone()))
+                Some(record! {
+                    "first" => -3,
+                    "second" => 3,
+                })
             )))
             .unwrap(),
             TestStruct {
@@ -701,28 +691,37 @@ mod test {
 
         assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
             "NotStruct",
-            Some(Value::record(record.clone()))
+            Some(record! {
+                "first" => -3,
+                "second" => 3,
+            })
         )))
         .is_err());
 
-        record.remove("second");
         assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
             "TestStruct",
-            Some(Value::record(record.clone()))
+            Some(record! {
+                "first" => -3,
+            })
         )))
         .is_err());
 
-        record.insert(String::from("third"), Some(Value::integer(3)));
         assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
             "TestStruct",
-            Some(Value::record(record.clone()))
+            Some(record! {
+                "first" => -3,
+                "third" => 3,
+            })
         )))
         .is_err());
 
-        record.insert(String::from("second"), Some(Value::integer(3)));
         assert!(from_value::<TestStruct>(&Value::Struct(Struct::new(
             "TestStruct",
-            Some(Value::record(record))
+            Some(record! {
+                "first" => -3,
+                "second" => 3,
+                "third" => 3,
+            })
         )))
         .is_err());
     }
@@ -842,10 +841,7 @@ mod test {
             "Enum",
             Some(Value::Struct(Struct::new(
                 "Second",
-                Some(Value::list(vec![
-                    Value::string("Hello"),
-                    Value::string("World")
-                ]))
+                Some(list!["Hello", "World"])
             )))
         )))
         .is_err());
@@ -863,10 +859,7 @@ mod test {
                 "Enum",
                 Some(Value::Struct(Struct::new(
                     "First",
-                    Some(Value::list(vec![
-                        Value::string("Hello"),
-                        Value::string("World"),
-                    ]))
+                    Some(list!["Hello", "World"])
                 )))
             )))
             .unwrap(),
@@ -886,11 +879,7 @@ mod test {
             "Enum",
             Some(Value::Struct(Struct::new(
                 "First",
-                Some(Value::list(vec![
-                    Value::string("World"),
-                    Value::string("World"),
-                    Value::string("World"),
-                ])),
+                Some(list!["World", "World", "World"]),
             )),)
         )))
         .is_err());
@@ -903,15 +892,15 @@ mod test {
             First { a: String, b: String },
         }
 
-        let mut record = HashMap::new();
-        record.insert(String::from("a"), Some(Value::string("Hello")));
-        record.insert(String::from("b"), Some(Value::string("World")));
         assert_eq!(
             from_value::<Enum>(&Value::Struct(Struct::new(
                 "Enum",
                 Some(Value::Struct(Struct::new(
                     "First",
-                    Some(Value::record(record))
+                    Some(record! {
+                        "a" => "Hello",
+                        "b" => "World",
+                    })
                 )))
             )))
             .unwrap(),
@@ -933,7 +922,11 @@ mod test {
         record.set("b", Some(Value::integer(2)));
 
         assert_eq!(
-            from_value::<HashMap<String, u8>>(&Value::Record(record)).unwrap(),
+            from_value::<HashMap<String, u8>>(&record! {
+                "a" => 1,
+                "b" => 2,
+            })
+            .unwrap(),
             map,
         );
     }

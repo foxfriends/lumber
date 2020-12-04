@@ -197,10 +197,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         name: &'static str,
         _index: usize,
     ) -> crate::Result<Self::SerializeTupleStruct> {
-        *self.output = Some(Value::Struct(Struct::new(
-            name,
-            Some(Value::list(vec![] as Vec<Value>)),
-        )));
+        *self.output = Some(Value::Struct(Struct::new(name, Some(list![]))));
         Ok(self)
     }
 
@@ -213,10 +210,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
     ) -> crate::Result<Self::SerializeTupleVariant> {
         *self.output = Some(Value::Struct(Struct::new(
             name,
-            Some(Value::Struct(Struct::new(
-                variant,
-                Some(Value::list(vec![] as Vec<Value>)),
-            ))),
+            Some(Value::Struct(Struct::new(variant, Some(list![])))),
         )));
         Ok(self)
     }
@@ -231,10 +225,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
         name: &'static str,
         _len: usize,
     ) -> crate::Result<Self::SerializeStruct> {
-        *self.output = Some(Value::Struct(Struct::new(
-            name,
-            Some(Value::record(Default::default())),
-        )));
+        *self.output = Some(Value::Struct(Struct::new(name, Some(record! {}))));
         Ok(self)
     }
 
@@ -247,10 +238,7 @@ impl<'a, 'p> ser::Serializer for &'a mut Serializer<'p> {
     ) -> crate::Result<Self::SerializeStructVariant> {
         *self.output = Some(Value::Struct(Struct::new(
             name,
-            Some(Value::Struct(Struct::new(
-                variant,
-                Some(Value::record(Default::default())),
-            ))),
+            Some(Value::Struct(Struct::new(variant, Some(record! {})))),
         )));
         Ok(self)
     }
@@ -591,10 +579,13 @@ mod test {
         let mut map = HashMap::new();
         map.insert("hello", "world");
         map.insert("goodnight", "moon");
-        let mut record = Record::default();
-        record.set("goodnight", Some(Value::string("moon")));
-        record.set("hello", Some(Value::string("world")));
-        assert_eq!(to_value(&&map).unwrap(), Value::Record(record));
+        assert_eq!(
+            to_value(&&map).unwrap(),
+            record! {
+                "goodnight" => "moon",
+                "hello" => "world",
+            }
+        );
     }
 
     #[test]
@@ -608,32 +599,29 @@ mod test {
         let mut map = HashMap::new();
         map.insert("hello", hello_map);
         map.insert("world", world_map);
-        let mut hello_record = Record::default();
-        hello_record.set("hello", Some(Value::integer(5)));
-        hello_record.set("bonjour", Some(Value::integer(7)));
-        let mut world_record = Record::default();
-        world_record.set("england", Some(Value::integer(7)));
-        world_record.set("france", Some(Value::integer(6)));
-        let mut record = Record::default();
-        record.set("hello", Some(Value::Record(hello_record)));
-        record.set("world", Some(Value::Record(world_record)));
-        assert_eq!(to_value(&&map).unwrap(), Value::Record(record));
+        assert_eq!(
+            to_value(&&map).unwrap(),
+            record! {
+                "hello" => record! {
+                    "hello" => 5,
+                    "bonjour" => 7,
+                },
+                "world" => record! {
+                    "england" => 7,
+                    "france" => 6,
+                },
+            }
+        );
     }
 
     #[test]
     fn serialize_vec() {
-        assert_eq!(
-            to_value(&vec![1, 2]).unwrap(),
-            Value::list(vec![Value::integer(1), Value::integer(2)]),
-        );
+        assert_eq!(to_value(&vec![1, 2]).unwrap(), list![1, 2]);
     }
 
     #[test]
     fn serialize_tuple() {
-        assert_eq!(
-            to_value(&(1, 2)).unwrap(),
-            Value::list(vec![Value::integer(1), Value::integer(2)]),
-        );
+        assert_eq!(to_value(&(1, 2)).unwrap(), list![1, 2]);
     }
 
     #[test]
@@ -652,10 +640,7 @@ mod test {
         struct Tuple(&'static str, i32);
         assert_eq!(
             to_value(&Tuple("Hello", 3)).unwrap(),
-            Value::Struct(Struct::new(
-                "Tuple",
-                Some(Value::list(vec![Value::string("Hello"), Value::integer(3)])),
-            )),
+            Value::Struct(Struct::new("Tuple", Some(list!["Hello", 3]))),
         );
     }
 
@@ -666,16 +651,16 @@ mod test {
             value: &'static str,
             second: i32,
         };
-        let mut record = HashMap::new();
-        record.insert(String::from("value"), Some(Value::string("Hello")));
-        record.insert(String::from("second"), Some(Value::integer(3)));
         assert_eq!(
             to_value(&Test {
                 value: "Hello",
                 second: 3
             })
             .unwrap(),
-            Value::Struct(Struct::new("Test", Some(Value::record(record)))),
+            Value::Struct(Struct::new(
+                "Test",
+                Some(record! { "value" => "Hello", "second" => 3 })
+            )),
         );
     }
 
@@ -701,10 +686,7 @@ mod test {
             to_value(&Test::Variant(1, 2)).unwrap(),
             Value::Struct(Struct::new(
                 "Test",
-                Some(Value::Struct(Struct::new(
-                    "Variant",
-                    Some(Value::list(vec![Value::integer(1), Value::integer(2)]))
-                )))
+                Some(Value::Struct(Struct::new("Variant", Some(list![1, 2]))))
             )),
         );
     }
@@ -715,9 +697,6 @@ mod test {
         enum Test {
             Variant { first: i32, second: &'static str },
         }
-        let mut record = HashMap::new();
-        record.insert(String::from("first"), Some(Value::integer(1)));
-        record.insert(String::from("second"), Some(Value::string("Hello")));
         assert_eq!(
             to_value(&Test::Variant {
                 first: 1,
@@ -728,7 +707,10 @@ mod test {
                 "Test",
                 Some(Value::Struct(Struct::new(
                     "Variant",
-                    Some(Value::record(record))
+                    Some(record! {
+                        "first" => 1,
+                        "second" => "Hello",
+                    })
                 )))
             ))
         );

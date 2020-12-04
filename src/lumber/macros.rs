@@ -1,3 +1,141 @@
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __list {
+    ($els:ident @ $(,)?) => {
+        $crate::Value::List($crate::List::new($els))
+    };
+    ($els:ident @ _) => {{
+        $els.push(None);
+        $crate::__list!($els @ )
+    }};
+    ($els:ident @ _, $($rest:tt)*) => {{
+        $els.push(None);
+        $crate::__list!($els @ $($rest)*)
+    }};
+    ($els:ident @ $item:expr) => {{
+        $els.push(Some($crate::Value::from($item)));
+        $crate::__list!($els @ )
+    }};
+    ($els:ident @ $item:expr, $($rest:tt)*) => {{
+        $els.push(Some($crate::Value::from($item)));
+        $crate::__list!($els @ $($rest)*)
+    }};
+}
+
+/// Construct a Lumber list, similarly to constructing a `Vec` using `vec!`, but the `_` can be
+/// used in place of a value to insert an unbound element.
+///
+/// # Examples
+///
+/// ```rust
+/// # use lumber::{Value, List, list};
+/// let list = list![1, 2, _, 4];
+/// assert_eq!(
+///     list,
+///     Value::List(List::new(vec![Some(Value::from(1)), Some(Value::from(2)), None, Some(Value::from(4))])),
+/// );
+/// ```
+#[macro_export]
+macro_rules! list {
+    ($($src:tt)*) => ({
+        #[allow(unused_mut)]
+        let mut list = vec![];
+        $crate::__list!(list @ $($src)*)
+    });
+}
+
+#[cfg(test)]
+mod test_list {
+    use crate::*;
+
+    #[test]
+    fn empty() {
+        assert_eq!(list![], Value::List(List::default()));
+    }
+
+    #[test]
+    fn not_empty() {
+        assert_eq!(
+            list![1, 2, 3],
+            Value::List(List::new(vec![
+                Some(Value::from(1)),
+                Some(Value::from(2)),
+                Some(Value::from(3))
+            ]))
+        );
+    }
+
+    #[test]
+    fn wildcards() {
+        assert_eq!(list![_, _], Value::List(List::new(vec![None, None])));
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __record {
+    ($els:ident @ $(,)?) => {
+        $crate::Value::Record($crate::Record::new($els))
+    };
+    ($els:ident @ $key:expr => _) => {{
+        $els.insert($key.to_owned(), None);
+        $crate::__record!($els @ )
+    }};
+    ($els:ident @ $key:expr => _, $($rest:tt)*) => {{
+        $els.insert($key.to_owned(), None);
+        $crate::__record!($els @ $($rest)*)
+    }};
+    ($els:ident @ $key:expr => $item:expr) => {{
+        $els.insert($key.to_owned(), Some($crate::Value::from($item)));
+        $crate::__record!($els @ )
+    }};
+    ($els:ident @ $key:expr => $item:expr, $($rest:tt)*) => {{
+        $els.insert($key.to_owned(), Some($crate::Value::from($item)));
+        $crate::__record!($els @ $($rest)*)
+    }};
+}
+
+/// Construct a Lumber record using more literal syntax. The `_` can be used in place
+/// of a value to insert an unbound element.
+///
+/// # Examples
+///
+/// ```rust
+/// # use lumber::{Value, Record, record};
+/// # use std::collections::HashMap;
+/// let record = record!{
+///     "a" => 123,
+///     "b" => "hello",
+///     "c" => _,
+/// };
+/// let mut hashmap = HashMap::new();
+/// hashmap.insert("a".to_owned(), Some(Value::from(123)));
+/// hashmap.insert("b".to_owned(), Some(Value::from("hello")));
+/// hashmap.insert("c".to_owned(), None);
+/// assert_eq!(
+///     record,
+///     Value::Record(Record::new(hashmap)),
+/// );
+/// ```
+#[macro_export]
+macro_rules! record {
+    ($($src:tt)*) => ({
+        #[allow(unused_mut)]
+        let mut record = std::collections::HashMap::new();
+        $crate::__record!(record @ $($src)*)
+    });
+}
+
+#[cfg(test)]
+mod test_record {
+    use crate::*;
+
+    #[test]
+    fn empty() {
+        assert_eq!(record! {}, Value::Record(Record::default()));
+    }
+}
+
 /// Macro to help with creating native functions.
 ///
 /// This will wrap a function definition such that the resulting definition is suitable to

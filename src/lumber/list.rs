@@ -11,6 +11,15 @@ pub struct List {
     pub(crate) complete: bool,
 }
 
+impl Default for List {
+    fn default() -> Self {
+        Self {
+            values: vec![],
+            complete: true,
+        }
+    }
+}
+
 impl PartialEq for List {
     fn eq(&self, other: &Self) -> bool {
         self.values == other.values
@@ -18,8 +27,12 @@ impl PartialEq for List {
 }
 
 impl List {
-    pub(crate) fn new(values: Vec<Option<Value>>, complete: bool) -> Self {
-        Self { values, complete }
+    /// Creates a new Lumber list value from a `Vec` of possibly unbound [`Value`][]s.
+    pub fn new(values: Vec<Option<Value>>) -> Self {
+        Self {
+            values,
+            complete: true,
+        }
     }
 
     /// Adds a value to this list.
