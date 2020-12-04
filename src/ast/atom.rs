@@ -14,6 +14,10 @@ pub(crate) struct Atom(Rc<String>);
 
 impl From<String> for Atom {
     fn from(string: String) -> Self {
+        if string.is_empty() {
+            // TODO: should this really be a panic?
+            panic!("an atom cannot be empty");
+        }
         ATOMS.with(|atoms| {
             let mut atoms = atoms.borrow_mut();
             if let Some(existing) = atoms.get(&string) {
@@ -53,7 +57,30 @@ impl Display for Atom {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         // TODO: properly quote atoms as necessary
         //       somehow detect that by un-parsing the atom string?
-        self.0.fmt(f)
+        if self
+            .0
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            && self.0.chars().next().unwrap().is_ascii_alphabetic()
+        {
+            self.0.fmt(f)
+        } else {
+            if !self.0.contains('\'') {
+                write!(f, "'{}'", self.0)
+            } else {
+                let n = self
+                    .0
+                    .chars()
+                    .fold((0, None), |(max, len), ch| match len {
+                        None if ch == '\'' => (max, Some(0)),
+                        Some(n) if ch == '#' => (usize::max(max, n + 1), Some(n + 1)),
+                        _ => (max, None),
+                    })
+                    .0
+                    + 1;
+                write!(f, "{}'{}'{}", "#".repeat(n), self.0, "#".repeat(n))
+            }
+        }
     }
 }
 

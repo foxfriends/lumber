@@ -357,13 +357,51 @@ mod test {
 
     #[test]
     fn display_list() {
+        assert_eq!(&format!("{}", list![1, 2, 3]), "[1, 2, 3]");
+        assert_eq!(&format!("{}", list![]), "[]");
+    }
+
+    #[test]
+    fn display_record() {
         assert_eq!(
-            &format!("{}", Value::string("hello world")),
-            "\"hello world\""
+            &format!("{}", record! { "a" => 1, "b" => 2 }),
+            "{ a: 1, b: 2 }",
         );
+        assert_eq!(&format!("{}", record! {}), "{:}");
+    }
+
+    #[test]
+    fn display_struct() {
         assert_eq!(
-            &format!("{}", Value::string(r#"he said "hello world""#)),
-            r#""he said \"hello world\"""#
+            &format!(
+                "{}",
+                Value::Struct(Struct::new("test", Some(Value::from(3))))
+            ),
+            "test(3)",
+        );
+
+        assert_eq!(
+            &format!(
+                "{}",
+                Value::Struct(Struct::new("test", Some(record! { "a" => 1 })))
+            ),
+            "test { a: 1 }",
+        );
+
+        assert_eq!(
+            &format!("{}", Value::Struct(Struct::new("test", Some(list![1, 2])))),
+            "test [1, 2]",
+        );
+    }
+
+    #[test]
+    fn display_atom() {
+        assert_eq!(&format!("{}", Value::atom("test")), "test",);
+        assert_eq!(&format!("{}", Value::atom("te st")), "'te st'",);
+        assert_eq!(&format!("{}", Value::atom("te'st")), "#'te'st'#",);
+        assert_eq!(
+            &format!("{}", Value::atom("te'###'st")),
+            "####'te'###'st'####",
         );
     }
 }

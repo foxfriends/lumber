@@ -64,18 +64,25 @@ impl Record {
 
 impl Display for Record {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{{")?;
-        for (i, (key, value)) in self.fields.iter().enumerate() {
-            if i != 0 {
-                write!(f, ", ")?;
+        if self.fields.is_empty() {
+            write!(f, "{{:}}")
+        } else {
+            write!(f, "{{ ")?;
+            let mut keys_sorted: Vec<_> = self.fields.keys().collect();
+            keys_sorted.sort();
+            for (i, key) in keys_sorted.iter().enumerate() {
+                let value = self.fields.get(key).unwrap();
+                if i != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}: ", key)?;
+                match value {
+                    Some(value) => value.fmt(f)?,
+                    None => write!(f, "_")?,
+                }
             }
-            write!(f, "{}: ", key)?;
-            match value {
-                Some(value) => value.fmt(f)?,
-                None => write!(f, "_")?,
-            }
+            write!(f, " }}")?;
+            Ok(())
         }
-        write!(f, "}}")?;
-        Ok(())
     }
 }
