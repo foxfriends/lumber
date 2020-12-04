@@ -147,12 +147,7 @@ impl Value {
 
     /// Checks whether this value is a container (list or record).
     pub fn is_container(&self) -> bool {
-        match self {
-            Self::List(..) | Self::Record(..) => true,
-            #[cfg(feature = "builtin-sets")]
-            Self::Set(..) => true,
-            _ => false,
-        }
+        matches!(self, Self::List(..) | Self::Record(..))
     }
 
     /// Constructs a Lumber value by serializing a Rust value using Serde.

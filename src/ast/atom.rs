@@ -64,22 +64,20 @@ impl Display for Atom {
             && self.0.chars().next().unwrap().is_ascii_alphabetic()
         {
             self.0.fmt(f)
+        } else if !self.0.contains('\'') {
+            write!(f, "'{}'", self.0)
         } else {
-            if !self.0.contains('\'') {
-                write!(f, "'{}'", self.0)
-            } else {
-                let n = self
-                    .0
-                    .chars()
-                    .fold((0, None), |(max, len), ch| match len {
-                        None if ch == '\'' => (max, Some(0)),
-                        Some(n) if ch == '#' => (usize::max(max, n + 1), Some(n + 1)),
-                        _ => (max, None),
-                    })
-                    .0
-                    + 1;
-                write!(f, "{}'{}'{}", "#".repeat(n), self.0, "#".repeat(n))
-            }
+            let n = self
+                .0
+                .chars()
+                .fold((0, None), |(max, len), ch| match len {
+                    None if ch == '\'' => (max, Some(0)),
+                    Some(n) if ch == '#' => (usize::max(max, n + 1), Some(n + 1)),
+                    _ => (max, None),
+                })
+                .0
+                + 1;
+            write!(f, "{}'{}'{}", "#".repeat(n), self.0, "#".repeat(n))
         }
     }
 }

@@ -69,29 +69,31 @@ impl Database<'_> {
             disjunction
                 .cases
                 .iter()
-                .flat_map(move |(head, tail)| {
+                .map(move |(head, tail)| {
                     let head_bindings = self.unify_conjunction(head, binding.clone(), public);
                     match tail {
-                        None => Box::new(head_bindings.map(|binding| (binding, false)))
-                            as Box<dyn Iterator<Item = (Cow<'a, Binding>, bool)>>,
-                        Some(tail) => Box::new(
-                            head_bindings
-                                .flat_map(move |binding| {
-                                    self.unify_conjunction(tail, binding, public)
-                                })
-                                .map(|binding| (binding, true)),
-                        ),
+                        None => (Box::new(head_bindings), None),
+                        Some(tail) => (Box::new(head_bindings), Some(tail)),
                     }
                 })
-                .scan(false, |stop, (binding, done)| {
-                    if *stop {
-                        None
-                    } else {
-                        *stop = done;
-                        Some(binding)
+                .scan(false, |skip_rest, (head, tail)| {
+                    if *skip_rest {
+                        return None;
                     }
+                    if tail.is_some() {
+                        *skip_rest = true;
+                    }
+                    Some((head, tail))
                 })
-                .fuse(),
+                .fuse()
+                .flat_map(move |(head_bindings, tail)| -> Bindings<'a> {
+                    match tail {
+                        None => head_bindings,
+                        Some(tail) => Box::new(head_bindings.flat_map(move |binding| {
+                            self.unify_conjunction(tail, binding, public)
+                        })),
+                    }
+                }),
         )
     }
 
@@ -196,39 +198,47 @@ impl Database<'_> {
         Box::new(
             definition
                 .iter()
-                .flat_map(move |(head, kind, body)| {
+                .map({
                     let input_binding = input_binding.clone();
-                    let output_binding = head
-                        .identifiers()
-                        .chain(body.identifiers())
-                        .collect::<Binding>();
-                    Binding::transfer_from(
-                        Cow::Owned(output_binding),
-                        &input_binding,
-                        &query,
-                        &head,
-                    )
-                    .map(move |binding| self.unify_body(body, binding, false))
-                    .into_iter()
-                    .flatten()
-                    .filter_map(move |output_binding| {
-                        Binding::transfer_from(
-                            input_binding.clone(),
-                            &output_binding,
-                            &head,
+                    move |(head, kind, body)| {
+                        let output_binding = head
+                            .identifiers()
+                            .chain(body.identifiers())
+                            .collect::<Binding>();
+                        let output_binding = Binding::transfer_from(
+                            Cow::Owned(output_binding),
+                            &input_binding,
                             &query,
-                        )
-                    })
-                    .map(move |output| (output, *kind))
+                            &head,
+                        );
+                        (output_binding, head, *kind, body)
+                    }
                 })
-                .scan(RuleKind::Multi, |kind, (value, newkind)| {
-                    if let RuleKind::Once = kind {
+                .scan(false, |skip_rest, (binding, head, kind, body)| {
+                    if *skip_rest {
                         return None;
                     }
-                    *kind = newkind;
-                    Some(value)
+                    if binding.is_some() && kind == RuleKind::Once {
+                        *skip_rest = true;
+                    }
+                    Some((binding, head, body))
                 })
-                .fuse(),
+                .fuse()
+                .flat_map(move |(binding, head, body)| {
+                    let input_binding = input_binding.clone();
+                    binding
+                        .map(|binding| self.unify_body(body, binding, false))
+                        .into_iter()
+                        .flatten()
+                        .filter_map(move |output_binding| {
+                            Binding::transfer_from(
+                                input_binding.clone(),
+                                &output_binding,
+                                &head,
+                                &query,
+                            )
+                        })
+                }),
         )
     }
 

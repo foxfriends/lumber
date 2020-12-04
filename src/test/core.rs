@@ -24,6 +24,13 @@ test! {
 }
 
 test! {
+    core_list_notin => ""
+    ?- "@core::list::notin(b, [a, b, c])"
+    ?- "@core::list::notin(d, [])";
+    ?- "@core::list::notin(d, [a, b, c])";
+}
+
+test! {
     core_list_update => ""
     ?- "@core::list::update([a, b, c], c, d, O)"
         O = list![Value::atom("a"), Value::atom("b"), Value::atom("d")];
