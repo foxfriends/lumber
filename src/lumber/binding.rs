@@ -14,33 +14,33 @@ pub struct Binding(pub(crate) HashMap<Identifier, Rc<Pattern>>);
 impl Binding {
     #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub(crate) fn transfer_from<'a, 'b>(
-        output_binding: Cow<'b, Self>,
+        mut output_binding: Cow<'b, Self>,
         input_binding: &Self,
         source: &'a Query,
         destination: &'a Query,
     ) -> Option<Cow<'b, Self>> {
-        source
+        let mut source_patterns: Vec<_> = source
             .patterns
             .iter()
+            .map(|source| input_binding.apply(source).unwrap())
+            .collect();
+        let identifiers_map = source_patterns
+            .iter()
+            .flat_map(Pattern::identifiers)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(|ident| (ident, output_binding.to_mut().fresh_variable()))
+            .collect::<HashMap<_, _>>();
+        for pattern in &mut source_patterns {
+            for identifier in pattern.identifiers_mut() {
+                *identifier = identifiers_map.get(identifier).unwrap().clone();
+            }
+        }
+        source_patterns
+            .into_iter()
             .zip(destination.patterns.iter())
-            .try_fold(output_binding, |mut binding, (source, destination)| {
-                let mut applied = input_binding.apply(source).unwrap();
-                let identifiers_map = applied
-                    .identifiers()
-                    .collect::<HashSet<_>>()
-                    .into_iter()
-                    .map(|ident| (ident, binding.to_mut().fresh_variable()))
-                    .collect::<HashMap<_, _>>();
-                for identifier in applied.identifiers_mut() {
-                    *identifier = identifiers_map.get(identifier).unwrap().clone();
-                }
-                let binding = unify_patterns(
-                    Cow::Owned(applied),
-                    Cow::Borrowed(destination),
-                    binding,
-                    &[],
-                )?;
-                Some(binding)
+            .try_fold(output_binding, |binding, (source, destination)| {
+                unify_patterns(Cow::Owned(source), Cow::Borrowed(destination), binding, &[])
             })
     }
 
