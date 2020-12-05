@@ -1,6 +1,7 @@
 # Lumber
 
 ![CI](https://github.com/foxfriends/lumber/workflows/Continuous%20Integration/badge.svg)
+[![dependency status](https://deps.rs/repo/github/foxfriends/lumber/status.svg)](https://deps.rs/repo/github/foxfriends/lumber)
 
 > Work in progress
 
