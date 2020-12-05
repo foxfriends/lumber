@@ -80,15 +80,16 @@ impl Database<'_> {
                     if *skip_rest {
                         return None;
                     }
-                    if tail.is_some() {
+                    let mut peekable = head.peekable();
+                    if peekable.peek().is_some() && tail.is_some() {
                         *skip_rest = true;
                     }
-                    Some((head, tail))
+                    Some((peekable, tail))
                 })
                 .fuse()
                 .flat_map(move |(head_bindings, tail)| -> Bindings<'a> {
                     match tail {
-                        None => head_bindings,
+                        None => Box::new(head_bindings),
                         Some(tail) => Box::new(head_bindings.flat_map(move |binding| {
                             self.unify_conjunction(tail, binding, public)
                         })),
