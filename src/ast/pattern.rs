@@ -2,6 +2,7 @@
 use super::*;
 use crate::parser::Rule;
 use std::any::Any;
+use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -229,6 +230,64 @@ impl Pattern {
                     .flat_map(|pattern| pattern.identifiers_mut()),
             ),
             _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    pub fn is_container(&self) -> bool {
+        matches!(self, Self::List(..) | Self::Record(..))
+    }
+
+    pub fn is_wildcard(&self) -> bool {
+        matches!(self, Self::Wildcard(..))
+    }
+}
+
+impl Display for Pattern {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Pattern::Literal(lit) => lit.fmt(f),
+            #[cfg(feature = "builtin-sets")]
+            Pattern::Set(head, tail) => todo!(),
+            Pattern::List(head, tail) => {
+                write!(f, "[")?;
+                for (i, pattern) in head.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    pattern.fmt(f)?;
+                }
+                match tail {
+                    Some(tail) if tail.is_wildcard() => write!(f, ", ..]"),
+                    Some(tail) => write!(f, ", ..{}]", tail),
+                    None => write!(f, "]"),
+                }
+            }
+            Pattern::Record(head, tail) => {
+                write!(f, "{{ ")?;
+                for (i, (key, pattern)) in head.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", key, pattern)?;
+                }
+                match tail {
+                    Some(tail) if tail.is_wildcard() => write!(f, ", .. }}"),
+                    Some(tail) => write!(f, ", ..{} }}", tail),
+                    None => write!(f, " }}"),
+                }
+            }
+            Pattern::Struct(structure) => structure.fmt(f),
+            Pattern::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
+            Pattern::Variable(var) => var.fmt(f),
+            Pattern::Wildcard(..) => "_".fmt(f),
+            Pattern::Bound => "!".fmt(f),
+            Pattern::Unbound => "?".fmt(f),
+            Pattern::All(inner) => {
+                for pat in inner {
+                    pat.fmt(f)?;
+                }
+                Ok(())
+            }
         }
     }
 }

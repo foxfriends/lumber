@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::fmt::{self, Display, Formatter};
 
 /// A sequence of narrowing steps.
 #[derive(Default, Clone, Debug)]
@@ -24,5 +25,17 @@ impl Procession {
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.steps.iter().flat_map(|step| step.identifiers())
+    }
+}
+
+impl Display for Procession {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for (i, step) in self.steps.iter().enumerate() {
+            if i != 0 {
+                write!(f, " -> ")?;
+            }
+            step.fmt(f)?;
+        }
+        Ok(())
     }
 }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::program::*;
-use crate::Lumber;
+use crate::{Lumber, Question};
 use pest::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -32,6 +32,7 @@ impl<'p> Context<'p> {
         root_path: PathBuf,
         source: &str,
         natives: HashMap<Handle, NativeFunction<'p>>,
+        run_tests: bool,
     ) -> crate::Result<Lumber<'p>> {
         self.root_path = root_path;
         if self.root_path.exists() && std::fs::metadata(&self.root_path)?.is_file() {
@@ -50,6 +51,11 @@ impl<'p> Context<'p> {
         if !self.errors.is_empty() {
             return Err(crate::Error::multiple_by_module(self.errors));
         }
+        let tests = if run_tests {
+            root_module.take_tests()
+        } else {
+            vec![]
+        };
         let mut database: Database = Database::new(root_module.into_definitions());
         for header in self.modules.values() {
             database.apply_header(header, &natives);
@@ -58,7 +64,23 @@ impl<'p> Context<'p> {
             .libraries
             .into_iter()
             .fold(database, |database, (_, library)| database.merge(library));
-        Ok(Lumber::build(database))
+        let failed_tests: Vec<_> = tests
+            .into_iter()
+            .filter_map(|test| {
+                let question = Question::new(test);
+                let answers = database.unify_test(&question).collect::<Vec<_>>();
+                if answers.is_empty() {
+                    Some(question)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if failed_tests.is_empty() {
+            Ok(Lumber::build(database))
+        } else {
+            Err(crate::Error::test(failed_tests))
+        }
     }
 
     fn enter_module(&mut self, module: Atom) {

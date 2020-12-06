@@ -1,4 +1,5 @@
 use crate::ast::Scope;
+use crate::Question;
 #[cfg(feature = "serde")]
 use serde::{de, ser};
 use std::collections::HashMap;
@@ -14,6 +15,8 @@ pub enum ErrorKind {
     Parse,
     /// An error has occurred while attempting to extract a pattern from a binding.
     Binding,
+    /// One or more of the unit tests defined in the source code have failed.
+    Test,
     /// Contains multiple errors of various sources. This error can be printed to the user to
     /// help with debugging. This error likely cannot be handled programmatically.
     Multiple,
@@ -52,6 +55,21 @@ impl Error {
         Self {
             kind: ErrorKind::Binding,
             message: message.to_owned(),
+            source: None,
+        }
+    }
+
+    pub(crate) fn test(tests: Vec<Question>) -> Self {
+        let count = tests.len();
+        let tests = tests
+            .into_iter()
+            .map(|question| format!("\t{}", question))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let message = format!("{} tests have failed:\n{}", count, tests);
+        Self {
+            kind: ErrorKind::Test,
+            message,
             source: None,
         }
     }

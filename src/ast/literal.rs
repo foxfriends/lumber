@@ -1,5 +1,6 @@
 use crate::parser::Rule;
 use ramp::{int::Int, rational::Rational};
+use std::fmt::{self, Display, Formatter};
 
 /// A literal value, which cannot be further pattern matched.
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -45,6 +46,16 @@ impl Literal {
                 Self::String(string[1..string.len() - 1].to_owned())
             }
             _ => unreachable!(),
+        }
+    }
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Integer(int) => int.fmt(f),
+            Self::Rational(rat) => rat.to_f64().fmt(f),
+            Self::String(string) => write!(f, "{:?}", string),
         }
     }
 }

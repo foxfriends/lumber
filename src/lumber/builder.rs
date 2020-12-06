@@ -9,6 +9,7 @@ use std::path::Path;
 /// To build a non-trivial Lumber program will likely require using this builder.
 pub struct LumberBuilder<'p> {
     core: bool,
+    test: bool,
     context: Context<'p>,
     natives: HashMap<Handle, NativeFunction<'p>>,
 }
@@ -17,6 +18,7 @@ impl<'p> LumberBuilder<'p> {
     pub(super) fn new() -> Self {
         Self {
             core: true,
+            test: false,
             context: Context::default(),
             natives: HashMap::default(),
         }
@@ -35,6 +37,26 @@ impl<'p> LumberBuilder<'p> {
     /// ```
     pub fn core(mut self, core: bool) -> Self {
         self.core = core;
+        self
+    }
+
+    /// Sets whether to run the tests or not. Tests will be run when `build` is called,
+    /// causing an `Err` to be returned if the tests fail.
+    ///
+    /// It is recommended that you run the tests as part of your test suit, but build without
+    /// tests for release. Tests are not run by default.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use lumber::Lumber;
+    /// Lumber::builder()
+    ///     .test(true) // Runs the tests
+    ///     // ...
+    /// #   ;
+    /// ```
+    pub fn test(mut self, test: bool) -> Self {
+        self.test = test;
         self
     }
 
@@ -207,6 +229,6 @@ impl<'p> LumberBuilder<'p> {
                     .insert(core, lib.clone().into_library("core"));
             });
         }
-        Lumber::new(self.context, root, source, self.natives)
+        Lumber::new(self.context, root, source, self.natives, self.test)
     }
 }

@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::fmt::{self, Display, Formatter};
 
 /// A conjunction of processions.
 #[derive(Default, Clone, Debug)]
@@ -24,5 +25,17 @@ impl Conjunction {
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.terms.iter().flat_map(|term| term.identifiers())
+    }
+}
+
+impl Display for Conjunction {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for (i, term) in self.terms.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            term.fmt(f)?;
+        }
+        Ok(())
     }
 }

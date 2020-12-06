@@ -68,6 +68,7 @@ impl<'p> Lumber<'p> {
             source_file,
             source_code,
             HashMap::default(),
+            false,
         )
     }
 
@@ -95,6 +96,7 @@ impl<'p> Lumber<'p> {
             source_dir,
             source_code,
             HashMap::default(),
+            false,
         )
     }
 
@@ -108,9 +110,15 @@ impl<'p> Lumber<'p> {
         source_file: P,
         source_code: S,
         natives: HashMap<Handle, NativeFunction<'p>>,
+        run_tests: bool,
     ) -> crate::Result<Self> {
         let source_str = source_code.as_ref();
-        context.compile(source_file.as_ref().to_owned(), source_str, natives)
+        context.compile(
+            source_file.as_ref().to_owned(),
+            source_str,
+            natives,
+            run_tests,
+        )
     }
 
     pub(crate) fn build(database: Database<'p>) -> Self {

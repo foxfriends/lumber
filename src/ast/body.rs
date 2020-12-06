@@ -1,10 +1,11 @@
 use super::*;
 use crate::parser::Rule;
 use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 
 /// The body of a rule.
 #[derive(Default, Clone, Debug)]
-pub(crate) struct Body(pub(crate) Option<Disjunction>);
+pub(crate) struct Body(pub(crate) Disjunction);
 
 impl Body {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
@@ -14,7 +15,7 @@ impl Body {
 
     pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::disjunction);
-        Some(Self(Some(Disjunction::new(pair, context)?)))
+        Some(Self(Disjunction::new(pair, context)?))
     }
 
     pub fn new_evaluation(terms: Vec<Unification>) -> Self {
@@ -22,21 +23,17 @@ impl Body {
             .into_iter()
             .map(|term| Procession { steps: vec![term] })
             .collect();
-        Self(Some(Disjunction {
+        Self(Disjunction {
             cases: vec![(Conjunction { terms }, None)],
-        }))
+        })
     }
 
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
-        self.0
-            .iter_mut()
-            .flat_map(|disjunction| disjunction.handles_mut())
+        self.0.handles_mut()
     }
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.0
-            .iter()
-            .flat_map(|disjunction| disjunction.identifiers())
+        self.0.identifiers()
     }
 
     pub fn check_variables(&self, head: &Query, context: &mut Context) {
@@ -57,5 +54,11 @@ impl Body {
                 context.error_singleton_variable(head.as_ref(), identifier.name());
             }
         }
+    }
+}
+
+impl Display for Body {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }

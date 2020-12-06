@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::fmt::{self, Display, Formatter};
 
 /// A unification against the database, used to build up a rule.
 #[derive(Clone, Debug)]
@@ -50,6 +51,16 @@ impl Unification {
             Self::Assumption(pattern, expression) => {
                 Box::new(pattern.identifiers().chain(expression.identifiers()))
             }
+        }
+    }
+}
+
+impl Display for Unification {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Query(query) => query.fmt(f),
+            Self::Body(body) => write!(f, "({})", body),
+            Self::Assumption(pat, expr) => write!(f, "{} <- {}", pat, expr),
         }
     }
 }

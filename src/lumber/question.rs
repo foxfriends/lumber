@@ -3,6 +3,7 @@ use crate::parser::*;
 use crate::{Binding, Value};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
+use std::fmt::{self, Display, Formatter};
 
 /// A question ready to be asked to the Lumber program.
 ///
@@ -13,13 +14,15 @@ pub struct Question {
     pub(crate) initial_binding: Binding,
 }
 
-impl AsRef<Body> for Question {
-    fn as_ref(&self) -> &Body {
-        &self.body
-    }
-}
-
 impl Question {
+    pub(crate) fn new(body: Body) -> Self {
+        let initial_binding = body.identifiers().collect();
+        Self {
+            body,
+            initial_binding,
+        }
+    }
+
     /// Sets the value of a variable before unification begins.
     ///
     /// # Examples
@@ -102,11 +105,19 @@ impl TryFrom<&str> for Question {
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
         let body = Body::new(pair, &mut context).unwrap();
-        let initial_binding = body.identifiers().collect();
-        Ok(Question {
-            body,
-            initial_binding,
-        })
+        Ok(Self::new(body))
+    }
+}
+
+impl Display for Question {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.body.fmt(f)
+    }
+}
+
+impl AsRef<Body> for Question {
+    fn as_ref(&self) -> &Body {
+        &self.body
     }
 }
 

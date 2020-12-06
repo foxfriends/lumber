@@ -9,6 +9,8 @@ pub(crate) struct Module {
     submodules: HashMap<Atom, Module>,
     /// All predicates and functions defined in this module.
     definitions: HashMap<Handle, Definition>,
+    /// Unit tests that are defined in this module.
+    tests: Vec<Body>,
 }
 
 impl Module {
@@ -18,6 +20,7 @@ impl Module {
 
         let mut submodules = HashMap::new();
         let mut definitions = HashMap::<Handle, Definition>::new();
+        let mut tests = vec![];
 
         for pair in pairs {
             match pair.as_rule() {
@@ -63,6 +66,13 @@ impl Module {
                             let handle = Handle::new(pair, context);
                             context.declare_native(handle.clone());
                         }
+                        Rule::test => {
+                            let pair = just!(Rule::body, pair.into_inner());
+                            match Body::new(pair, context) {
+                                Some(body) => tests.push(body),
+                                None => continue,
+                            }
+                        }
                         _ => unreachable!(),
                     }
                 }
@@ -73,8 +83,8 @@ impl Module {
                         Rule::fact => {
                             let pair = just!(pair.into_inner());
                             let query = Query::from_head(pair, context);
-                            // TODO: is there a way to define "Once" rules?
-                            (query, RuleKind::Multi, Body::default())
+                            // TODO: is there a way to define "Once" facts?
+                            (query, RuleKind::Multi, None)
                         }
                         Rule::rule => {
                             let mut pairs = pair.into_inner();
@@ -84,10 +94,9 @@ impl Module {
                                 Rule::rule_once => RuleKind::Once,
                                 _ => unreachable!(),
                             };
-                            if let Some(body) = Body::new(pairs.next().unwrap(), context) {
-                                (head, kind, body)
-                            } else {
-                                continue;
+                            match Body::new(pairs.next().unwrap(), context) {
+                                Some(body) => (head, kind, Some(body)),
+                                None => continue,
                             }
                         }
                         Rule::function => {
@@ -106,10 +115,9 @@ impl Module {
                             let mut pairs = just!(Rule::evaluation, pairs).into_inner();
                             let mut unifications = vec![];
                             while pairs.peek().unwrap().as_rule() == Rule::assumption {
-                                let unification = match Unification::from_assumption(
-                                    pairs.next().unwrap(),
-                                    context,
-                                ) {
+                                let unification =
+                                    Unification::from_assumption(pairs.next().unwrap(), context);
+                                let unification = match unification {
                                     None => continue,
                                     Some(unification) => unification,
                                 };
@@ -121,11 +129,13 @@ impl Module {
                                 }
                                 None => continue,
                             }
-                            (head, kind, Body::new_evaluation(unifications))
+                            (head, kind, Some(Body::new_evaluation(unifications)))
                         }
                         _ => unreachable!(),
                     };
-                    body.check_variables(&head, context);
+                    if let Some(body) = &body {
+                        body.check_variables(&head, context);
+                    }
                     context.declare_predicate(head.as_ref().clone());
                     definitions
                         .entry(head.as_ref().clone())
@@ -140,6 +150,7 @@ impl Module {
         Ok(Self {
             submodules,
             definitions,
+            tests,
         })
     }
 
@@ -153,6 +164,13 @@ impl Module {
                     if let Some(resolved) = context.resolve_handle(handle) {
                         *handle = resolved.clone();
                     }
+                }
+            }
+        }
+        for test in self.tests.iter_mut() {
+            for handle in test.handles_mut() {
+                if let Some(resolved) = context.resolve_handle(handle) {
+                    *handle = resolved.clone();
                 }
             }
         }
@@ -177,5 +195,13 @@ impl Module {
                     .flat_map(Self::into_definitions),
             ),
         )
+    }
+
+    pub fn take_tests(&mut self) -> Vec<Body> {
+        self.submodules
+            .iter_mut()
+            .flat_map(|(_, module)| module.take_tests())
+            .chain(self.tests.drain(..))
+            .collect()
     }
 }

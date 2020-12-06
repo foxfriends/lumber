@@ -45,6 +45,19 @@ impl Database<'_> {
         }
     }
 
+    /// Runs a test. A test does not need to reference public predicates only.
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
+    pub(crate) fn unify_test<'a>(
+        &'a self,
+        question: &'a Question,
+    ) -> impl Iterator<Item = Binding> + 'a {
+        let body = question.as_ref();
+        let answers = self
+            .unify_body(body, Cow::Borrowed(&question.initial_binding), false)
+            .map(|cow| cow.into_owned());
+        answers
+    }
+
     #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_body<'a>(
         &'a self,
@@ -52,10 +65,7 @@ impl Database<'_> {
         binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
-        match &body.0 {
-            Some(disjunction) => self.unify_disjunction(disjunction, binding, public),
-            None => Box::new(std::iter::once(binding)),
-        }
+        self.unify_disjunction(&body.0, binding, public)
     }
 
     #[cfg_attr(feature = "test-perf", flamer::flame)]
@@ -204,7 +214,7 @@ impl Database<'_> {
                     move |(head, kind, body)| {
                         let output_binding = head
                             .identifiers()
-                            .chain(body.identifiers())
+                            .chain(body.iter().flat_map(Body::identifiers))
                             .collect::<Binding>();
                         let output_binding = Binding::transfer_from(
                             Cow::Owned(output_binding),
@@ -227,18 +237,23 @@ impl Database<'_> {
                 .fuse()
                 .flat_map(move |(binding, head, body)| {
                     let input_binding = input_binding.clone();
-                    binding
-                        .map(|binding| self.unify_body(body, binding, false))
-                        .into_iter()
-                        .flatten()
-                        .filter_map(move |output_binding| {
-                            Binding::transfer_from(
-                                input_binding.clone(),
-                                &output_binding,
-                                &head,
-                                &query,
-                            )
-                        })
+                    Box::new(
+                        binding
+                            .map(|binding| match body {
+                                Some(body) => self.unify_body(body, binding, false),
+                                None => Box::new(std::iter::once(binding)),
+                            })
+                            .into_iter()
+                            .flatten()
+                            .filter_map(move |output_binding| {
+                                Binding::transfer_from(
+                                    input_binding.clone(),
+                                    &output_binding,
+                                    &head,
+                                    &query,
+                                )
+                            }),
+                    )
                 }),
         )
     }

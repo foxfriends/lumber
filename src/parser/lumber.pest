@@ -3,13 +3,14 @@ external_handle   =  { SOI ~ atom ~ ("::" ~ atom)* ~ arity ~ EOI }
 question          =  { SOI ~ body ~ EOI }
 
 directive         =  { ":-" ~ instruction ~ "." }
-instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc }
+instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc | test }
 nat               =  { "nat" ~ "(" ~ handle ~ ")" }
 mod_              =  { "mod" ~ "(" ~ atom ~ ")" }
 use_              =  { "use" ~ "(" ~ multi_handle ~ ")" }
 pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
+test              =  { "test" ~ "(" ~ body ~ ")" }
 
 multi_handle      =  { module_path ~ ("(" ~ handles ~ ","? ~ ")")? }
 module_path       =  { scope | scope_prefix }

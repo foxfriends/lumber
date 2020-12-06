@@ -1,4 +1,5 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
+use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -51,5 +52,11 @@ impl Identifier {
 
     pub fn is_wildcard(&self) -> bool {
         self.1
+    }
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.0.fmt(f)
     }
 }

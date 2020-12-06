@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::fmt::{self, Display, Formatter};
 
 /// A named container, which can optionally contain a value.
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -36,5 +37,16 @@ impl Struct {
         self.contents
             .iter_mut()
             .flat_map(|pattern| pattern.identifiers_mut())
+    }
+}
+
+impl Display for Struct {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.name.fmt(f)?;
+        match &self.contents {
+            None => Ok(()),
+            Some(pattern) if pattern.is_container() => write!(f, " {}", pattern),
+            Some(pattern) => write!(f, "({})", pattern),
+        }
     }
 }

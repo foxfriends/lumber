@@ -2,6 +2,7 @@ use super::*;
 use crate::parser::Rule;
 use pest::prec_climber::Assoc;
 use std::cell::RefCell;
+use std::fmt::{self, Display, Formatter};
 
 const fn left(token: &'static str) -> Operator {
     Operator::new(token, Assoc::Left)
@@ -101,6 +102,26 @@ impl Expression {
             Self::ListAggregation(pattern, body) => {
                 Box::new(pattern.identifiers().chain(body.identifiers()))
             }
+        }
+    }
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Operation(.., input) => {
+                for (i, unification) in input.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    unification.fmt(f)?;
+                }
+                Ok(())
+            }
+            Self::Value(pattern) => pattern.fmt(f),
+            #[cfg(feature = "builtin-sets")]
+            Self::SetAggregation(..) => todo!(),
+            Self::ListAggregation(pattern, body) => write!(f, "[{} : {}]", pattern, body),
         }
     }
 }

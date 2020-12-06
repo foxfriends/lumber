@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::fmt::{self, Display, Formatter};
 
 /// A disjunction of conjunctions.
 #[derive(Default, Clone, Debug)]
@@ -37,5 +38,20 @@ impl Disjunction {
             head.identifiers()
                 .chain(tail.iter().flat_map(Conjunction::identifiers))
         })
+    }
+}
+
+impl Display for Disjunction {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for (i, (head, tail)) in self.cases.iter().enumerate() {
+            if i != 0 {
+                write!(f, "; ")?;
+            }
+            head.fmt(f)?;
+            if let Some(tail) = tail {
+                write!(f, " ->> {}", tail)?;
+            }
+        }
+        Ok(())
     }
 }
