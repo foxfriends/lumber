@@ -71,6 +71,27 @@ test! {
 }
 
 test! {
+    branch_no_backtrack => r#"
+    first(a).
+    first(b).
+    second(c).
+    second(d).
+    third(e).
+    third(f).
+
+    :- pub(once/2).
+    once(A, B) :-
+        first(A) ->> second(B);
+        second(A) ->> third(B).
+    "#
+    ?- "once(A, B)"
+        A = Value::atom("a"), B = Value::atom("c");
+        A = Value::atom("a"), B = Value::atom("d");
+    ?- "once(A, c)"
+        A = Value::atom("a");
+}
+
+test! {
     once_nested => r#"
     :- pub(once/4).
     :- use(@core(equal/2)).

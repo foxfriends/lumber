@@ -3,6 +3,21 @@
 :- nat(add/3).
 :- pub(add/3).
 
+:- test(add(1, 2, 3)).
+:- test(add(1, 2, A), equal(A, 3)).
+:- test(add(1, A, 3), equal(A, 2)).
+:- test(add(A, 2, 3), equal(A, 1)).
+
+:- test(add(1.5, 2.3, 3.8)).
+:- test(add(1.5, 2.3, A), equal(A, 3.8)).
+:- test(add(1.5, A, 3.8), equal(A, 2.3)).
+:- test(add(A, 2.3, 3.8), equal(A, 1.5)).
+
+:- test(add("hello", "world", "helloworld")).
+:- test(add("hello", "world", A), equal(A, "helloworld")).
+:- test(add("hello", A, "helloworld"), equal(A, "world")).
+:- test(add(A, "world", "helloworld"), equal(A, "hello")).
+
 :- nat(sub/3).
 :- pub(sub/3).
 
@@ -27,12 +42,19 @@
 :- pub(true/0).
 true.
 
+:- test(true).
+
 :- inc(false_/0).
 :- pub(false/0).
 false :- false_.
 
 :- pub(equal/2).
 equal(A, A).
+
+:- test(equal(A, 1)).
+:- test(equal(_, 1)).
+:- test(equal(1, 1)).
+:- test(equal("yes", "yes")).
 
 :- nat(leq/2).
 :- pub(leq/2).

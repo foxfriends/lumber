@@ -86,15 +86,24 @@ impl Database<'_> {
                         Some(tail) => (Box::new(head_bindings), Some(tail)),
                     }
                 })
-                .scan(false, |skip_rest, (head, tail)| {
+                .scan(false, |skip_rest, (mut head, tail)| {
                     if *skip_rest {
                         return None;
                     }
-                    let mut peekable = head.peekable();
-                    if peekable.peek().is_some() && tail.is_some() {
-                        *skip_rest = true;
+                    if let Some(binding) = head.next() {
+                        if tail.is_some() {
+                            *skip_rest = true;
+                            Some((
+                                Box::new(std::iter::once(binding))
+                                    as Box<dyn Iterator<Item = Cow<'a, Binding>>>,
+                                tail,
+                            ))
+                        } else {
+                            Some((Box::new(std::iter::once(binding).chain(head)), tail))
+                        }
+                    } else {
+                        Some((Box::new(std::iter::empty()), tail))
                     }
-                    Some((peekable, tail))
                 })
                 .fuse()
                 .flat_map(move |(head_bindings, tail)| -> Bindings<'a> {

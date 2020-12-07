@@ -104,8 +104,13 @@ impl TryFrom<&str> for Question {
         let mut pairs = pair.into_inner();
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
-        let body = Body::new(pair, &mut context).unwrap();
-        Ok(Self::new(body))
+        match Body::new(pair, &mut context) {
+            Some(body) => Ok(Self::new(body)),
+            None => Err(crate::Error::parse(&format!(
+                "invalid syntax in question: {}",
+                src
+            ))),
+        }
     }
 }
 
@@ -136,15 +141,13 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn question_from_str_parent() {
-        Question::try_from("^::hello(A)").unwrap();
+        assert!(Question::try_from("^::hello(A)").is_err());
     }
 
     #[test]
-    #[should_panic]
     fn question_from_str_punctuated() {
-        Question::try_from("hello(A).").unwrap();
+        assert!(Question::try_from("hello(A).").is_err());
     }
 
     #[test]
@@ -156,8 +159,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn question_empty() {
-        Question::try_from("").unwrap();
+        assert!(Question::try_from("").is_err());
     }
 }

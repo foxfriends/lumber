@@ -1,5 +1,6 @@
 use lumber::{Lumber, Question};
 use std::convert::TryFrom;
+use std::io::{stdout, Write};
 use std::path::PathBuf;
 
 /// Interactive Lumber (REPL)
@@ -27,7 +28,10 @@ pub fn main(opts: Opts) {
     };
     if opts.query.is_empty() {
         let mut query = String::new();
-        while let Ok(len) = std::io::stdin().read_line(&mut query) {
+        loop {
+            print!("?- ");
+            stdout().flush().unwrap();
+            let len = std::io::stdin().read_line(&mut query).unwrap();
             if len == 0 {
                 break;
             }
@@ -42,6 +46,10 @@ pub fn main(opts: Opts) {
 }
 
 fn answer(program: &Lumber, query: &str) {
+    let query = query.trim().trim_end_matches('.');
+    if query.is_empty() {
+        return;
+    }
     let question = match Question::try_from(query) {
         Ok(question) => question,
         Err(error) => {
@@ -49,20 +57,29 @@ fn answer(program: &Lumber, query: &str) {
             return;
         }
     };
-    for binding in program.ask(&question) {
-        let output = question
-            .answer(&binding)
-            .unwrap()
-            .into_iter()
-            .map(|(var, val)| {
-                format!(
-                    "{} = {}",
-                    var,
-                    val.map(|val| val.to_string()).unwrap_or_else(|| "_".into())
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        println!("{}", output);
+    let mut answers = program.ask(&question).peekable();
+    if answers.peek().is_none() {
+        println!("No answer.");
+    } else {
+        for binding in answers {
+            let output = question
+                .answer(&binding)
+                .unwrap()
+                .into_iter()
+                .map(|(var, val)| {
+                    format!(
+                        "{} = {}",
+                        var,
+                        val.map(|val| val.to_string()).unwrap_or_else(|| "_".into())
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if output.is_empty() {
+                println!("Answered without bindings");
+            } else {
+                println!("{}", output);
+            }
+        }
     }
 }
