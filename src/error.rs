@@ -102,9 +102,9 @@ impl Error {
                     if errors.is_empty() {
                         return message;
                     }
-                    write!(message, "-- {} errors in module {} --", errors.len(), scope).unwrap();
+                    writeln!(message, "-- {} errors in module {} --", errors.len(), scope).unwrap();
                     for error in &errors {
-                        write!(message, "\n\n{}", error).unwrap();
+                        writeln!(message, "\t{}", error).unwrap();
                     }
                     message
                 })
