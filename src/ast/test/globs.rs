@@ -94,3 +94,39 @@ yes! {
     test(A, B) :- equal(A, B).
     "#
 }
+
+yes! {
+    glob_same_twice => r#"
+    :- mod(src).
+    :- mod(a).
+    :- mod(b).
+    :- use(a).
+    :- use(b).
+
+    hello :- test.
+    "#
+}
+
+no! {
+    glob_not_reexported => r#"
+    :- mod(src).
+    :- mod(a).
+    :- use(a).
+    hello :- test.
+    "#
+}
+
+no! {
+    glob_not_reexported_sibling => r#"
+    :- mod(src).
+    :- mod(a).
+    :- mod(b).
+    "#
+}
+
+no! {
+    glob_not_reexported_core => r#"
+    :- mod(a).
+    :- mod(b).
+    "#
+}

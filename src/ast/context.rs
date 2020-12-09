@@ -228,11 +228,13 @@ impl<'p> Context<'p> {
             return None;
         }
         let module = handle.module();
-        let resolved = self
-            .modules
-            .get(&module)
-            .unwrap()
-            .resolve(handle, in_scope, self);
+        let resolved = match self.modules.get(&module) {
+            Some(module) => module.resolve(handle, in_scope, self),
+            None => {
+                self.error_undeclared_module(handle, module);
+                return None;
+            }
+        };
         match resolved {
             Ok(resolved) => Some(resolved.clone()),
             Err(error) => {
@@ -329,6 +331,13 @@ impl Context<'_> {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "Referencing predicate {} from unlinked library {}.",
             handle, library,
+        )));
+    }
+
+    pub(crate) fn error_undeclared_module(&mut self, handle: &Handle, module: Scope) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Referencing predicate {} from undeclared module {}.",
+            handle, module,
         )));
     }
 

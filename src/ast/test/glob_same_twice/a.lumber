@@ -1,0 +1,2 @@
+:- use(^::src(test/0)).
+:- pub(test/0).

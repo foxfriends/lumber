@@ -44,6 +44,12 @@ no! {
 
 no! {
     modules_reference_undefined => r#"
+    hello :- a::test(a).
+    "#
+}
+
+no! {
+    modules_reference_undefined_predicate => r#"
     :- mod(a).
     hello :- a::test(a).
     "#

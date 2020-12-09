@@ -1,0 +1,3 @@
+:- use(^::a).
+
+hello(A) :- equal(A, 1).
