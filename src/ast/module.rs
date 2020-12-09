@@ -135,6 +135,8 @@ impl Module {
                     };
                     if let Some(body) = &body {
                         body.check_variables(&head, context);
+                    } else {
+                        head.check_variables(context);
                     }
                     context.declare_predicate(head.as_ref().clone());
                     definitions

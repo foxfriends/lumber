@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::Rule;
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
@@ -68,6 +69,25 @@ impl Query {
         self.patterns
             .iter()
             .flat_map(|pattern| pattern.identifiers())
+    }
+
+    pub fn check_variables(&self, context: &mut Context) {
+        let counts = self
+            .identifiers()
+            .filter(|ident| !ident.is_wildcard())
+            .fold(
+                HashMap::<Identifier, usize>::default(),
+                |mut map, identifier| {
+                    *map.entry(identifier).or_default() += 1;
+                    map
+                },
+            );
+
+        for (identifier, count) in counts {
+            if count <= 1 {
+                context.error_singleton_variable(self.as_ref(), identifier.name());
+            }
+        }
     }
 }
 

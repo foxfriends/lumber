@@ -8,6 +8,12 @@ yes! {
 }
 
 no! {
+    variable_singleton_fact => r#"
+    test(A).
+    "#
+}
+
+no! {
     variable_singleton_head => r#"
     check(yes).
     test(A) :- check(yes).
