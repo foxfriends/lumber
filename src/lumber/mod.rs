@@ -35,6 +35,7 @@ pub use value::Value;
 /// as a library.
 #[derive(Clone, Debug)]
 pub struct Lumber<'p> {
+    pub(crate) modules: HashMap<Scope, ModuleHeader>,
     pub(crate) database: Database<'p>,
 }
 
@@ -121,8 +122,8 @@ impl<'p> Lumber<'p> {
         )
     }
 
-    pub(crate) fn build(database: Database<'p>) -> Self {
-        Self { database }
+    pub(crate) fn build(modules: HashMap<Scope, ModuleHeader>, database: Database<'p>) -> Self {
+        Self { modules, database }
     }
 
     /// Ask a question, returning an iterator over all possible answers, attempting to
@@ -149,7 +150,17 @@ impl<'p> Lumber<'p> {
         self.ask(query).next().is_some()
     }
 
-    pub(crate) fn into_library(self, name: &str) -> Database<'p> {
-        self.database.into_library(name)
+    pub(crate) fn into_library(self, name: &str) -> (HashMap<Scope, ModuleHeader>, Database<'p>) {
+        let lib = Atom::from(name);
+        let modules = self
+            .modules
+            .into_iter()
+            .map(|(mut key, value)| {
+                key.add_lib(lib.clone());
+                (key, value.into_library(lib.clone()))
+            })
+            .collect();
+        let database = self.database.into_library(lib);
+        (modules, database)
     }
 }

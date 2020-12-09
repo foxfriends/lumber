@@ -20,9 +20,9 @@ impl<'p> Context<'p> {
         let mut context = Self::default();
         crate::core::LIB.with(|lib| {
             let core = Atom::from("core");
-            context
-                .libraries
-                .insert(core, lib.clone().into_library("core"));
+            let (modules, library) = lib.clone().into_library("core");
+            context.libraries.insert(core, library);
+            context.modules = modules;
         });
         context
     }
@@ -57,7 +57,11 @@ impl<'p> Context<'p> {
             vec![]
         };
         let mut database: Database = Database::new(root_module.into_definitions());
-        for header in self.modules.values() {
+        for (_, header) in self
+            .modules
+            .iter()
+            .filter(|(scope, _)| scope.library().is_empty())
+        {
             database.apply_header(header, &natives);
         }
         let database = self
@@ -77,7 +81,7 @@ impl<'p> Context<'p> {
             })
             .collect();
         if failed_tests.is_empty() {
-            Ok(Lumber::build(database))
+            Ok(Lumber::build(self.modules, database))
         } else {
             Err(crate::Error::test(failed_tests))
         }
@@ -188,7 +192,11 @@ impl<'p> Context<'p> {
     }
 
     fn validate_headers(&mut self, natives: &[&Handle]) {
-        for (scope, module) in &self.modules {
+        let modules = self
+            .modules
+            .iter()
+            .filter(|(scope, _)| scope.library().is_empty());
+        for (scope, module) in modules {
             let errors = module.errors(self, natives);
             if !errors.is_empty() {
                 self.errors.entry(scope.clone()).or_default().extend(errors);

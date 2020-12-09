@@ -155,8 +155,7 @@ impl<'p> Database<'p> {
             .unwrap_or(false)
     }
 
-    pub fn into_library(mut self, name: &str) -> Self {
-        let lib = Atom::from(name);
+    pub fn into_library(mut self, lib: Atom) -> Self {
         self.definitions = self
             .definitions
             .into_iter()

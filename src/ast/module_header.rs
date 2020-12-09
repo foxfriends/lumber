@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 /// Lists the predicates and exports of the module, but does not bind them to any
 /// actual definitions.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct ModuleHeader {
     /// The path to this module.
     pub scope: Scope,
@@ -23,6 +23,18 @@ pub(crate) struct ModuleHeader {
     pub aliases: HashMap<Handle, Handle>,
 }
 
+macro_rules! add_lib {
+    ($to:expr, $lib:expr) => {
+        $to = $to
+            .into_iter()
+            .map(|mut item| {
+                item.add_lib($lib.clone());
+                item
+            })
+            .collect()
+    };
+}
+
 impl ModuleHeader {
     pub fn new(scope: Scope) -> Self {
         Self {
@@ -35,6 +47,26 @@ impl ModuleHeader {
             definitions: Default::default(),
             aliases: Default::default(),
         }
+    }
+
+    pub fn into_library(mut self, lib: Atom) -> Self {
+        self.scope.add_lib(lib.clone());
+        add_lib!(self.globs, lib);
+        add_lib!(self.natives, lib);
+        add_lib!(self.exports, lib);
+        add_lib!(self.mutables, lib);
+        add_lib!(self.incompletes, lib);
+        add_lib!(self.definitions, lib);
+        self.aliases = self
+            .aliases
+            .into_iter()
+            .map(|(mut key, mut value)| {
+                key.add_lib(lib.clone());
+                value.add_lib(lib.clone());
+                (key, value)
+            })
+            .collect();
+        self
     }
 
     pub fn insert_glob(&mut self, module: Scope) -> Option<Scope> {
@@ -180,11 +212,20 @@ impl ModuleHeader {
     pub fn errors(&self, context: &Context, native_handles: &[&Handle]) -> Vec<crate::Error> {
         let mut errors = vec![];
         for module in &self.globs {
-            if !context.modules.contains_key(module) {
-                errors.push(crate::Error::parse(&format!(
-                    "Unresolved module {} in glob import.",
-                    module,
-                )));
+            if let Some(lib) = module.library().first() {
+                if !context.libraries.contains_key(lib) {
+                    errors.push(crate::Error::parse(&format!(
+                        "Referencing unlinked library {} in glob import {}.",
+                        lib, module,
+                    )));
+                }
+            } else {
+                if !context.modules.contains_key(module) {
+                    errors.push(crate::Error::parse(&format!(
+                        "Unresolved module {} in glob import.",
+                        module,
+                    )));
+                }
             }
         }
         for native in &self.natives {

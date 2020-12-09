@@ -87,3 +87,10 @@ no! {
     :- mod(b).
     "#
 }
+
+yes! {
+    glob_library => r#"
+    :- use(@core).
+    test(A, B) :- equal(A, B).
+    "#
+}
