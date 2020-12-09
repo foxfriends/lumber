@@ -165,22 +165,22 @@ impl ModuleHeader {
                         .resolve_like(handle, from_scope, context, path)
                         .transpose()
                 })
-                .collect::<crate::Result<Vec<_>>>()?;
+                .collect::<crate::Result<HashSet<_>>>()?;
 
-            match *candidates.as_slice() {
-                [] => return Ok(None),
-                [handle] => handle,
-                _ => {
-                    return Err(crate::Error::parse(&format!(
-                        "Ambiguous reference {}. Could be referring to any of:\n{}",
-                        handle,
-                        candidates
-                            .iter()
-                            .map(|candidate| format!("\t{}", candidate))
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    )))
-                }
+            if candidates.len() == 1 {
+                candidates.into_iter().next().unwrap()
+            } else if candidates.is_empty() {
+                return Ok(None);
+            } else {
+                return Err(crate::Error::parse(&format!(
+                    "Ambiguous reference {}. Could be referring to any of:\n{}",
+                    handle,
+                    candidates
+                        .iter()
+                        .map(|candidate| format!("\t{}", candidate))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )));
             }
         };
 
