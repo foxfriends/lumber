@@ -18,16 +18,6 @@ impl Body {
         Some(Self(Disjunction::new(pair, context)?))
     }
 
-    pub fn new_evaluation(terms: Vec<Unification>) -> Self {
-        let terms = terms
-            .into_iter()
-            .map(|term| Procession { steps: vec![term] })
-            .collect();
-        Self(Disjunction {
-            cases: vec![(Conjunction { terms }, None)],
-        })
-    }
-
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.0.handles_mut()
     }
@@ -36,7 +26,7 @@ impl Body {
         self.0.identifiers()
     }
 
-    pub fn check_variables(&self, head: &Query, context: &mut Context) {
+    pub fn check_variables(&self, head: &Head, context: &mut Context) {
         let counts = self
             .identifiers()
             .chain(head.identifiers())

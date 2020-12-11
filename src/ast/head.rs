@@ -3,29 +3,32 @@ use crate::parser::Rule;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Debug)]
-pub(crate) struct Query {
-    /// The shape of this query.
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub(crate) struct Head {
+    /// The shape of this head.
     pub(crate) handle: Handle,
-    /// The args in each field.
-    pub(crate) args: Vec<Expression>,
+    /// The patterns in each field.
+    pub(crate) patterns: Vec<Pattern>,
 }
 
-impl Query {
-    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::predicate);
+impl Head {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
+        assert_eq!(pair.as_rule(), Rule::head);
         let mut pairs = pair.into_inner();
-        let scope = Scope::new(pairs.next().unwrap(), context)?;
-        let (arity, args) = pairs
+        let atom = Atom::new(pairs.next().unwrap());
+        let scope = context.current_scope.join(atom);
+        let (arity, patterns) = pairs
             .next()
-            .map(|pair| arguments(pair, context))
-            .unwrap_or(Some((Arity::default(), vec![])))?;
+            .map(|pair| params(pair, context))
+            .unwrap_or((Arity::default(), vec![]));
         let handle = Handle::from_parts(scope, arity);
-        Some(Query { handle, args })
+        Head { handle, patterns }
     }
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.args.iter().flat_map(|pattern| pattern.identifiers())
+        self.patterns
+            .iter()
+            .flat_map(|pattern| pattern.identifiers())
     }
 
     pub fn check_variables(&self, context: &mut Context) {
@@ -48,26 +51,26 @@ impl Query {
     }
 }
 
-impl AsRef<Handle> for Query {
+impl AsRef<Handle> for Head {
     fn as_ref(&self) -> &Handle {
         &self.handle
     }
 }
 
-impl AsMut<Handle> for Query {
+impl AsMut<Handle> for Head {
     fn as_mut(&mut self) -> &mut Handle {
         &mut self.handle
     }
 }
 
-impl Display for Query {
+impl Display for Head {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.handle.scope.fmt(f)?;
-        if self.args.is_empty() {
+        if self.patterns.is_empty() {
             return Ok(());
         }
         write!(f, "(")?;
-        for (i, pattern) in self.args.iter().enumerate() {
+        for (i, pattern) in self.patterns.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
@@ -92,43 +95,33 @@ impl Display for Query {
     }
 }
 
-impl From<Head> for Query {
-    fn from(head: Head) -> Self {
-        Self {
-            handle: head.handle,
-            args: head.patterns.into_iter().map(Expression::from).collect(),
-        }
-    }
-}
-
-fn arguments(pair: crate::Pair, context: &mut Context) -> Option<(Arity, Vec<Expression>)> {
-    assert_eq!(pair.as_rule(), Rule::arguments);
+fn params(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
+    assert_eq!(pair.as_rule(), Rule::params);
     let mut pairs = pair.into_inner().peekable();
     let mut arity = Arity::default();
-    let mut args = vec![];
-    if pairs.peek().unwrap().as_rule() == Rule::bare_arguments {
-        args.extend(
+    let mut patterns = vec![];
+    if pairs.peek().unwrap().as_rule() == Rule::bare_params {
+        patterns.extend(
             pairs
                 .next()
                 .unwrap()
                 .into_inner()
-                .map(|pair| Expression::new(pair, context))
-                .collect::<Option<Vec<_>>>()?,
+                .map(|pair| Pattern::new(pair, context)),
         );
-        arity.len = args.len() as u32;
+        arity.len = patterns.len() as u32;
     }
     if let Some(pair) = pairs.next() {
-        assert_eq!(pair.as_rule(), Rule::named_arguments);
+        assert_eq!(pair.as_rule(), Rule::named_params);
         for pair in pair.into_inner() {
             let mut pairs = pair.into_inner();
             let name = Atom::new(pairs.next().unwrap());
-            let values = just!(Rule::bare_arguments, pairs)
+            let values = just!(Rule::bare_params, pairs)
                 .into_inner()
-                .map(|pair| Expression::new(pair, context))
-                .collect::<Option<Vec<_>>>()?;
+                .map(|pair| Pattern::new(pair, context))
+                .collect::<Vec<_>>();
             arity.push(name, values.len() as u32);
-            args.extend(values);
+            patterns.extend(values);
         }
     }
-    Some((arity, args))
+    (arity, patterns)
 }

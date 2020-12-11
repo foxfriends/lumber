@@ -4,9 +4,8 @@ test! {
     op_add => r#"
     :- pub(add1/2).
     :- pub(join/3).
-    add1!(A) <- A + 1.
-
-    join!(A, B) <- A + " " + B.
+    add1(A, B) :- B =:= A + 1.
+    join(A, B, C) :- C =:= A + " " + B.
     "#
     ?- "add1(1, A)"
         A = Value::integer(2);
@@ -23,7 +22,7 @@ test! {
 test! {
     op_sub => r#"
     :- pub(sub1/2).
-    sub1!(A) <- A - 1.
+    sub1(A, B) :- B =:= A - 1.
     "#
     ?- "sub1(1, A)"
         A = Value::integer(0);
@@ -36,7 +35,7 @@ test! {
 test! {
     op_mul => r#"
     :- pub(square/2).
-    square!(A) <- A * A.
+    square(A, B) :- B =:= A * A.
     "#
     ?- "square(1, A)"
         A = Value::integer(1);
@@ -52,7 +51,7 @@ test! {
 test! {
     op_div => r#"
     :- pub(half/2).
-    half!(A) <- A / 2.
+    half(A, B) :- B =:= A / 2.
     "#
     ?- "half(1, A)"
         A = Value::integer(0);
@@ -64,7 +63,7 @@ test! {
 test! {
     op_mod => r#"
     :- pub(rem5/2).
-    rem5!(A) <- A % 5.
+    rem5(A, B) :- B =:= A % 5.
     "#
     ?- "rem5(1, A)"
         A = Value::integer(1);

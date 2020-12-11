@@ -35,7 +35,6 @@ mod aliases;
 mod comments;
 mod definitions;
 mod exports;
-mod functions;
 mod globs;
 mod imports;
 mod incompletes;

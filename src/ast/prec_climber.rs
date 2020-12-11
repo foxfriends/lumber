@@ -6,6 +6,17 @@ use std::collections::HashMap;
 use std::iter::Peekable;
 use std::ops::BitOr;
 
+// use pest::prec_climber::Assoc;
+// use std::cell::RefCell;
+// const fn left(token: &'static str) -> Operator {
+//     Operator::new(token, Assoc::Left)
+// }
+
+// #[allow(dead_code)]
+// const fn right(token: &'static str) -> Operator {
+//     Operator::new(token, Assoc::Right)
+// }
+
 #[derive(Debug)]
 pub(crate) struct Operator<'s> {
     symbol: &'s str,
@@ -134,3 +145,82 @@ impl<'s> PrecClimber<'s> {
         lhs
     }
 }
+
+
+/*
+fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
+    let expression = Expression::new(pair, context)?;
+    match expression {
+        Expression::Value(value) => Some((value, vec![])),
+        Expression::Operation(output, steps) => Some((output, steps)),
+        aggregation => {
+            let output = Pattern::Variable(context.fresh_variable());
+            Some((
+                output.clone(),
+                vec![Unification::Assumption(output, aggregation)],
+            ))
+        }
+    }
+}
+
+fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
+    let prec_climber = PrecClimber::new(vec![
+        // left("\\"),
+        // left("||"),
+        // left("&&"),
+        left("|"),
+        left("^"),
+        left("&"),
+        // left("==") | left("!="),
+        // left("<") | left(">") | left("<=") | left(">="),
+        left("+") | left("-"),
+        left("*") | left("/") | left("%"),
+        // right("**")
+    ]);
+    let context = RefCell::new(context);
+    prec_climber.climb(
+        pair.into_inner(),
+        |pair| expression(pair, *context.borrow_mut()),
+        |lhs, op, rhs| {
+            let context = &mut *context.borrow_mut();
+            let (lhs, mut lwork) = lhs?;
+            let (rhs, mut rwork) = rhs?;
+            let output = Pattern::Variable(context.fresh_variable());
+            let operation = match op.as_str() {
+                "+" => builtin::add(lhs, rhs, output.clone()),
+                "-" => builtin::sub(lhs, rhs, output.clone()),
+                "*" => builtin::mul(lhs, rhs, output.clone()),
+                "/" => builtin::div(lhs, rhs, output.clone()),
+                "%" => builtin::rem(lhs, rhs, output.clone()),
+                "|" => builtin::bitor(lhs, rhs, output.clone()),
+                "&" => builtin::bitand(lhs, rhs, output.clone()),
+                "^" => builtin::bitxor(lhs, rhs, output.clone()),
+                token => match op.into_inner().next() {
+                    Some(pair) => match pair.as_rule() {
+                        Rule::named_operator => {
+                            let pair = just!(pair.into_inner());
+                            let scope = Scope::new(pair, context)?;
+                            Unification::Query(Query::new(
+                                Handle::binop(scope),
+                                vec![lhs, rhs, output.clone()],
+                            ))
+                        }
+                        Rule::symbolic_operator => {
+                            context.error_unrecognized_operator(token);
+                            return None;
+                        }
+                        _ => unreachable!(),
+                    },
+                    None => {
+                        context.error_unrecognized_operator(token);
+                        return None;
+                    }
+                },
+            };
+            lwork.append(&mut rwork);
+            lwork.push(operation);
+            Some((output, lwork))
+        },
+    )
+}
+*/

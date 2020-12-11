@@ -97,7 +97,7 @@ test! {
     :- use(@core(equal/2)).
 
     once(A, B, C, D) :-
-        C <- A + B, (
+        C =:= A + B, (
             equal(A, C) ->> equal(D, zero);
             equal(D, B)
         ).

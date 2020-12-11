@@ -12,6 +12,7 @@ mod disjunction;
 mod expression;
 mod fields;
 mod handle;
+mod head;
 mod identifier;
 mod literal;
 mod module;
@@ -19,8 +20,9 @@ mod pattern;
 mod procession;
 mod query;
 mod scope;
+mod step;
 mod r#struct;
-mod unification;
+mod term;
 
 pub(crate) use alias::Alias;
 pub(crate) use arity::Arity;
@@ -32,6 +34,7 @@ pub(crate) use disjunction::Disjunction;
 pub(crate) use expression::Expression;
 pub(crate) use fields::Fields;
 pub(crate) use handle::{AsHandle, Handle};
+pub(crate) use head::Head;
 pub(crate) use identifier::Identifier;
 pub(crate) use literal::Literal;
 pub(crate) use module::Module;
@@ -40,16 +43,17 @@ pub(crate) use procession::Procession;
 pub(crate) use query::Query;
 pub(crate) use r#struct::Struct;
 pub(crate) use scope::Scope;
-pub(crate) use unification::Unification;
+pub(crate) use step::Step;
+pub(crate) use term::Term;
 
 mod builtin;
 mod context;
 mod module_header;
-mod prec_climber;
+// mod prec_climber;
 
 pub(crate) use context::Context;
 pub(crate) use module_header::ModuleHeader;
-pub(crate) use prec_climber::{Operator, PrecClimber};
+// pub(crate) use prec_climber::{Operator, PrecClimber};
 
 #[cfg(test)]
 mod test;

@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Default, Clone, Debug)]
 pub(crate) struct Procession {
     /// Steps after which backtracking is skipped.
-    pub(crate) steps: Vec<Unification>,
+    pub(crate) steps: Vec<Step>,
 }
 
 impl Procession {
@@ -14,7 +14,7 @@ impl Procession {
         assert_eq!(pair.as_rule(), Rule::procession);
         let steps = pair
             .into_inner()
-            .map(|pair| Unification::new(pair, context))
+            .map(|pair| Step::new(pair, context))
             .collect::<Option<_>>()?;
         Some(Self { steps })
     }

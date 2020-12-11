@@ -2,10 +2,17 @@ use super::*;
 
 macro_rules! op_2 {
     ($name:ident) => {
-        pub(crate) fn $name(lhs: Pattern, rhs: Pattern, output: Pattern) -> Unification {
+        pub(crate) fn $name(lhs: Pattern, rhs: Pattern, output: Pattern) -> Step {
             let scope = Scope::builtin(stringify!($name));
             let handle = Handle::binop(scope);
-            Unification::Query(Query::new(handle, vec![lhs, rhs, output]))
+            Step::Query(Query {
+                handle,
+                args: vec![
+                    Expression::from(lhs),
+                    Expression::from(rhs),
+                    Expression::from(output),
+                ],
+            })
         }
     };
 }

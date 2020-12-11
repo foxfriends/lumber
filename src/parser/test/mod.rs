@@ -25,12 +25,9 @@ macro_rules! no {
 mod aggregation;
 mod atom;
 mod body;
-mod call;
 mod directive;
-mod evaluation;
 mod expression;
 mod fact;
-mod function;
 mod handle;
 mod list;
 mod literal;
