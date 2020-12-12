@@ -39,7 +39,7 @@ pub(crate) use head::Head;
 pub(crate) use identifier::Identifier;
 pub(crate) use literal::Literal;
 pub(crate) use module::Module;
-pub(crate) use operator::Operator;
+pub(crate) use operator::{Associativity, OpArity, OpKey, Operator};
 pub(crate) use pattern::Pattern;
 pub(crate) use procession::Procession;
 pub(crate) use query::Query;

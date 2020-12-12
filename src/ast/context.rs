@@ -197,9 +197,9 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub(crate) fn declare_operator(&mut self, operator: Operator, handle: Handle) {
-        let previous = self.current_module_mut().insert_operator(operator, handle);
-        if let Some((operator, ..)) = previous {
+    pub(crate) fn declare_operator(&mut self, operator: Operator) {
+        let operator = self.current_module_mut().insert_operator(operator);
+        if let Some(operator) = operator {
             self.error_duplicate_operator(operator);
         }
     }

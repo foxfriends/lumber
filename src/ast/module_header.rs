@@ -26,7 +26,7 @@ pub(crate) struct ModuleHeader {
     /// operator that is used.
     pub operator_aliases: HashMap<Atom, Vec<Scope>>,
     /// Operators defined in this module.
-    pub operators: HashMap<Operator, Handle>,
+    pub operators: HashMap<OpKey, Operator>,
 }
 
 macro_rules! add_lib {
@@ -74,8 +74,8 @@ impl ModuleHeader {
                 (key, value)
             })
             .collect();
-        self.operators.iter_mut().for_each(|(_, handle)| {
-            handle.add_lib(lib.clone());
+        self.operators.iter_mut().for_each(|(_, op)| {
+            op.add_lib(lib.clone());
         });
         self.operator_aliases
             .iter_mut()
@@ -103,14 +103,8 @@ impl ModuleHeader {
         self.mutables.replace(handle)
     }
 
-    pub fn insert_operator(
-        &mut self,
-        operator: Operator,
-        handle: Handle,
-    ) -> Option<(Operator, Handle)> {
-        let previous = self.operators.remove_entry(&operator);
-        self.operators.insert(operator, handle);
-        previous
+    pub fn insert_operator(&mut self, operator: Operator) -> Option<Operator> {
+        self.operators.insert(operator.key(), operator)
     }
 
     pub fn insert_incomplete(&mut self, handle: Handle) -> (Option<Handle>, Option<Handle>) {

@@ -9,8 +9,6 @@ pub(crate) struct Module {
     submodules: HashMap<Atom, Module>,
     /// All predicates defined in this module.
     definitions: HashMap<Handle, Definition>,
-    /// Operators defined in this module, corresponding to predicates also defined in this module.
-    operators: HashMap<Operator, Handle>,
     /// Unit tests that are defined in this module.
     tests: Vec<Body>,
 }
@@ -22,7 +20,6 @@ impl Module {
 
         let mut submodules = HashMap::<Atom, Module>::new();
         let mut definitions = HashMap::<Handle, Definition>::new();
-        let mut operators = HashMap::<Operator, Handle>::new();
         let mut tests: Vec<Body> = vec![];
 
         for pair in pairs {
@@ -77,9 +74,8 @@ impl Module {
                             context.declare_native(handle.clone());
                         }
                         Rule::op => {
-                            if let Some((operator, handle)) = Operator::new(pair, context) {
-                                context.declare_operator(operator.clone(), handle.clone());
-                                operators.insert(operator, handle);
+                            if let Some(operator) = Operator::new(pair, context) {
+                                context.declare_operator(operator);
                             }
                         }
                         Rule::test => {
@@ -136,7 +132,6 @@ impl Module {
         Ok(Self {
             submodules,
             definitions,
-            operators,
             tests,
         })
     }
