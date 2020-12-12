@@ -131,8 +131,10 @@ impl<'p> LumberBuilder<'p> {
     /// ```lumber
     /// // libs/list.lumber
     /// :- pub(len/2).
-    /// len!([]) <- 0.
-    /// len!([_, ..R]) <- 1 + len!(R).
+    /// len([], 0).
+    /// len([_, ..R], L) :-
+    ///     len(R, L1),
+    ///     L =:= 1 + L1.
     ///
     /// // src/main.lumber
     /// add_lens!(A, B) :- @list::len!(A) + @list::len!(B).

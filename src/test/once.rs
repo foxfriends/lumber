@@ -94,7 +94,7 @@ test! {
 test! {
     once_nested => r#"
     :- pub(once/4).
-    :- use(@core(equal/2)).
+    :- use(@core(equal/2, +)).
 
     once(A, B, C, D) :-
         C =:= A + B, (

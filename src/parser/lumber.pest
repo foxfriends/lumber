@@ -3,14 +3,19 @@ external_handle   =  { SOI ~ atom ~ ("::" ~ atom)* ~ arity ~ EOI }
 question          =  { SOI ~ body ~ EOI }
 
 directive         =  { ":-" ~ instruction ~ "." }
-instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc | test }
+instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc | op | test }
 nat               =  { "nat" ~ "(" ~ handle ~ ")" }
 mod_              =  { "mod" ~ "(" ~ atom ~ ")" }
 use_              =  { "use" ~ "(" ~ multi_handle ~ ")" }
 pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
+op                =  { "op" ~ "(" ~ handle ~ "," ~ operator ~ ("," ~ assoc ~ "," ~ integer_10)? ~ ")" }
 test              =  { "test" ~ "(" ~ body ~ ")" }
+
+assoc             =  { left | right }
+    left          =  { "left" }
+    right         =  { "right" }
 
 multi_handle      =  { module_path ~ ("(" ~ handles ~ ","? ~ ")")? }
 module_path       =  { scope | scope_prefix }
@@ -22,7 +27,7 @@ scope_prefix      =  { (up ~ ("::" ~ up)* | root | lib)  }
 
 scope             =  { (scope_prefix ~ "::")? ~ atom ~ ("::" ~ atom)* }
 
-handles           =  { (handle | alias) ~ ("," ~ (handle | alias))* }
+handles           =  { (handle | operator | alias) ~ ("," ~ (handle | operator | alias))* }
 alias             =  { "alias" ~ "(" ~ handle ~ "," ~ "as" ~ ":" ~ handle ~ ")" }
 handle            =  { atom ~ arity }
 arity             =  { "/" ~ integer_10 ~ (":" ~ atom ~ ("/" ~ !"0" ~ !"1" ~ integer_10)?)* }
@@ -44,16 +49,16 @@ bare_params       =  { pattern ~ (!("," ~ atom ~ ":") ~ "," ~ pattern)* }
 disjunction       =  { branch ~ (";" ~ branch)* }
 branch            =  { conjunction ~ ("->>" ~ conjunction)? }
 conjunction       =  { procession ~ ("," ~ procession)* }
-procession        =  { step ~ ("->" ~ step)* }
-step              =  { unification | predicate | relation | "(" ~ disjunction ~ ")" }
-relation          =  { term ~ operator ~ term }
+procession        =  { step ~ (!"->>" ~ "->" ~ step)* }
+step              =  { predicate | unification | relation | "(" ~ disjunction ~ ")" }
+relation          =  { term? ~ operator ~ term }
 unification       =  { expression ~ "=:=" ~ expression }
 aggregation       =  { set_aggregation | list_aggregation }
 set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
 aggregation_body  =  { pattern ~ ":" ~ disjunction }
 
-struct_           =  { atom ~ ( "(" ~ pattern ~ ")" | list | record | set)? }
+struct_           =  { atom ~ ( "(" ~ expression ~ ")" | list | record | set)? }
 predicate         =  { scope ~ ( "(" ~ arguments ~ ","? ~ ")" )? }
 
 arguments         =  { named_arguments | bare_arguments ~ ("," ~ named_arguments)? }
@@ -69,12 +74,10 @@ variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_
 wildcard          = @{ "_" ~ XID_CONTINUE* }
 
 expression        =  { operator* ~ term ~ (operator+ ~ term)* ~ operator* }
-term              =  { value | aggregation | "(" ~ expression ~ ")" }
+term              =  { "(" ~ expression ~ ")" | aggregation | pattern }
 
-operator          =  { named_operator | symbolic_operator }
-named_operator    = ${ "`" ~ scope ~ "`" }
-symbolic_operator = ${ !"=:=" ~ !"->" ~ !"->>" ~ !"!" ~ !"?" ~ operator_symbol+ }
-operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "#" | "\\" | "~" }
+operator          = ${ !"=:=" ~ !"->" ~ !"->>" ~ !"!" ~ !"?" ~ operator_symbol+ }
+operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "\\" | "~" }
 
 pattern           =  { bound_pattern | unbound_pattern | value }
 unbound_pattern   =  { "?" ~ value? }

@@ -50,8 +50,8 @@ test! {
     left(a).
     right(b).
     test(A, C) :-
-        left(A), C <- a;
-        right(A), C <- b.
+        left(A), C =:= a;
+        right(A), C =:= b.
     "#
     ?- "test(a, A)"
         A = Value::atom("a");

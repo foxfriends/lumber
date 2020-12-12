@@ -7,7 +7,7 @@ pub(crate) struct Expression(Vec<Op>);
 
 #[derive(Clone, Debug)]
 pub(crate) enum Op {
-    Rator(String), // TODO: operators
+    Rator(Atom), // TODO: operators
     Rand(Term),
 }
 
@@ -17,7 +17,7 @@ impl Expression {
         let operation = pair
             .into_inner()
             .map(|pair| match pair.as_rule() {
-                Rule::operator => Some(Op::Rator(pair.to_string())),
+                Rule::operator => Some(Op::Rator(Atom::from(pair.as_str()))),
                 Rule::term => Some(Op::Rand(Term::new(pair, context)?)),
                 _ => unreachable!(),
             })

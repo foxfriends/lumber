@@ -2,6 +2,7 @@ use super::*;
 use crate::program::*;
 use crate::{Lumber, Question};
 use pest::Span;
+use ramp::Int;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -187,6 +188,22 @@ impl<'p> Context<'p> {
         }
     }
 
+    pub(crate) fn declare_operator_alias(&mut self, operator: Atom, scope: Scope) {
+        let scope = self
+            .current_module_mut()
+            .insert_operator_alias(operator.clone(), scope);
+        if let Some(scope) = scope {
+            self.error_duplicate_operator_alias(operator, scope);
+        }
+    }
+
+    pub(crate) fn declare_operator(&mut self, operator: Operator, handle: Handle) {
+        let previous = self.current_module_mut().insert_operator(operator, handle);
+        if let Some((operator, ..)) = previous {
+            self.error_duplicate_operator(operator);
+        }
+    }
+
     pub(crate) fn declare_predicate(&mut self, predicate: Handle) {
         self.current_module_mut().insert(predicate);
     }
@@ -292,6 +309,13 @@ impl Context<'_> {
         )));
     }
 
+    pub(crate) fn error_duplicate_operator_alias(&mut self, import: Atom, from: Scope) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "{} already imported from {}.",
+            import, from
+        )));
+    }
+
     pub(crate) fn error_duplicate_glob(&mut self, module: Scope) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "Module {} imported multiple times.",
@@ -306,10 +330,10 @@ impl Context<'_> {
         )));
     }
 
-    pub(crate) fn error_unrecognized_operator(&mut self, token: &str) {
+    pub(crate) fn error_duplicate_operator(&mut self, operator: Operator) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
-            "Unrecognized operator `{}`.",
-            token
+            "Operator {:?} declared multiple times.",
+            operator,
         )));
     }
 
@@ -346,5 +370,26 @@ impl Context<'_> {
             "No predicate {} is exported by the library {}.",
             handle, library,
         )));
+    }
+
+    pub(crate) fn error_operator_precedence(&mut self, name: Atom, precedence: Int) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Precedence {} for operator {} is too high (maximum is 9).",
+            precedence, name,
+        )))
+    }
+
+    pub(crate) fn error_operator_arity_relation(&mut self, name: Atom, len: u32) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Arity of relational operator {} must be 1 or 2, found {}.",
+            name, len,
+        )))
+    }
+
+    pub(crate) fn error_operator_arity_expression(&mut self, name: Atom, len: u32) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Arity of expression operator {} must be 2 or 3, found {}.",
+            name, len,
+        )))
     }
 }

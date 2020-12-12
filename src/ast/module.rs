@@ -7,8 +7,10 @@ use std::collections::HashMap;
 pub(crate) struct Module {
     /// Modules declared in this module.
     submodules: HashMap<Atom, Module>,
-    /// All predicates and functions defined in this module.
+    /// All predicates defined in this module.
     definitions: HashMap<Handle, Definition>,
+    /// Operators defined in this module, corresponding to predicates also defined in this module.
+    operators: HashMap<Operator, Handle>,
     /// Unit tests that are defined in this module.
     tests: Vec<Body>,
 }
@@ -18,9 +20,10 @@ impl Module {
         let pairs = Parser::parse_module(source_str)?;
         let pairs = just!(Rule::module, pairs).into_inner();
 
-        let mut submodules = HashMap::new();
+        let mut submodules = HashMap::<Atom, Module>::new();
         let mut definitions = HashMap::<Handle, Definition>::new();
-        let mut tests = vec![];
+        let mut operators = HashMap::<Operator, Handle>::new();
+        let mut tests: Vec<Body> = vec![];
 
         for pair in pairs {
             match pair.as_rule() {
@@ -44,8 +47,15 @@ impl Module {
                             let handle = just!(Rule::multi_handle, pair.into_inner());
                             match Alias::unpack_multiple(handle, context) {
                                 Ok(unpacked) => {
-                                    for Alias { input, output } in unpacked {
-                                        context.declare_alias(output.clone(), input.clone());
+                                    for alias in unpacked {
+                                        match alias {
+                                            Alias::Predicate { input, output } => {
+                                                context.declare_alias(output.clone(), input.clone())
+                                            }
+                                            Alias::Operator { name, scope } => {
+                                                context.declare_operator_alias(name, scope)
+                                            }
+                                        }
                                     }
                                 }
                                 Err(module) => context.import_glob(module),
@@ -65,6 +75,12 @@ impl Module {
                             let pair = just!(Rule::handle, pair.into_inner());
                             let handle = Handle::new(pair, context);
                             context.declare_native(handle.clone());
+                        }
+                        Rule::op => {
+                            if let Some((operator, handle)) = Operator::new(pair, context) {
+                                context.declare_operator(operator.clone(), handle.clone());
+                                operators.insert(operator, handle);
+                            }
                         }
                         Rule::test => {
                             let pair = just!(Rule::body, pair.into_inner());
@@ -120,6 +136,7 @@ impl Module {
         Ok(Self {
             submodules,
             definitions,
+            operators,
             tests,
         })
     }

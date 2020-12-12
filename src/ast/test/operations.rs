@@ -28,25 +28,3 @@ yes! {
     test(A) :- A =:= "hello" / 2.
     "#
 }
-
-yes! {
-    operation_named_operator => r#"
-    in(A, [A , ..], true).
-    in(_, _, false).
-    test(A, B, C) :- C =:= A `in` B.
-    "#
-}
-
-no! {
-    operation_named_operator_wrong_arity => r#"
-    in(A, [A , ..]).
-    in(_, _).
-    test(A, B, C) :- C =:= A `in` B.
-    "#
-}
-
-no! {
-    operation_named_operator_undefined => r#"
-    test(A, B, C) :- C =:= A `in` B.
-    "#
-}

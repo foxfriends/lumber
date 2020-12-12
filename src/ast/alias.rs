@@ -3,11 +3,19 @@ use crate::parser::Rule;
 
 /// An alias to expose a handle in a different scope.
 #[derive(Clone, Debug)]
-pub(crate) struct Alias {
-    /// The original handle, in its source scope.
-    pub(super) input: Handle,
-    /// The exposed handle, in the new scope.
-    pub(super) output: Handle,
+pub(crate) enum Alias {
+    Predicate {
+        /// The original handle, in its source scope.
+        input: Handle,
+        /// The exposed handle, in the new scope.
+        output: Handle,
+    },
+    Operator {
+        /// The name of the imported operator.
+        name: Atom,
+        /// The scope from which the operator is imported.
+        scope: Scope,
+    },
 }
 
 impl Alias {
@@ -31,7 +39,7 @@ impl Alias {
                         Rule::handle => {
                             let input = Handle::new_in_scope(scope.clone(), pair.clone());
                             let output = Handle::new(pair, context);
-                            Alias { input, output }
+                            Alias::Predicate { input, output }
                         }
                         Rule::alias => {
                             let mut pairs = pair.into_inner();
@@ -40,8 +48,12 @@ impl Alias {
                             if !output.can_alias(&input) {
                                 context.error_invalid_alias_arity(&input, &output);
                             }
-                            Alias { input, output }
+                            Alias::Predicate { input, output }
                         }
+                        Rule::operator => Alias::Operator {
+                            name: Atom::from(pair.as_str()),
+                            scope: scope.clone(),
+                        },
                         _ => unreachable!(),
                     })
                     .collect::<Vec<_>>();

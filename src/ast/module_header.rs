@@ -19,8 +19,14 @@ pub(crate) struct ModuleHeader {
     pub incompletes: HashSet<Handle>,
     /// All (private and public) predicates.
     pub definitions: HashSet<Handle>,
-    /// Imported predicates, and their alises.
+    /// Imported predicates and their alises.
     pub aliases: HashMap<Handle, Handle>,
+    /// Operators which have been imported from other modules. An operator can be imported
+    /// from many modules, and a conflict will be detected later if both define the same
+    /// operator that is used.
+    pub operator_aliases: HashMap<Atom, Vec<Scope>>,
+    /// Operators defined in this module.
+    pub operators: HashMap<Operator, Handle>,
 }
 
 macro_rules! add_lib {
@@ -46,6 +52,8 @@ impl ModuleHeader {
             incompletes: Default::default(),
             definitions: Default::default(),
             aliases: Default::default(),
+            operator_aliases: Default::default(),
+            operators: Default::default(),
         }
     }
 
@@ -66,6 +74,15 @@ impl ModuleHeader {
                 (key, value)
             })
             .collect();
+        self.operators.iter_mut().for_each(|(_, handle)| {
+            handle.add_lib(lib.clone());
+        });
+        self.operator_aliases
+            .iter_mut()
+            .flat_map(|(_, scopes)| scopes.iter_mut())
+            .for_each(|scope| {
+                scope.add_lib(lib.clone());
+            });
         self
     }
 
@@ -86,6 +103,16 @@ impl ModuleHeader {
         self.mutables.replace(handle)
     }
 
+    pub fn insert_operator(
+        &mut self,
+        operator: Operator,
+        handle: Handle,
+    ) -> Option<(Operator, Handle)> {
+        let previous = self.operators.remove_entry(&operator);
+        self.operators.insert(operator, handle);
+        previous
+    }
+
     pub fn insert_incomplete(&mut self, handle: Handle) -> (Option<Handle>, Option<Handle>) {
         self.definitions.insert(handle.clone());
         (
@@ -102,6 +129,18 @@ impl ModuleHeader {
         self.aliases
             .insert(alias.clone(), source)
             .map(|source| (alias, source))
+    }
+
+    pub fn insert_operator_alias(&mut self, operator: Atom, scope: Scope) -> Option<Scope> {
+        let scopes = self
+            .operator_aliases
+            .entry(operator)
+            .or_insert_with(Default::default);
+        if scopes.contains(&scope) {
+            return Some(scope);
+        }
+        scopes.push(scope);
+        None
     }
 
     pub fn resolve<'a>(

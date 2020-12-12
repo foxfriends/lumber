@@ -26,6 +26,10 @@ impl Arity {
         Arity { len, fields }
     }
 
+    pub fn len(&self) -> u32 {
+        self.len + self.fields.iter().map(|(_, len)| *len).sum::<u32>()
+    }
+
     pub fn push(&mut self, atom: Atom, len: u32) {
         self.fields.push((atom, len));
     }

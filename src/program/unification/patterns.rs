@@ -56,7 +56,7 @@ fn unify_patterns_inner<'p, 'b>(
         }
         // Unifying a x with itself succeeds with no additional info.
         (Pattern::Variable(lhs_var), Pattern::Variable(rhs_var)) if lhs_var == rhs_var => {
-            // We don't need to use occurs check here because `A <- A` is allowed, despite
+            // We don't need to use occurs check here because `A =:= A` is allowed, despite
             // `A` being in the occurs list already.
             Some((lhs, binding))
         }
