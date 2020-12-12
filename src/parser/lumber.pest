@@ -58,7 +58,7 @@ set_aggregation   =  { "{" ~ aggregation_body ~ "}" }
 list_aggregation  =  { "[" ~ aggregation_body ~ "]" }
 aggregation_body  =  { pattern ~ ":" ~ disjunction }
 
-struct_           =  { atom ~ ( "(" ~ expression ~ ")" | list | record | set)? }
+struct_           =  { atom ~ ( "(" ~ pattern ~ ")" | list | record | set)? }
 predicate         =  { scope ~ ( "(" ~ arguments ~ ","? ~ ")" )? }
 
 arguments         =  { named_arguments | bare_arguments ~ ("," ~ named_arguments)? }

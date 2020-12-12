@@ -159,7 +159,7 @@ impl Pattern {
                 Self::Record(head, tail)
             }
             Rule::wildcard => Self::Wildcard(Identifier::wildcard(pair.as_str())),
-            _ => unreachable!(),
+            rule => unreachable!("unexpected {:?}", rule),
         }
     }
 
