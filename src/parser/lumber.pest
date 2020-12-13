@@ -7,10 +7,10 @@ instruction       =  { nat | mod_ | use_ | pub_ | mut_ | inc | op | test }
 nat               =  { "nat" ~ "(" ~ handle ~ ")" }
 mod_              =  { "mod" ~ "(" ~ atom ~ ")" }
 use_              =  { "use" ~ "(" ~ multi_handle ~ ")" }
-pub_              =  { "pub" ~ "(" ~ handle ~ ")" }
+pub_              =  { "pub" ~ "(" ~ (handle | operator) ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
-op                =  { "op" ~ "(" ~ handle ~ "," ~ operator ~ ("," ~ assoc ~ "," ~ integer_10)? ~ ")" }
+op                =  { "op" ~ "(" ~ operator ~ "," ~ handle ~ ("," ~ assoc ~ "," ~ integer_10)? ~ ")" }
 test              =  { "test" ~ "(" ~ body ~ ")" }
 
 assoc             =  { left | right }

@@ -199,8 +199,8 @@ impl Database<'_> {
                     _ => unreachable!(),
                 }
             }
-            Step::Relation(lhs, operator, rhs) => {
-                todo!("perform the relation");
+            Step::Relation(..) => {
+                unreachable!("Relations should be transformed into queries by now")
             }
             Step::Body(body) => self.unify_body(body, binding, public),
             Step::Unification(lhs, rhs) => {

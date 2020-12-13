@@ -28,6 +28,16 @@ impl Definition {
     pub fn iter(&self) -> impl Iterator<Item = &(Head, RuleKind, Option<Body>)> {
         self.0.iter()
     }
+
+    pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, mut resolve: F) {
+        self.bodies_mut()
+            .for_each(move |body| body.resolve_handles(&mut resolve));
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+        self.bodies_mut()
+            .for_each(move |body| body.resolve_operators(&mut resolve));
+    }
 }
 
 impl FromIterator<Self> for Definition {

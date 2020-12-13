@@ -77,7 +77,7 @@ impl Display for Atom {
                 })
                 .0
                 + 1;
-            write!(f, "{}'{}'{}", "#".repeat(n), self.0, "#".repeat(n))
+            write!(f, "{hash}'{}'{hash}", self.0, hash = "#".repeat(n))
         }
     }
 }

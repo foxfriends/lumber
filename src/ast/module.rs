@@ -36,9 +36,18 @@ impl Module {
                             }
                         }
                         Rule::pub_ => {
-                            let handle = just!(Rule::handle, pair.into_inner());
-                            let handle = Handle::new(handle, context);
-                            context.declare_export(handle);
+                            let pair = just!(pair.into_inner());
+                            match pair.as_rule() {
+                                Rule::handle => {
+                                    let handle = Handle::new(pair, context);
+                                    context.declare_export(handle);
+                                }
+                                Rule::operator => {
+                                    let operator = Atom::from(pair.as_str());
+                                    context.declare_operator_export(operator);
+                                }
+                                _ => unreachable!(),
+                            }
                         }
                         Rule::use_ => {
                             let handle = just!(Rule::multi_handle, pair.into_inner());
@@ -140,15 +149,6 @@ impl Module {
         for (name, module) in self.submodules.iter_mut() {
             context.resolve_scopes(module, name.clone());
         }
-        for definition in self.definitions.values_mut() {
-            for body in definition.bodies_mut() {
-                for handle in body.handles_mut() {
-                    if let Some(resolved) = context.resolve_handle(handle) {
-                        *handle = resolved.clone();
-                    }
-                }
-            }
-        }
         for test in self.tests.iter_mut() {
             for handle in test.handles_mut() {
                 if let Some(resolved) = context.resolve_handle(handle) {
@@ -156,10 +156,12 @@ impl Module {
                 }
             }
         }
-        let definitions = std::mem::take(&mut self.definitions);
-        self.definitions = definitions
-            .into_iter()
-            .map(|(handle, definition)| {
+        self.definitions = self
+            .definitions
+            .drain()
+            .map(|(handle, mut definition)| {
+                definition.resolve_handles(|handle| context.resolve_handle(handle));
+                definition.resolve_operators(|operator| context.resolve_operator(operator));
                 (
                     context.resolve_handle(&handle).unwrap_or(handle),
                     definition,

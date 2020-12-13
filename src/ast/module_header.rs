@@ -13,6 +13,8 @@ pub(crate) struct ModuleHeader {
     pub natives: HashSet<Handle>,
     /// Publicly available predicates.
     pub exports: HashSet<Handle>,
+    /// Publicly available operators.
+    pub operator_exports: HashSet<Atom>,
     /// Predicates that are modifyable at runtime.
     pub mutables: HashSet<Handle>,
     /// Predicates which are not completely defined in this module.
@@ -48,6 +50,7 @@ impl ModuleHeader {
             globs: Default::default(),
             natives: Default::default(),
             exports: Default::default(),
+            operator_exports: Default::default(),
             mutables: Default::default(),
             incompletes: Default::default(),
             definitions: Default::default(),
@@ -92,6 +95,10 @@ impl ModuleHeader {
 
     pub fn insert_public(&mut self, handle: Handle) -> Option<Handle> {
         self.exports.replace(handle)
+    }
+
+    pub fn insert_public_operator(&mut self, operator: Atom) -> Option<Atom> {
+        self.operator_exports.replace(operator)
     }
 
     pub fn insert_native(&mut self, handle: Handle) -> Option<Handle> {
@@ -192,9 +199,11 @@ impl ModuleHeader {
         } else {
             let candidates = self
                 .globbed_modules()
-                .map(|scope| context.modules.get(scope).unwrap())
-                .filter_map(|module| {
-                    module
+                .filter_map(|scope| {
+                    context
+                        .modules
+                        .get(scope)
+                        .unwrap()
                         .resolve_like(handle, from_scope, context, path)
                         .transpose()
                 })
@@ -236,6 +245,124 @@ impl ModuleHeader {
     ) -> crate::Result<Option<&'a Handle>> {
         let handle = handle.relocate(&self.scope);
         self.resolve_inner(&handle, from_scope, context, &mut path.to_vec())
+    }
+
+    pub fn resolve_operator<'a>(
+        &'a self,
+        operator: &OpKey,
+        from_scope: &'a Scope,
+        context: &'a Context,
+    ) -> crate::Result<&'a Handle> {
+        match self.resolve_operator_inner(&operator, from_scope, context, &mut vec![])? {
+            None => Err(crate::Error::parse(&format!(
+                "Unresolved operator {} in scope {}.",
+                operator, from_scope
+            ))),
+            Some(resolved) => Ok(resolved),
+        }
+    }
+
+    fn resolve_operator_inner<'a, 'b>(
+        &'a self,
+        operator: &OpKey,
+        from_scope: &'a Scope,
+        context: &'a Context,
+        path: &mut Vec<&'a Scope>,
+    ) -> crate::Result<Option<&'a Handle>> {
+        if path.contains(&&self.scope) {
+            path.push(&self.scope);
+            return Err(crate::Error::parse(&format!(
+                "Alias loop detected for operator {}: {}",
+                operator,
+                path.iter_mut()
+                    .map(|handle| handle.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" -> "),
+            )));
+        }
+        path.push(&self.scope);
+        let resolved = if let Some(op) = self.operators.get(operator) {
+            self.resolve(op.handle(), &self.scope, context)?
+        } else if let Some(scopes) = self.operator_aliases.get(&operator.name()) {
+            let candidates = scopes
+                .iter()
+                .filter_map(|scope| {
+                    context
+                        .modules
+                        .get(scope)
+                        .unwrap()
+                        .resolve_operator_inner(operator, from_scope, context, &mut path.to_vec())
+                        .transpose()
+                })
+                .collect::<Result<HashSet<_>, _>>()?;
+            if candidates.len() == 1 {
+                candidates.into_iter().next().unwrap()
+            } else if candidates.is_empty() {
+                match self.globbed_operators(operator, from_scope, context, path)? {
+                    Some(resolved) => resolved,
+                    None => return Ok(None),
+                }
+            } else {
+                return Err(crate::Error::parse(&format!(
+                    "Ambiguous reference to operator {}. Could be referring to any of:\n{}",
+                    operator,
+                    candidates
+                        .iter()
+                        .map(|candidate| format!("\t{}", candidate))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )));
+            }
+        } else {
+            match self.globbed_operators(operator, from_scope, context, path)? {
+                Some(resolved) => resolved,
+                None => return Ok(None),
+            }
+        };
+
+        if self.scope >= *from_scope || self.operator_exports.contains(&operator.name()) {
+            Ok(Some(resolved))
+        } else {
+            Err(crate::Error::parse(&format!(
+                "Operator {} is not visible from scope {}.",
+                operator, from_scope
+            )))
+        }
+    }
+
+    fn globbed_operators<'a>(
+        &'a self,
+        operator: &OpKey,
+        from_scope: &'a Scope,
+        context: &'a Context,
+        path: &[&'a Scope],
+    ) -> crate::Result<Option<&'a Handle>> {
+        let candidates = self
+            .globbed_modules()
+            .filter_map(|scope| {
+                context
+                    .modules
+                    .get(scope)
+                    .unwrap()
+                    .resolve_operator_inner(operator, from_scope, context, &mut path.to_vec())
+                    .transpose()
+            })
+            .collect::<Result<HashSet<_>, _>>()?;
+        if candidates.len() == 1 {
+            Ok(Some(candidates.into_iter().next().unwrap()))
+        } else if candidates.is_empty() {
+            Ok(None)
+        } else {
+            Err(crate::Error::parse(&format!(
+                "Ambiguous reference to operator {}. Could be referring to any of:\n{}",
+                operator,
+                candidates
+                    .iter()
+                    .map(|candidate| format!("\t{}", candidate))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )))
+        }
     }
 
     pub fn globbed_modules(&self) -> impl Iterator<Item = &Scope> {
@@ -296,6 +423,51 @@ impl ModuleHeader {
                     "Exported predicate {} cannot be found.",
                     export.head(),
                 )));
+            }
+        }
+        for operator in self.operators.keys() {
+            if self
+                .resolve_operator(operator, &self.scope, context)
+                .is_err()
+            {
+                errors.push(crate::Error::parse(&format!(
+                    "Predicate definition for operator {} cannot be found.",
+                    operator,
+                )));
+            }
+        }
+        for operator_export in &self.operator_exports {
+            let op_exists = OpKey::all_types(operator_export.clone())
+                .filter(|operator| {
+                    self.resolve_operator(operator, &self.scope, context)
+                        .is_ok()
+                })
+                .next()
+                .is_some();
+            if !op_exists {
+                errors.push(crate::Error::parse(&format!(
+                    "Exported operator {} cannot be found.",
+                    operator_export,
+                )));
+            }
+        }
+        for (_, scopes) in &self.operator_aliases {
+            for scope in scopes {
+                if let Some(lib) = scope.library().first() {
+                    if !context.libraries.contains_key(lib) {
+                        errors.push(crate::Error::parse(&format!(
+                            "Referencing unlinked library {} in import {}.",
+                            lib, scope,
+                        )));
+                    }
+                } else {
+                    if !context.modules.contains_key(scope) {
+                        errors.push(crate::Error::parse(&format!(
+                            "Unresolved module {} in import.",
+                            scope,
+                        )));
+                    }
+                }
             }
         }
         for mutable in &self.mutables {

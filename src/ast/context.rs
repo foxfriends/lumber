@@ -151,6 +151,13 @@ impl<'p> Context<'p> {
         }
     }
 
+    pub(crate) fn declare_operator_export(&mut self, operator: Atom) {
+        let export = self.current_module_mut().insert_public_operator(operator);
+        if let Some(export) = export {
+            self.error_duplicate_export_op(export);
+        }
+    }
+
     pub(crate) fn declare_mutable(&mut self, handle: Handle) {
         let handle = self.current_module_mut().insert_mutable(handle);
         if let Some(handle) = handle {
@@ -260,6 +267,31 @@ impl<'p> Context<'p> {
             }
         }
     }
+
+    pub(crate) fn resolve_operator<'a>(&'a mut self, operator: &OpKey) -> Option<Handle> {
+        self.resolve_operator_in_scope(operator, &self.current_scope.clone())
+    }
+
+    pub(crate) fn resolve_operator_in_scope<'a>(
+        &'a mut self,
+        operator: &OpKey,
+        in_scope: &Scope,
+    ) -> Option<Handle> {
+        let resolved = match self.modules.get(in_scope) {
+            Some(module) => module.resolve_operator(operator, in_scope, self),
+            None => {
+                self.error_undeclared_module_op(operator, in_scope);
+                return None;
+            }
+        };
+        match resolved {
+            Ok(resolved) => Some(resolved.clone()),
+            Err(error) => {
+                self.current_errors_mut().push(error);
+                None
+            }
+        }
+    }
 }
 
 impl Context<'_> {
@@ -278,6 +310,13 @@ impl Context<'_> {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} exported multiple times.",
             handle
+        )));
+    }
+
+    pub(crate) fn error_duplicate_export_op(&mut self, operator: Atom) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "operator {} exported multiple times.",
+            operator.as_ref()
         )));
     }
 
@@ -362,6 +401,13 @@ impl Context<'_> {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "Referencing predicate {} from undeclared module {}.",
             handle, module,
+        )));
+    }
+
+    pub(crate) fn error_undeclared_module_op(&mut self, operator: &OpKey, module: &Scope) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Referencing operator {} from undeclared module {}.",
+            operator, module,
         )));
     }
 

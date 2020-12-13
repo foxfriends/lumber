@@ -45,6 +45,18 @@ impl Body {
             }
         }
     }
+
+    pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, resolve: &mut F) {
+        self.handles_mut().for_each(move |handle| {
+            if let Some(resolved) = resolve(handle) {
+                *handle = resolved;
+            }
+        });
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, resolve: &mut F) {
+        self.0.resolve_operators(resolve)
+    }
 }
 
 impl Display for Body {

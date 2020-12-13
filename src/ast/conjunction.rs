@@ -19,6 +19,12 @@ impl Conjunction {
         Some(Self { terms })
     }
 
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+        self.terms
+            .iter_mut()
+            .for_each(move |term| term.resolve_operators(&mut resolve))
+    }
+
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.terms.iter_mut().flat_map(|term| term.handles_mut())
     }

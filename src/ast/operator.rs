@@ -39,6 +39,24 @@ pub(crate) enum OpKey {
     Expression(Atom, OpArity),
 }
 
+impl OpKey {
+    pub fn all_types(name: Atom) -> impl Iterator<Item = OpKey> {
+        vec![
+            OpKey::Relation(name.clone(), OpArity::Unary),
+            OpKey::Relation(name.clone(), OpArity::Binary),
+            OpKey::Expression(name.clone(), OpArity::Unary),
+            OpKey::Expression(name, OpArity::Binary),
+        ]
+        .into_iter()
+    }
+
+    pub fn name(&self) -> Atom {
+        match self {
+            Self::Relation(name, ..) | Self::Expression(name, ..) => name.clone(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Operator {
     key: OpKey,
@@ -51,8 +69,8 @@ impl Operator {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::op, pair.as_rule());
         let mut pairs = pair.into_inner();
+        let name = Atom::from(pairs.next().unwrap().as_str());
         let handle = Handle::new(pairs.next().unwrap(), context);
-        let name = Atom::from(pairs.next().unwrap().to_string());
         match pairs.next() {
             Some(pair) => {
                 let assoc = match pair.as_rule() {
@@ -106,6 +124,10 @@ impl Operator {
     pub fn add_lib(&mut self, lib: Atom) {
         self.handle.add_lib(lib);
     }
+
+    pub fn handle(&self) -> &Handle {
+        &self.handle
+    }
 }
 
 impl Display for Operator {
@@ -117,7 +139,7 @@ impl Display for Operator {
 impl Display for OpKey {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Relation(atom, ..) | Self::Expression(atom, ..) => write!(f, "{}", atom),
+            Self::Relation(atom, ..) | Self::Expression(atom, ..) => write!(f, "{}", atom.as_ref()),
         }
     }
 }
