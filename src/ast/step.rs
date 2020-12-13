@@ -23,35 +23,37 @@ impl Step {
             Rule::unification => Self::from_unification(pair, context)?,
             Rule::predicate => Self::Query(Query::new(pair, context)?),
             Rule::disjunction => Self::Body(Body::new_inner(pair, context)?),
-            Rule::relation => {
-                let mut pairs = pair.into_inner();
-                let pair = pairs.next().unwrap();
-                let (lhs, operator) = match pair.as_rule() {
-                    Rule::term => {
-                        let lhs = Term::new(pair, context)?;
-                        let operator = Atom::from(pairs.next().unwrap().as_str());
-                        (Some(lhs), operator)
-                    }
-                    Rule::operator => {
-                        let operator = Atom::from(pairs.next().unwrap().as_str());
-                        (None, operator)
-                    }
-                    _ => unreachable!(),
-                };
-                let rhs = Term::new(pairs.next().unwrap(), context)?;
-                Self::Relation(lhs, operator, rhs)
-            }
+            Rule::relation => Self::from_relation(pair, context)?,
             _ => unreachable!(),
         };
         Some(step)
     }
 
-    pub fn from_unification(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    fn from_unification(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::unification);
         let mut pairs = pair.into_inner();
         let lhs = Expression::new(pairs.next().unwrap(), context)?;
         let rhs = Expression::new(pairs.next().unwrap(), context)?;
         Some(Self::Unification(lhs, rhs))
+    }
+
+    fn from_relation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+        let mut pairs = pair.into_inner();
+        let pair = pairs.next().unwrap();
+        let (lhs, operator) = match pair.as_rule() {
+            Rule::term => {
+                let lhs = Term::new(pair, context)?;
+                let operator = Atom::from(pairs.next().unwrap().as_str());
+                (Some(lhs), operator)
+            }
+            Rule::operator => {
+                let operator = Atom::from(pairs.next().unwrap().as_str());
+                (None, operator)
+            }
+            _ => unreachable!(),
+        };
+        let rhs = Term::new(pairs.next().unwrap(), context)?;
+        Some(Self::Relation(lhs, operator, rhs))
     }
 
     pub fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
