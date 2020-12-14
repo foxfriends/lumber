@@ -103,7 +103,7 @@ impl Operator {
                     1 => OpKey::Relation(name, OpArity::Unary),
                     2 => OpKey::Relation(name, OpArity::Binary),
                     len => {
-                        context.error_operator_arity_expression(name, len);
+                        context.error_operator_arity_relation(name, len);
                         return None;
                     }
                 };
@@ -127,6 +127,10 @@ impl Operator {
 
     pub fn handle(&self) -> &Handle {
         &self.handle
+    }
+
+    pub fn handle_mut(&mut self) -> &mut Handle {
+        &mut self.handle
     }
 }
 

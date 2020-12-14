@@ -34,21 +34,6 @@ impl Arity {
         self.fields.push((atom, len));
     }
 
-    pub fn extend_len(&mut self) {
-        *self
-            .fields
-            .last_mut()
-            .map(|field| &mut field.1)
-            .unwrap_or(&mut self.len) += 1;
-    }
-
-    pub fn new_len(len: u32) -> Self {
-        Self {
-            len,
-            fields: vec![],
-        }
-    }
-
     pub fn can_alias(&self, other: &Self) -> bool {
         self.len == other.len
             && self.fields.len() == other.fields.len()

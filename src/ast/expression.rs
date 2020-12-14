@@ -7,7 +7,8 @@ pub(crate) struct Expression(Vec<Op>);
 
 #[derive(Clone, Debug)]
 pub(crate) enum Op {
-    Rator(Atom), // TODO: operators
+    RatorRef(Atom),
+    Rator(Operator),
     Rand(Term),
 }
 
@@ -17,7 +18,7 @@ impl Expression {
         let operation = pair
             .into_inner()
             .map(|pair| match pair.as_rule() {
-                Rule::operator => Some(Op::Rator(Atom::from(pair.as_str()))),
+                Rule::operator => Some(Op::RatorRef(Atom::from(pair.as_str()))),
                 Rule::term => Some(Op::Rand(Term::new(pair, context)?)),
                 _ => unreachable!(),
             })
@@ -29,11 +30,13 @@ impl Expression {
         Box::new(
             self.0
                 .iter_mut()
-                .filter_map(|op| match op {
-                    Op::Rator(..) => None,
-                    Op::Rand(term) => Some(term),
-                })
-                .flat_map(|term| term.handles_mut()),
+                .flat_map(|op| -> Box<dyn Iterator<Item = &mut Handle>> {
+                    match op {
+                        Op::RatorRef(..) => Box::new(std::iter::empty()),
+                        Op::Rator(operator) => Box::new(std::iter::once(operator.handle_mut())),
+                        Op::Rand(term) => term.handles_mut(),
+                    }
+                }),
         )
     }
 
@@ -42,11 +45,22 @@ impl Expression {
             self.0
                 .iter()
                 .filter_map(|op| match op {
-                    Op::Rator(..) => None,
                     Op::Rand(term) => Some(term),
+                    _ => None,
                 })
                 .flat_map(|term| term.identifiers()),
         )
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+        for _i in 0..self.0.len() {
+            // TODO: what is the algorithm?
+            // If left is Term and right is Term => infix
+            // If left is Term and right is not => postfix or infix
+            // If right is Term and left is not => prefix or infix
+            // Within a chain of multiple operators, exactly one is infix
+            // If there are multiple candidates for the infix operator, fix them in order of precedence
+        }
     }
 }
 
@@ -64,7 +78,8 @@ impl Display for Expression {
 impl Display for Op {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Op::Rator(rator) => rator.fmt(f),
+            Op::RatorRef(name) => write!(f, "{}", name.as_ref()),
+            Op::Rator(operator) => operator.fmt(f),
             Op::Rand(rand) => rand.fmt(f),
         }
     }

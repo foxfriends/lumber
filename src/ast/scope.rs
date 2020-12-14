@@ -40,13 +40,6 @@ impl PartialOrd for Scope {
 }
 
 impl Scope {
-    pub fn builtin(name: &'static str) -> Self {
-        Self {
-            lib: vec![Atom::from("core")],
-            path: vec![Atom::from(name)],
-        }
-    }
-
     pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::scope, pair.as_rule());
         let mut pairs = pair.into_inner();

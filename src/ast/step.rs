@@ -93,8 +93,13 @@ impl Step {
                     None => {} // an error should be recorded in the context
                 }
             }
-            Self::Query(query) => {}
-            Self::Unification(lhs, rhs) => {}
+            Self::Query(query) => query
+                .args_mut()
+                .for_each(|expr| expr.resolve_operators(&mut resolve)),
+            Self::Unification(lhs, rhs) => {
+                lhs.resolve_operators(&mut resolve);
+                rhs.resolve_operators(&mut resolve);
+            }
             _ => {}
         }
     }

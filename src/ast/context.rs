@@ -107,10 +107,6 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub(crate) fn fresh_variable(&mut self) -> Identifier {
-        self.get_variable(&format!("#{}", self.current_environment.len()))
-    }
-
     pub(crate) fn reset_environment(&mut self) {
         self.current_environment.clear();
     }

@@ -48,7 +48,6 @@ pub(crate) use scope::Scope;
 pub(crate) use step::Step;
 pub(crate) use term::Term;
 
-mod builtin;
 mod context;
 mod module_header;
 // mod prec_climber;
