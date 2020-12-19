@@ -47,7 +47,7 @@ impl Step {
                 (Some(lhs), operator)
             }
             Rule::operator => {
-                let operator = Atom::from(pairs.next().unwrap().as_str());
+                let operator = Atom::from(pair.as_str());
                 (None, operator)
             }
             _ => unreachable!(),
