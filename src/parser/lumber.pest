@@ -73,7 +73,7 @@ quoted_atom       = @{ PUSH("#"*) ~ "'" ~ (!("'" ~ PEEK) ~ ANY)+ ~ "'" ~ POP }
 variable          = @{ &XID_START ~ (UPPERCASE_LETTER | TITLECASE_LETTER) ~ XID_CONTINUE* }
 wildcard          = @{ "_" ~ XID_CONTINUE* }
 
-expression        =  { operator* ~ term ~ (operator+ ~ term)* ~ operator* }
+expression        =  { operator* ~ term ~ (operator+ ~ term)* }
 term              =  { "(" ~ expression ~ ")" | aggregation | pattern }
 
 operator          = ${ !"=:=" ~ !"->" ~ !"->>" ~ !"!" ~ !"?" ~ operator_symbol+ }

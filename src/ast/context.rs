@@ -421,6 +421,13 @@ impl Context<'_> {
         )))
     }
 
+    pub(crate) fn error_unary_operator_restriction(&mut self, name: Atom) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Operator {} is defined as a unary expression operator, so must be right associative with maximum (9) precedence.",
+            name,
+        )))
+    }
+
     pub(crate) fn error_operator_arity_relation(&mut self, name: Atom, len: u32) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "Arity of relational operator {} must be 1 or 2, found {}.",
