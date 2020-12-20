@@ -73,8 +73,8 @@ impl<'p> Context<'p> {
             .into_iter()
             .filter_map(|test| {
                 let question = Question::new(test);
-                let answers = database.unify_test(&question).collect::<Vec<_>>();
-                if answers.is_empty() {
+                let failed = database.unify_test(&question).next().is_none();
+                if failed {
                     Some(question)
                 } else {
                     None
@@ -289,7 +289,7 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub(crate) fn resolve_operator<'a>(&'a mut self, operator: &OpKey) -> Option<Operator> {
+    pub(crate) fn resolve_operator(&mut self, operator: &OpKey) -> Option<Operator> {
         self.resolve_operator_in_scope(operator, &self.current_scope.clone())
     }
 

@@ -26,16 +26,16 @@ impl Term {
         assert_eq!(Rule::term, pair.as_rule());
         let pair = just!(pair.into_inner());
         match pair.as_rule() {
-            Rule::pattern => Self::new_value(pair, context),
+            Rule::pattern => Some(Self::new_value(pair, context)),
             Rule::aggregation => Self::new_aggregation(pair, context),
             Rule::expression => Some(Self::Expression(Expression::new(pair, context)?)),
             _ => unreachable!(),
         }
     }
 
-    fn new_value(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    fn new_value(pair: crate::Pair, context: &mut Context) -> Self {
         assert_eq!(Rule::pattern, pair.as_rule());
-        Some(Self::Value(Pattern::new(pair, context)))
+        Self::Value(Pattern::new(pair, context))
     }
 
     fn new_aggregation(pair: crate::Pair, context: &mut Context) -> Option<Self> {

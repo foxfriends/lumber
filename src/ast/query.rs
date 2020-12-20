@@ -18,7 +18,7 @@ impl Query {
         let (arity, args) = pairs
             .next()
             .map(|pair| arguments(pair, context))
-            .unwrap_or(Some((Arity::default(), vec![])))?;
+            .unwrap_or_else(|| Some((Arity::default(), vec![])))?;
         let handle = Handle::from_parts(scope, arity);
         Some(Query { handle, args })
     }

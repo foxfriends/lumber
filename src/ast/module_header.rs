@@ -262,7 +262,7 @@ impl ModuleHeader {
         }
     }
 
-    fn resolve_operator_inner<'a, 'b>(
+    fn resolve_operator_inner<'a>(
         &'a self,
         operator: &OpKey,
         from_scope: &'a Scope,
@@ -379,13 +379,11 @@ impl ModuleHeader {
                         lib, module,
                     )));
                 }
-            } else {
-                if !context.modules.contains_key(module) {
-                    errors.push(crate::Error::parse(&format!(
-                        "Unresolved module {} in glob import.",
-                        module,
-                    )));
-                }
+            } else if !context.modules.contains_key(module) {
+                errors.push(crate::Error::parse(&format!(
+                    "Unresolved module {} in glob import.",
+                    module,
+                )));
             }
         }
         for native in &self.natives {
@@ -437,13 +435,10 @@ impl ModuleHeader {
             }
         }
         for operator_export in &self.operator_exports {
-            let op_exists = OpKey::all_types(operator_export.clone())
-                .filter(|operator| {
-                    self.resolve_operator(operator, &self.scope, context)
-                        .is_ok()
-                })
-                .next()
-                .is_some();
+            let op_exists = OpKey::all_types(operator_export.clone()).any(|operator| {
+                self.resolve_operator(&operator, &self.scope, context)
+                    .is_ok()
+            });
             if !op_exists {
                 errors.push(crate::Error::parse(&format!(
                     "Exported operator {} cannot be found.",
@@ -451,7 +446,7 @@ impl ModuleHeader {
                 )));
             }
         }
-        for (_, scopes) in &self.operator_aliases {
+        for scopes in self.operator_aliases.values() {
             for scope in scopes {
                 if let Some(lib) = scope.library().first() {
                     if !context.libraries.contains_key(lib) {
@@ -460,13 +455,11 @@ impl ModuleHeader {
                             lib, scope,
                         )));
                     }
-                } else {
-                    if !context.modules.contains_key(scope) {
-                        errors.push(crate::Error::parse(&format!(
-                            "Unresolved module {} in import.",
-                            scope,
-                        )));
-                    }
+                } else if !context.modules.contains_key(scope) {
+                    errors.push(crate::Error::parse(&format!(
+                        "Unresolved module {} in import.",
+                        scope,
+                    )));
                 }
             }
         }

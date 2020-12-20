@@ -211,7 +211,7 @@ impl Database<'_> {
         };
         match definition {
             DatabaseDefinition::Static(definition) => {
-                self.unify_definition(definition, args, binding, public)
+                self.unify_definition(definition, args, binding)
             }
             DatabaseDefinition::Mutable(_definition) => {
                 todo!("Not sure yet how mutable definitions can be handled soundly")
@@ -219,14 +219,13 @@ impl Database<'_> {
             DatabaseDefinition::Native(native_function) => {
                 let values = args.iter().map(|p| binding.extract(p).unwrap()).collect();
                 Box::new(native_function.call(values).filter_map(move |values| {
-                    let values = values
+                    values
                         .into_iter()
                         .map(Into::into)
                         .zip(args.clone().into_iter())
                         .try_fold(binding.clone(), |binding, (lhs, rhs)| {
                             unify_patterns(Cow::Borrowed(&lhs), rhs, binding, &[])
-                        });
-                    values
+                        })
                 }))
             }
             _ => unreachable!(),
@@ -239,7 +238,6 @@ impl Database<'_> {
         definition: &'a Definition,
         expressions: Vec<Cow<'a, Pattern>>,
         input_binding: Cow<'a, Binding>,
-        public: bool,
     ) -> Bindings<'a> {
         Box::new(
             definition

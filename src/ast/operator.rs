@@ -86,7 +86,7 @@ impl Operator {
                 let key = match handle.arity.len() {
                     2 => {
                         if assoc != Associativity::Right || level != 9 {
-                            context.error_unary_operator_restriction(name.clone());
+                            context.error_unary_operator_restriction(name);
                             return None;
                         }
                         OpKey::Expression(name, OpArity::Unary)

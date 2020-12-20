@@ -12,14 +12,14 @@ pub(crate) enum Op<O> {
 }
 
 impl<O> Op<O> {
-    fn to_rator(self) -> Option<O> {
+    fn into_rator(self) -> Option<O> {
         match self {
             Self::Rator(o) => Some(o),
             _ => None,
         }
     }
 
-    fn to_rand(self) -> Option<Term> {
+    fn into_rand(self) -> Option<Term> {
         match self {
             Self::Rand(t) => Some(t),
             _ => None,
@@ -144,7 +144,7 @@ where
 }
 
 fn climb(mut inputs: impl Iterator<Item = Op<Operator>>) -> Term {
-    let lhs = inputs.next().and_then(Op::to_rand).unwrap();
+    let lhs = inputs.next().and_then(Op::into_rand).unwrap();
     climb_rec(lhs, 0, &mut inputs.peekable())
 }
 
@@ -159,8 +159,8 @@ where
             _ => unreachable!(),
         };
         if prec >= min_prec {
-            let op = inputs.next().and_then(Op::to_rator).unwrap();
-            let mut rhs = inputs.next().and_then(Op::to_rand).unwrap();
+            let op = inputs.next().and_then(Op::into_rator).unwrap();
+            let mut rhs = inputs.next().and_then(Op::into_rand).unwrap();
 
             while inputs.peek().is_some() {
                 let item = inputs.peek().unwrap();

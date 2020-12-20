@@ -72,26 +72,24 @@ impl Step {
     pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
         match self {
             Self::Relation(Some(lhs), operator, rhs) => {
-                match resolve(&OpKey::Relation(operator.clone(), OpArity::Binary)) {
-                    Some(operator) => {
-                        *self = Self::Query(Query {
-                            handle: operator.handle().clone(),
-                            args: vec![lhs.clone().into(), rhs.clone().into()],
-                        });
-                    }
-                    None => {} // an error should be recorded in the context
+                if let Some(operator) = resolve(&OpKey::Relation(operator.clone(), OpArity::Binary))
+                {
+                    *self = Self::Query(Query {
+                        handle: operator.handle().clone(),
+                        args: vec![lhs.clone().into(), rhs.clone().into()],
+                    });
                 }
+                // an error should have been recorded in the context already otherwise
             }
             Self::Relation(None, operator, rhs) => {
-                match resolve(&OpKey::Relation(operator.clone(), OpArity::Unary)) {
-                    Some(operator) => {
-                        *self = Self::Query(Query {
-                            handle: operator.handle().clone(),
-                            args: vec![rhs.clone().into()],
-                        });
-                    }
-                    None => {} // an error should be recorded in the context
+                if let Some(operator) = resolve(&OpKey::Relation(operator.clone(), OpArity::Unary))
+                {
+                    *self = Self::Query(Query {
+                        handle: operator.handle().clone(),
+                        args: vec![rhs.clone().into()],
+                    });
                 }
+                // an error should have been recorded in the context already otherwise
             }
             Self::Query(query) => query
                 .args_mut()
