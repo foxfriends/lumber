@@ -19,7 +19,7 @@ impl Procession {
         Some(Self { steps })
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
         self.steps
             .iter_mut()
             .for_each(move |step| step.resolve_operators(&mut resolve))

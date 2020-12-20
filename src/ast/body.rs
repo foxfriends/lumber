@@ -54,7 +54,7 @@ impl Body {
         });
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, resolve: &mut F) {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: &mut F) {
         self.0.resolve_operators(resolve)
     }
 }

@@ -54,7 +54,7 @@ mod module_header;
 
 pub(crate) use context::Context;
 pub(crate) use module_header::ModuleHeader;
-// pub(crate) use prec_climber::{Operator, PrecClimber};
+// pub(crate) use prec_climber::PrecClimber;
 
 #[cfg(test)]
 mod test;

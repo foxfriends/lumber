@@ -252,7 +252,7 @@ impl ModuleHeader {
         operator: &OpKey,
         from_scope: &'a Scope,
         context: &'a Context,
-    ) -> crate::Result<&'a Handle> {
+    ) -> crate::Result<&'a Operator> {
         match self.resolve_operator_inner(&operator, from_scope, context, &mut vec![])? {
             None => Err(crate::Error::parse(&format!(
                 "Unresolved operator {} in scope {}.",
@@ -268,7 +268,7 @@ impl ModuleHeader {
         from_scope: &'a Scope,
         context: &'a Context,
         path: &mut Vec<&'a Scope>,
-    ) -> crate::Result<Option<&'a Handle>> {
+    ) -> crate::Result<Option<&'a Operator>> {
         if path.contains(&&self.scope) {
             path.push(&self.scope);
             return Err(crate::Error::parse(&format!(
@@ -282,7 +282,7 @@ impl ModuleHeader {
         }
         path.push(&self.scope);
         let resolved = if let Some(op) = self.operators.get(operator) {
-            self.resolve(op.handle(), &self.scope, context)?
+            op
         } else if let Some(scopes) = self.operator_aliases.get(&operator.name()) {
             let candidates = scopes
                 .iter()
@@ -336,7 +336,7 @@ impl ModuleHeader {
         from_scope: &'a Scope,
         context: &'a Context,
         path: &[&'a Scope],
-    ) -> crate::Result<Option<&'a Handle>> {
+    ) -> crate::Result<Option<&'a Operator>> {
         let candidates = self
             .globbed_modules()
             .filter_map(|scope| {

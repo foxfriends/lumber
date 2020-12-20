@@ -57,7 +57,7 @@ impl OpKey {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Operator {
     key: OpKey,
     handle: Handle,
@@ -137,6 +137,14 @@ impl Operator {
 
     pub fn handle_mut(&mut self) -> &mut Handle {
         &mut self.handle
+    }
+
+    pub fn assoc(&self) -> Associativity {
+        self.assoc
+    }
+
+    pub fn prec(&self) -> usize {
+        self.prec
     }
 }
 

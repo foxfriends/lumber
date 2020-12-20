@@ -34,7 +34,7 @@ impl Definition {
             .for_each(move |body| body.resolve_handles(&mut resolve));
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
         self.bodies_mut()
             .for_each(move |body| body.resolve_operators(&mut resolve));
     }

@@ -216,10 +216,35 @@ impl<'p> Context<'p> {
             .modules
             .iter()
             .filter(|(scope, _)| scope.library().is_empty());
-        for (scope, module) in modules {
+        for (scope, module) in modules.clone() {
             let errors = module.errors(self, natives);
             if !errors.is_empty() {
                 self.errors.entry(scope.clone()).or_default().extend(errors);
+            }
+        }
+        let mappings: HashMap<_, _> = modules
+            .map(|(a, b)| (a.clone(), b.clone()))
+            .collect::<Vec<(_, _)>>()
+            .into_iter()
+            .map(|(scope, module)| {
+                let mappings: HashMap<_, _> = module
+                    .operators
+                    .iter()
+                    .filter_map(|(op_key, operator)| {
+                        let handle = self.resolve_handle_in_scope(
+                            operator.handle(),
+                            &operator.handle().module(),
+                        )?;
+                        Some((op_key.clone(), handle))
+                    })
+                    .collect();
+                (scope, mappings)
+            })
+            .collect();
+        for (scope, mappings) in mappings {
+            let module = self.modules.get_mut(&scope).unwrap();
+            for (op_key, handle) in mappings {
+                *module.operators.get_mut(&op_key).unwrap().handle_mut() = handle;
             }
         }
     }
@@ -264,7 +289,7 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub(crate) fn resolve_operator<'a>(&'a mut self, operator: &OpKey) -> Option<Handle> {
+    pub(crate) fn resolve_operator<'a>(&'a mut self, operator: &OpKey) -> Option<Operator> {
         self.resolve_operator_in_scope(operator, &self.current_scope.clone())
     }
 
@@ -272,7 +297,7 @@ impl<'p> Context<'p> {
         &'a mut self,
         operator: &OpKey,
         in_scope: &Scope,
-    ) -> Option<Handle> {
+    ) -> Option<Operator> {
         let resolved = match self.modules.get(in_scope) {
             Some(module) => module.resolve_operator(operator, in_scope, self),
             None => {

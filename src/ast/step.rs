@@ -69,13 +69,13 @@ impl Step {
         }
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
         match self {
             Self::Relation(Some(lhs), operator, rhs) => {
                 match resolve(&OpKey::Relation(operator.clone(), OpArity::Binary)) {
-                    Some(handle) => {
+                    Some(operator) => {
                         *self = Self::Query(Query {
-                            handle: handle,
+                            handle: operator.handle().clone(),
                             args: vec![lhs.clone().into(), rhs.clone().into()],
                         });
                     }
@@ -84,9 +84,9 @@ impl Step {
             }
             Self::Relation(None, operator, rhs) => {
                 match resolve(&OpKey::Relation(operator.clone(), OpArity::Unary)) {
-                    Some(handle) => {
+                    Some(operator) => {
                         *self = Self::Query(Query {
-                            handle: handle,
+                            handle: operator.handle().clone(),
                             args: vec![rhs.clone().into()],
                         });
                     }

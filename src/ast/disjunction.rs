@@ -38,7 +38,7 @@ impl Disjunction {
             .flat_map(|(head, tail)| std::iter::once(head).chain(tail.iter()))
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Handle>>(&mut self, mut resolve: F) {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
         self.conjunctions_mut()
             .for_each(move |conjunction| conjunction.resolve_operators(&mut resolve))
     }

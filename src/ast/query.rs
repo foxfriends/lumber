@@ -30,6 +30,14 @@ impl Query {
     pub fn args_mut(&mut self) -> impl Iterator<Item = &mut Expression> {
         self.args.iter_mut()
     }
+
+    pub fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
+    pub fn args(&self) -> &[Expression] {
+        &self.args
+    }
 }
 
 impl AsRef<Handle> for Query {

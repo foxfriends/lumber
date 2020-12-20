@@ -3,8 +3,6 @@ use super::{unify_patterns, Bindings};
 use crate::ast::*;
 use crate::{Binding, Question};
 use std::borrow::Cow;
-use std::rc::Rc;
-
 #[cfg(feature = "test-perf")]
 struct FlameIterator<I>(I, usize);
 
@@ -156,90 +154,99 @@ impl Database<'_> {
         public: bool,
     ) -> Bindings<'a> {
         match unification {
-            Step::Query(query) => {
-                let definition = match self.lookup(query.as_ref(), public) {
-                    Some(definition) => definition,
-                    None => return Box::new(std::iter::empty()),
-                };
-                match definition {
-                    DatabaseDefinition::Static(definition) => {
-                        self.unify_definition(&query, definition, binding, public)
-                    }
-                    DatabaseDefinition::Mutable(_definition) => {
-                        todo!("Not sure yet how mutable definitions can be handled soundly")
-                        // self.unify_definition(&query, &*definition.borrow(), binding, public)
-                    }
-                    DatabaseDefinition::Native(native_function) => {
-                        let values = query
-                            .args
-                            .iter()
-                            .map(|expression| {
-                                let pattern =
-                                    self.evaluate_expression(expression, binding.as_ref(), public)?;
-                                Some(binding.extract(pattern.as_ref()).unwrap())
-                            })
-                            .collect::<Option<Vec<_>>>();
-                        let values = match values {
-                            Some(values) => values,
-                            None => return Box::new(std::iter::empty()),
-                        };
-                        Box::new(native_function.call(values).filter_map(move |values| {
-                            let values = values
-                                .into_iter()
-                                .map(Into::into)
-                                .zip(query.args.iter())
-                                .try_fold(binding.clone(), |binding, (lhs, rhs)| {
-                                    let rhs =
-                                        self.evaluate_expression(rhs, binding.as_ref(), public)?;
-                                    Some(unify_patterns(Cow::Borrowed(&lhs), rhs, binding, &[])?)
-                                });
-                            values
-                        }))
-                    }
-                    _ => unreachable!(),
-                }
-            }
+            Step::Query(query) => Box::new(
+                self.evaluate_expressions(query.args(), binding, public)
+                    .flat_map(move |(arguments, binding)| {
+                        self.unify_query(query.handle(), arguments, binding, public)
+                    }),
+            ),
             Step::Relation(..) => {
                 unreachable!("Relations should be transformed into queries by now")
             }
             Step::Body(body) => self.unify_body(body, binding, public),
             Step::Unification(lhs, rhs) => {
-                let lhs = match self.evaluate_expression(lhs, binding.as_ref(), public) {
-                    Some(pattern) => pattern,
-                    None => return Box::new(std::iter::empty()),
-                };
-                let rhs = match self.evaluate_expression(rhs, binding.as_ref(), public) {
-                    Some(pattern) => pattern,
-                    None => return Box::new(std::iter::empty()),
-                };
-                Box::new(unify_patterns(lhs, rhs, binding, &[]).into_iter())
+                let (lvar, bindings) = self.evaluate_expression(lhs, binding, public);
+                Box::new(bindings.flat_map(move |binding| {
+                    let (rvar, bindings) = self.evaluate_expression(rhs, binding, public);
+                    bindings.flat_map({
+                        let lvar = lvar.clone();
+                        move |binding| {
+                            unify_patterns(Cow::Borrowed(&lvar), Cow::Borrowed(&rvar), binding, &[])
+                        }
+                    })
+                }))
             }
+        }
+    }
+
+    fn evaluate_expressions<'a>(
+        &'a self,
+        expressions: &'a [Expression],
+        binding: Cow<'a, Binding>,
+        public: bool,
+    ) -> impl Iterator<Item = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>)> {
+        expressions.iter().fold(
+            Box::new(std::iter::once((vec![], binding))) as Box<dyn Iterator<Item = _>>,
+            move |bindings: Box<dyn Iterator<Item = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>)>>,
+                  expression| {
+                Box::new(bindings.flat_map(move |(mut outputs, binding)| {
+                    let (var, bindings) = self.evaluate_expression(expression, binding, public);
+                    outputs.push(var);
+                    bindings.map(move |binding| (outputs.clone(), binding))
+                }))
+            },
+        )
+    }
+
+    fn unify_query<'a>(
+        &'a self,
+        handle: &'a Handle,
+        args: Vec<Cow<'a, Pattern>>,
+        binding: Cow<'a, Binding>,
+        public: bool,
+    ) -> Bindings<'a> {
+        let definition = match self.lookup(handle, public) {
+            Some(definition) => definition,
+            None => return Box::new(std::iter::empty()),
+        };
+        match definition {
+            DatabaseDefinition::Static(definition) => {
+                self.unify_definition(definition, args, binding, public)
+            }
+            DatabaseDefinition::Mutable(_definition) => {
+                todo!("Not sure yet how mutable definitions can be handled soundly")
+            }
+            DatabaseDefinition::Native(native_function) => {
+                let values = args.iter().map(|p| binding.extract(p).unwrap()).collect();
+                Box::new(native_function.call(values).filter_map(move |values| {
+                    let values = values
+                        .into_iter()
+                        .map(Into::into)
+                        .zip(args.clone().into_iter())
+                        .try_fold(binding.clone(), |binding, (lhs, rhs)| {
+                            unify_patterns(Cow::Borrowed(&lhs), rhs, binding, &[])
+                        });
+                    values
+                }))
+            }
+            _ => unreachable!(),
         }
     }
 
     #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_definition<'a>(
         &'a self,
-        query: &'a Query,
         definition: &'a Definition,
+        expressions: Vec<Cow<'a, Pattern>>,
         input_binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
-        let query_patterns = query
-            .args
-            .iter()
-            .map(|expression| self.evaluate_expression(expression, input_binding.as_ref(), public))
-            .collect::<Option<Vec<_>>>();
-        let query_patterns = match query_patterns {
-            None => return Box::new(std::iter::empty()),
-            Some(patterns) => Rc::new(patterns),
-        };
         Box::new(
             definition
                 .iter()
                 .map({
                     let input_binding = input_binding.clone();
-                    let query_patterns = query_patterns.clone();
+                    let expressions = expressions.clone();
                     move |(head, kind, body)| {
                         let output_binding = head
                             .identifiers()
@@ -248,7 +255,7 @@ impl Database<'_> {
                         let output_binding = Binding::transfer_from(
                             Cow::Owned(output_binding),
                             &input_binding,
-                            &query_patterns,
+                            &expressions,
                             &head.patterns.iter().map(Cow::Borrowed).collect::<Vec<_>>(),
                         );
                         (output_binding, head, *kind, body)
@@ -266,7 +273,7 @@ impl Database<'_> {
                 .fuse()
                 .flat_map(move |(binding, head, body)| {
                     let input_binding = input_binding.clone();
-                    let query_patterns = query_patterns.clone();
+                    let expressions = expressions.clone();
                     Box::new(
                         binding
                             .map(|binding| match body {
@@ -280,7 +287,7 @@ impl Database<'_> {
                                     input_binding.clone(),
                                     &output_binding,
                                     &head.patterns.iter().map(Cow::Borrowed).collect::<Vec<_>>(),
-                                    &query_patterns,
+                                    &expressions,
                                 )
                             }),
                     )
@@ -292,22 +299,47 @@ impl Database<'_> {
     fn evaluate_expression<'a>(
         &'a self,
         expression: &'a Expression,
-        binding: &Binding,
+        binding: Cow<'a, Binding>,
         public: bool,
-    ) -> Option<Cow<'a, Pattern>> {
-        todo!("evaluate expression by resolving operators using prec climber")
+    ) -> (Cow<'a, Pattern>, Bindings<'a>) {
+        self.evaluate_term(expression.single_term(), binding, public)
     }
 
     #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn evaluate_term<'a>(
         &'a self,
         term: &'a Term,
-        binding: &Binding,
+        mut binding: Cow<'a, Binding>,
         public: bool,
-    ) -> Option<Cow<'a, Pattern>> {
+    ) -> (Cow<'a, Pattern>, Bindings<'a>) {
         match term {
             Term::Expression(expression) => self.evaluate_expression(expression, binding, public),
-            Term::Value(pattern) => Some(Cow::Borrowed(pattern)),
+            Term::PrefixOp(..) => todo!(),
+            Term::InfixOp(lhs, op, rhs) => {
+                let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                let (lvar, bindings) = self.evaluate_term(lhs, binding, public);
+                let bindings = Box::new(bindings.flat_map({
+                    let dest = dest.clone();
+                    move |binding| {
+                        let (rvar, bindings) = self.evaluate_term(rhs, binding, public);
+                        bindings.flat_map({
+                            let lvar = lvar.clone();
+                            let rvar = rvar.clone();
+                            let dest = dest.clone();
+                            move |binding| {
+                                self.unify_query(
+                                    op.handle(),
+                                    vec![lvar.clone(), rvar.clone(), Cow::Owned(dest.clone())],
+                                    binding,
+                                    public,
+                                )
+                            }
+                        })
+                    }
+                }));
+                (Cow::Owned(dest), bindings)
+            }
+            Term::Value(pattern) => (Cow::Borrowed(pattern), Box::new(std::iter::once(binding))),
             #[cfg(feature = "builtin-sets")]
             Term::SetAggregation(pattern, body) => {
                 let solutions = self
@@ -318,10 +350,13 @@ impl Database<'_> {
             }
             Term::ListAggregation(pattern, body) => {
                 let solutions = self
-                    .unify_body(body, Cow::Borrowed(binding), public)
+                    .unify_body(body, binding.clone(), public)
                     .map(|binding| binding.apply(&pattern).unwrap())
                     .collect();
-                Some(Cow::Owned(Pattern::List(solutions, None)))
+                (
+                    Cow::Owned(Pattern::List(solutions, None)),
+                    Box::new(std::iter::once(binding)),
+                )
             }
         }
     }
