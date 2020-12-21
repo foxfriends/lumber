@@ -85,8 +85,8 @@ impl Expression {
                     prefixes.push(operator);
                 }
                 Op::Rator(name) => {
-                    arity = OpArity::Unary;
                     let operator = resolve(&OpKey::Expression(name, arity))?;
+                    arity = OpArity::Unary;
                     collapsed.push(Op::Rator(operator));
                 }
                 Op::Rand(term) => {

@@ -57,7 +57,8 @@ impl<'p> Context<'p> {
         } else {
             vec![]
         };
-        let mut database: Database = Database::new(root_module.into_definitions());
+        let mut database: Database =
+            Database::new(root_module.into_definitions(), self.public_operators());
         for (_, header) in self
             .modules
             .iter()
@@ -312,6 +313,14 @@ impl<'p> Context<'p> {
                 None
             }
         }
+    }
+
+    pub(crate) fn public_operators<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (Scope, HashMap<OpKey, Operator>)> + 'a {
+        self.modules
+            .iter()
+            .map(|(scope, module)| (scope.clone(), module.public_operators()))
     }
 }
 

@@ -57,10 +57,15 @@ pub(crate) struct Database<'p> {
     /// All currently active definitions in this program. They may not be the same as they
     /// were when the program was created, due to mutable definitions.
     pub(super) definitions: HashMap<Handle, DatabaseEntry<'p>>,
+    pub(super) operators: HashMap<Scope, HashMap<OpKey, Operator>>,
 }
 
 impl<'p> Database<'p> {
-    pub fn new<I: IntoIterator<Item = (Handle, Definition)>>(definitions: I) -> Self {
+    pub fn new<D, O>(definitions: D, operators: O) -> Self
+    where
+        D: IntoIterator<Item = (Handle, Definition)>,
+        O: IntoIterator<Item = (Scope, HashMap<OpKey, Operator>)>,
+    {
         let definitions = definitions
             .into_iter()
             .fold(
@@ -80,7 +85,11 @@ impl<'p> Database<'p> {
                 )
             })
             .collect();
-        Self { definitions }
+        let operators = operators.into_iter().collect();
+        Self {
+            definitions,
+            operators,
+        }
     }
 
     pub fn apply_header(
@@ -167,11 +176,23 @@ impl<'p> Database<'p> {
                 (handle, entry)
             })
             .collect();
+        self.operators = self
+            .operators
+            .into_iter()
+            .map(|(mut scope, mut operators)| {
+                scope.add_lib(lib.clone());
+                operators
+                    .values_mut()
+                    .for_each(|op| op.handle_mut().add_lib(lib.clone()));
+                (scope, operators)
+            })
+            .collect();
         self
     }
 
     pub fn merge(mut self, library: Self) -> Self {
         self.definitions.extend(library.definitions);
+        self.operators.extend(library.operators);
         self
     }
 }

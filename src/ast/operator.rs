@@ -167,15 +167,16 @@ impl Debug for Operator {
         match self {
             Self {
                 key: OpKey::Relation(atom, arity),
+                handle,
                 ..
-            } => write!(f, "{} ({})", atom, arity),
+            } => write!(f, "{} ({} = {})", atom, arity, handle),
             Self {
                 key: OpKey::Expression(atom, arity),
                 assoc,
                 prec,
-                ..
+                handle,
             } => {
-                write!(f, "{} ({} {} {})", atom, arity, assoc, prec)
+                write!(f, "{} ({} {} {} = {})", atom, arity, assoc, prec, handle)
             }
         }
     }

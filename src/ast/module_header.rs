@@ -281,6 +281,7 @@ impl ModuleHeader {
             )));
         }
         path.push(&self.scope);
+
         let resolved = if let Some(op) = self.operators.get(operator) {
             op
         } else if let Some(scopes) = self.operator_aliases.get(&operator.name()) {
@@ -367,6 +368,14 @@ impl ModuleHeader {
 
     pub fn globbed_modules(&self) -> impl Iterator<Item = &Scope> {
         self.globs.iter()
+    }
+
+    pub fn public_operators(&self) -> HashMap<OpKey, Operator> {
+        self.operators
+            .iter()
+            .filter(|(key, ..)| self.operator_exports.contains(&key.name()))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect()
     }
 
     pub fn errors(&self, context: &Context, native_handles: &[&Handle]) -> Vec<crate::Error> {
