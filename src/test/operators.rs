@@ -2,6 +2,7 @@ use super::*;
 
 test! {
     op_add => r#"
+    :- use(@core(+)).
     :- pub(add1/2).
     :- pub(join/3).
     add1(A, B) :- B =:= A + 1.
@@ -21,6 +22,7 @@ test! {
 
 test! {
     op_sub => r#"
+    :- use(@core(-)).
     :- pub(sub1/2).
     sub1(A, B) :- B =:= A - 1.
     "#
@@ -34,6 +36,7 @@ test! {
 
 test! {
     op_mul => r#"
+    :- use(@core(*)).
     :- pub(square/2).
     square(A, B) :- B =:= A * A.
     "#
@@ -50,6 +53,7 @@ test! {
 
 test! {
     op_div => r#"
+    :- use(@core(/)).
     :- pub(half/2).
     half(A, B) :- B =:= A / 2.
     "#
@@ -62,6 +66,7 @@ test! {
 
 test! {
     op_mod => r#"
+    :- use(@core(%)).
     :- pub(rem5/2).
     rem5(A, B) :- B =:= A % 5.
     "#

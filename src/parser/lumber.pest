@@ -10,12 +10,11 @@ use_              =  { "use" ~ "(" ~ multi_handle ~ ")" }
 pub_              =  { "pub" ~ "(" ~ (handle | operator) ~ ")" }
 mut_              =  { "mut" ~ "(" ~ handle ~ ")" }
 inc               =  { "inc" ~ "(" ~ handle ~ ")" }
-op                =  { "op" ~ "(" ~ operator ~ "," ~ handle ~ ("," ~ assoc ~ "," ~ integer_10)? ~ ")" }
+op                =  { "op" ~ "(" ~ operator ~ "," ~ handle ~ ("," ~ (left | right) ~ "," ~ integer_10)? ~ ")" }
 test              =  { "test" ~ "(" ~ body ~ ")" }
 
-assoc             =  { left | right }
-    left          =  { "left" }
-    right         =  { "right" }
+left          =  { "left" }
+right         =  { "right" }
 
 multi_handle      =  { module_path ~ ("(" ~ handles ~ ","? ~ ")")? }
 module_path       =  { scope | scope_prefix }

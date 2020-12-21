@@ -205,6 +205,7 @@ impl Database<'_> {
         binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
+        assert_eq!(handle.arity.len() as usize, args.len());
         let definition = match self.lookup(handle, public) {
             Some(definition) => definition,
             None => return Box::new(std::iter::empty()),
@@ -312,7 +313,23 @@ impl Database<'_> {
     ) -> (Cow<'a, Pattern>, Bindings<'a>) {
         match term {
             Term::Expression(expression) => self.evaluate_expression(expression, binding, public),
-            Term::PrefixOp(..) => todo!(),
+            Term::PrefixOp(op, rhs) => {
+                let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                let (rvar, bindings) = self.evaluate_term(rhs, binding, public);
+                let bindings = Box::new(bindings.flat_map({
+                    let rvar = rvar.clone();
+                    let dest = dest.clone();
+                    move |binding| {
+                        self.unify_query(
+                            op.handle(),
+                            vec![rvar.clone(), Cow::Owned(dest.clone())],
+                            binding,
+                            public,
+                        )
+                    }
+                }));
+                (Cow::Owned(dest), bindings)
+            }
             Term::InfixOp(lhs, op, rhs) => {
                 let dest = Pattern::Variable(binding.to_mut().fresh_variable());
                 let (lvar, bindings) = self.evaluate_term(lhs, binding, public);
