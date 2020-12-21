@@ -160,8 +160,44 @@ impl Database<'_> {
                         self.unify_query(query.handle(), arguments, binding, public)
                     }),
             ),
-            Step::Relation(..) => {
-                unreachable!("Relations should be transformed into queries by now")
+            Step::Relation(None, op, rhs) => {
+                match self.resolve_operator(&OpKey::Relation(op.clone(), OpArity::Unary)) {
+                    Some(operator) => {
+                        let handle = operator.handle();
+                        let (pattern, bindings) = self.evaluate_term(rhs, binding, public);
+                        Box::new(bindings.flat_map(move |binding| {
+                            self.unify_query(handle, vec![pattern.clone()], binding, false)
+                        }))
+                    }
+                    None => Box::new(std::iter::empty()),
+                }
+            }
+            Step::Relation(Some(lhs), op, rhs) => {
+                match self.resolve_operator(&OpKey::Relation(op.clone(), OpArity::Binary)) {
+                    Some(operator) => {
+                        let handle = operator.handle();
+                        let (lvar, bindings) = self.evaluate_term(lhs, binding, public);
+                        Box::new(bindings.flat_map({
+                            let lvar = lvar.clone();
+                            move |binding| {
+                                let (rvar, bindings) = self.evaluate_term(rhs, binding, public);
+                                bindings.flat_map({
+                                    let lvar = lvar.clone();
+                                    let rvar = rvar.clone();
+                                    move |binding| {
+                                        self.unify_query(
+                                            handle,
+                                            vec![lvar.clone(), rvar.clone()],
+                                            binding,
+                                            false,
+                                        )
+                                    }
+                                })
+                            }
+                        }))
+                    }
+                    None => Box::new(std::iter::empty()),
+                }
             }
             Step::Body(body) => self.unify_body(body, binding, public),
             Step::Unification(lhs, rhs) => {

@@ -157,6 +157,12 @@ impl<'p> Database<'p> {
         }
     }
 
+    pub fn resolve_operator<'a>(&'a self, key: &OpKey) -> Option<&'a Operator> {
+        self.operators
+            .get(&Default::default())
+            .and_then(|operators| operators.get(key))
+    }
+
     pub fn exports(&self, handle: &Handle) -> bool {
         self.definitions
             .get(handle)
