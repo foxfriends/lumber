@@ -1,1 +1,3 @@
+:- use(@core(+)).
+
 add_lens(A, B, L) :- @list::len(A, AL), @list::len(B, BL), L =:= AL + BL.

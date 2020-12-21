@@ -6,12 +6,12 @@ use std::fmt::{self, Display, Formatter};
 pub(crate) struct Expression(Vec<Op<Atom>>);
 
 #[derive(Clone, Debug)]
-pub(crate) enum Op<O> {
+pub(crate) enum Op<O = Atom, T = Term> {
     Rator(O),
-    Rand(Term),
+    Rand(T),
 }
 
-impl<O> Op<O> {
+impl<O, T> Op<O, T> {
     fn into_rator(self) -> Option<O> {
         match self {
             Self::Rator(o) => Some(o),
@@ -19,7 +19,7 @@ impl<O> Op<O> {
         }
     }
 
-    fn into_rand(self) -> Option<Term> {
+    fn into_rand(self) -> Option<T> {
         match self {
             Self::Rand(t) => Some(t),
             _ => None,
@@ -67,39 +67,53 @@ impl Expression {
     }
 
     pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: F) {
-        self.resolve_operators_inner(resolve);
+        if let Some(term) = self.climb_operators(
+            resolve,
+            Clone::clone,
+            Term::prefix_operator,
+            Term::infix_operator,
+        ) {
+            self.0 = vec![Op::Rand(term)];
+        }
     }
 
-    pub fn resolve_operators_inner<F: FnMut(&OpKey) -> Option<Operator>>(
-        &mut self,
-        mut resolve: F,
-    ) -> Option<()> {
+    pub fn climb_operators<
+        Out,
+        Res: FnMut(&OpKey) -> Option<Operator>,
+        Init: Fn(&Term) -> Out,
+        Prefix: Fn(Out, Operator) -> Out,
+        Infix: Copy + Fn(Out, Operator, Out) -> Out,
+    >(
+        &self,
+        mut resolve: Res,
+        init: Init,
+        prefix: Prefix,
+        infix: Infix,
+    ) -> Option<Out> {
         let mut collapsed = vec![];
         // Resolve unary operators
         let mut arity = OpArity::Unary;
         let mut prefixes = vec![];
-        for op in self.0.clone() {
+        for op in &self.0 {
             match op {
                 Op::Rator(name) if arity == OpArity::Unary => {
-                    let operator = resolve(&OpKey::Expression(name, arity))?;
+                    let operator = resolve(&OpKey::Expression(name.clone(), arity))?;
                     prefixes.push(operator);
                 }
                 Op::Rator(name) => {
-                    let operator = resolve(&OpKey::Expression(name, arity))?;
+                    let operator = resolve(&OpKey::Expression(name.clone(), arity))?;
                     arity = OpArity::Unary;
                     collapsed.push(Op::Rator(operator));
                 }
                 Op::Rand(term) => {
                     arity = OpArity::Binary;
-                    let reduced = prefixes.drain(..).rev().fold(term, Term::prefix_operator);
+                    let reduced = prefixes.drain(..).rev().fold(init(term), &prefix);
                     collapsed.push(Op::Rand(reduced));
                 }
             }
         }
 
-        let term = climb(collapsed.into_iter());
-        self.0 = vec![Op::Rand(term)];
-        Some(())
+        Some(climb(collapsed.into_iter(), infix))
     }
 
     pub fn single_term(&self) -> &Term {
@@ -143,14 +157,22 @@ where
     }
 }
 
-fn climb(mut inputs: impl Iterator<Item = Op<Operator>>) -> Term {
+fn climb<Out, Infix: Copy + Fn(Out, Operator, Out) -> Out>(
+    mut inputs: impl Iterator<Item = Op<Operator, Out>>,
+    infix: Infix,
+) -> Out {
     let lhs = inputs.next().and_then(Op::into_rand).unwrap();
-    climb_rec(lhs, 0, &mut inputs.peekable())
+    climb_rec(lhs, 0, &mut inputs.peekable(), infix)
 }
 
-fn climb_rec<P>(mut lhs: Term, min_prec: usize, inputs: &mut std::iter::Peekable<P>) -> Term
+fn climb_rec<Out, P, Infix: Copy + Fn(Out, Operator, Out) -> Out>(
+    mut lhs: Out,
+    min_prec: usize,
+    inputs: &mut std::iter::Peekable<P>,
+    infix: Infix,
+) -> Out
 where
-    P: Iterator<Item = Op<Operator>>,
+    P: Iterator<Item = Op<Operator, Out>>,
 {
     while inputs.peek().is_some() {
         let item = inputs.peek().unwrap();
@@ -169,13 +191,13 @@ where
                     _ => unreachable!(),
                 };
                 if new_prec > prec || assoc == Associativity::Right && new_prec == prec {
-                    rhs = climb_rec(rhs, new_prec, inputs);
+                    rhs = climb_rec(rhs, new_prec, inputs, infix);
                 } else {
                     break;
                 }
             }
 
-            lhs = Term::infix_operator(lhs, op, rhs);
+            lhs = infix(lhs, op, rhs);
         } else {
             break;
         }
