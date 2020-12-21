@@ -236,7 +236,7 @@ impl Database<'_> {
 
     fn unify_query<'a>(
         &'a self,
-        handle: &'a Handle,
+        handle: &Handle,
         args: Vec<Cow<'a, Pattern>>,
         binding: Cow<'a, Binding>,
         public: bool,
