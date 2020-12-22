@@ -3,6 +3,10 @@ use super::{unify_patterns, Bindings};
 use crate::ast::*;
 use crate::{Binding, Question};
 use std::borrow::Cow;
+
+type Evaluation<'a> = (Cow<'a, Pattern>, Bindings<'a>);
+type MultipleEvaluations<'a> = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>);
+
 #[cfg(feature = "test-perf")]
 struct FlameIterator<I>(I, usize);
 
@@ -220,11 +224,10 @@ impl Database<'_> {
         expressions: &'a [Expression],
         binding: Cow<'a, Binding>,
         public: bool,
-    ) -> impl Iterator<Item = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>)> {
+    ) -> impl Iterator<Item = MultipleEvaluations<'a>> {
         expressions.iter().fold(
             Box::new(std::iter::once((vec![], binding))) as Box<dyn Iterator<Item = _>>,
-            move |bindings: Box<dyn Iterator<Item = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>)>>,
-                  expression| {
+            move |bindings: Box<dyn Iterator<Item = MultipleEvaluations<'a>>>, expression| {
                 Box::new(bindings.flat_map(move |(mut outputs, binding)| {
                     let (var, bindings) = self.evaluate_expression(expression, binding, public);
                     outputs.push(var);
@@ -336,58 +339,61 @@ impl Database<'_> {
         expression: &'a Expression,
         binding: Cow<'a, Binding>,
         public: bool,
-    ) -> (Cow<'a, Pattern>, Bindings<'a>) {
-        let eval = expression.climb_operators::<Box<
-            dyn Fn(Cow<'a, Binding>) -> (Cow<'a, Pattern>, Bindings<'a>),
-        >, _, _, _, _, _>(
-            |operator| self.resolve_operator(operator),
-            move |term| Box::new(move |binding| self.evaluate_term(term, binding, public)),
-            move |term, operator| {
-                Box::new(move |mut binding| {
-                    let dest = Pattern::Variable(binding.to_mut().fresh_variable());
-                    let (out, bindings) = term(binding);
-                    (
-                        Cow::Owned(dest.clone()),
-                        Box::new(bindings.flat_map(move |binding| {
-                            self.unify_query(
-                                operator.handle(),
-                                vec![out.clone(), Cow::Owned(dest.clone())],
-                                binding,
-                                public,
-                            )
-                        })),
-                    )
-                })
-            },
-            move |lhs, operator, rhs| {
-                let rhs = std::rc::Rc::new(rhs);
-                Box::new(move |mut binding| {
-                    let dest = Pattern::Variable(binding.to_mut().fresh_variable());
-                    let (lvar, bindings) = lhs(binding);
-                    let bindings = Box::new(bindings.flat_map({
-                        let rhs = rhs.clone();
-                        let dest = dest.clone();
-                        move |binding| {
-                            let (rvar, bindings) = rhs(binding);
-                            bindings.flat_map({
-                                let lvar = lvar.clone();
-                                let rvar = rvar.clone();
-                                let dest = dest.clone();
-                                move |binding| {
-                                    self.unify_query(
-                                        operator.handle(),
-                                        vec![lvar.clone(), rvar.clone(), Cow::Owned(dest.clone())],
-                                        binding,
-                                        public,
-                                    )
-                                }
-                            })
-                        }
-                    }));
-                    (Cow::Owned(dest), bindings)
-                })
-            },
-        );
+    ) -> Evaluation<'a> {
+        let eval = expression
+            .climb_operators::<Box<dyn Fn(Cow<'a, Binding>) -> Evaluation<'a>>, _, _, _, _, _>(
+                |operator| self.resolve_operator(operator),
+                move |term| Box::new(move |binding| self.evaluate_term(term, binding, public)),
+                move |term, operator| {
+                    Box::new(move |mut binding| {
+                        let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                        let (out, bindings) = term(binding);
+                        (
+                            Cow::Owned(dest.clone()),
+                            Box::new(bindings.flat_map(move |binding| {
+                                self.unify_query(
+                                    operator.handle(),
+                                    vec![out.clone(), Cow::Owned(dest.clone())],
+                                    binding,
+                                    public,
+                                )
+                            })),
+                        )
+                    })
+                },
+                move |lhs, operator, rhs| {
+                    let rhs = std::rc::Rc::new(rhs);
+                    Box::new(move |mut binding| {
+                        let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                        let (lvar, bindings) = lhs(binding);
+                        let bindings = Box::new(bindings.flat_map({
+                            let rhs = rhs.clone();
+                            let dest = dest.clone();
+                            move |binding| {
+                                let (rvar, bindings) = rhs(binding);
+                                bindings.flat_map({
+                                    let lvar = lvar.clone();
+                                    let rvar = rvar.clone();
+                                    let dest = dest.clone();
+                                    move |binding| {
+                                        self.unify_query(
+                                            operator.handle(),
+                                            vec![
+                                                lvar.clone(),
+                                                rvar.clone(),
+                                                Cow::Owned(dest.clone()),
+                                            ],
+                                            binding,
+                                            public,
+                                        )
+                                    }
+                                })
+                            }
+                        }));
+                        (Cow::Owned(dest), bindings)
+                    })
+                },
+            );
         match eval {
             Some(eval) => eval(binding),
             // TODO: is wildcard the only thing that can be returned? should we start throwing errors?
@@ -401,7 +407,7 @@ impl Database<'_> {
         term: &'a Term,
         mut binding: Cow<'a, Binding>,
         public: bool,
-    ) -> (Cow<'a, Pattern>, Bindings<'a>) {
+    ) -> Evaluation<'a> {
         match term {
             Term::Expression(expression) => self.evaluate_expression(expression, binding, public),
             Term::PrefixOp(op, rhs) => {

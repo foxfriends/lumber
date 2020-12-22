@@ -315,9 +315,9 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub(crate) fn public_operators<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (Scope, HashMap<OpKey, Operator>)> + 'a {
+    pub(crate) fn public_operators(
+        &self,
+    ) -> impl Iterator<Item = (Scope, HashMap<OpKey, Operator>)> + '_ {
         self.modules
             .iter()
             .map(move |(scope, module)| (scope.clone(), module.public_operators(self)))

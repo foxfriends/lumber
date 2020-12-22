@@ -374,7 +374,7 @@ impl ModuleHeader {
         self.operator_exports
             .iter()
             .cloned()
-            .flat_map(|name| OpKey::all_types(name))
+            .flat_map(OpKey::all_types)
             .filter_map(|key| {
                 self.resolve_operator(&key, &self.scope, context)
                     .ok()
