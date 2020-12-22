@@ -370,11 +370,17 @@ impl ModuleHeader {
         self.globs.iter()
     }
 
-    pub fn public_operators(&self) -> HashMap<OpKey, Operator> {
-        self.operators
+    pub fn public_operators(&self, context: &Context) -> HashMap<OpKey, Operator> {
+        self.operator_exports
             .iter()
-            .filter(|(key, ..)| self.operator_exports.contains(&key.name()))
-            .map(|(key, value)| (key.clone(), value.clone()))
+            .cloned()
+            .flat_map(|name| OpKey::all_types(name))
+            .filter_map(|key| {
+                self.resolve_operator(&key, &self.scope, context)
+                    .ok()
+                    .cloned()
+                    .map(move |operator| (key, operator))
+            })
             .collect()
     }
 

@@ -320,7 +320,7 @@ impl<'p> Context<'p> {
     ) -> impl Iterator<Item = (Scope, HashMap<OpKey, Operator>)> + 'a {
         self.modules
             .iter()
-            .map(|(scope, module)| (scope.clone(), module.public_operators()))
+            .map(move |(scope, module)| (scope.clone(), module.public_operators(self)))
     }
 }
 
