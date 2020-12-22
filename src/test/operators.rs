@@ -1,75 +1,58 @@
 use super::*;
 
 test! {
-    op_add => r#"
-    :- pub(add1/2).
-    :- pub(join/3).
-    add1!(A) <- A + 1.
-
-    join!(A, B) <- A + " " + B.
+    operator_expressions => r#"
+    :- pub(+).
+    :- pub(-).
+    :- pub(*).
+    :- pub(/).
+    :- use(@core(add/3, sub/3, mul/3, div/3)).
+    :- op(+, add/3, left, 6).
+    :- op(-, sub/3, left, 6).
+    :- op(*, mul/3, left, 7).
+    :- op(/, div/3, left, 7).
     "#
-    ?- "add1(1, A)"
+    ?- "A =:= 6 / 3 + 3 * 2"
+        A = Value::integer(8);
+    ?- "A =:= 6 / (3 + 3) * 2"
         A = Value::integer(2);
-    ?- "add1(3, A)"
-        A = Value::integer(4);
-    ?- "add1(3.5, A)"
-        A = Value::rational(4.5);
-    ?- "add1(A, 3)"
-    ?- "add1(\"str\", A)"
-    ?- "join(\"hello\", \"world\", A)"
-        A = Value::string("hello world");
+    ?- "A =:= (6 / 3 + 3) * 2"
+        A = Value::integer(10);
 }
 
 test! {
-    op_sub => r#"
-    :- pub(sub1/2).
-    sub1!(A) <- A - 1.
+    operator_expressions_reexported => r#"
+    :- pub(+).
+    :- pub(-).
+    :- pub(*).
+    :- pub(/).
+    :- use(@core(+, -, *, /)).
     "#
-    ?- "sub1(1, A)"
-        A = Value::integer(0);
-    ?- "sub1(3.5, A)"
-        A = Value::rational(2.5);
-    ?- "sub1(\"str\", A)"
-    ?- "sub1(A, 3)"
+    ?- "A =:= 6 / 3 + 3 * 2"
+        A = Value::integer(8);
+    ?- "A =:= 6 / (3 + 3) * 2"
+        A = Value::integer(2);
+    ?- "A =:= (6 / 3 + 3) * 2"
+        A = Value::integer(10);
 }
 
 test! {
-    op_mul => r#"
-    :- pub(square/2).
-    square!(A) <- A * A.
+    operator_relations => r#"
+    :- pub(<).
+    :- use(@core(lt/2)).
+    :- op(<, lt/2).
     "#
-    ?- "square(1, A)"
-        A = Value::integer(1);
-    ?- "square(3, A)"
+    ?- "3 < 9";
+    ?- "A =:= 9, 3 < A"
         A = Value::integer(9);
-    ?- "square(3, A)"
+}
+
+test! {
+    operator_relations_reexported => r#"
+    :- pub(<).
+    :- use(@core(<)).
+    "#
+    ?- "3 < 9";
+    ?- "A =:= 9, 3 < A"
         A = Value::integer(9);
-    ?- "square(1.5, A)"
-        A = Value::rational(2.25);
-    ?- "square(A, 9)"
-}
-
-test! {
-    op_div => r#"
-    :- pub(half/2).
-    half!(A) <- A / 2.
-    "#
-    ?- "half(1, A)"
-        A = Value::integer(0);
-    ?- "half(1.0, A)"
-        A = Value::rational(0.5);
-    ?- "half(A, 1.5)"
-}
-
-test! {
-    op_mod => r#"
-    :- pub(rem5/2).
-    rem5!(A) <- A % 5.
-    "#
-    ?- "rem5(1, A)"
-        A = Value::integer(1);
-    ?- "rem5(4, A)"
-        A = Value::integer(4);
-    ?- "rem5(4.0, A)"
-    ?- "rem5(A, 5)"
 }

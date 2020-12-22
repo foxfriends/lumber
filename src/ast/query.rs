@@ -1,93 +1,42 @@
 use super::*;
 use crate::parser::Rule;
-use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Query {
     /// The shape of this query.
     pub(crate) handle: Handle,
-    /// The patterns in each field.
-    pub(crate) patterns: Vec<Pattern>,
+    /// The args in each field.
+    pub(crate) args: Vec<Expression>,
 }
 
 impl Query {
-    pub fn new(handle: Handle, patterns: Vec<Pattern>) -> Self {
-        Self { handle, patterns }
-    }
-
-    pub fn from_head(pair: crate::Pair, context: &mut Context) -> Self {
-        assert_eq!(pair.as_rule(), Rule::head);
-        Self::new_unscoped(pair, context)
-    }
-
-    pub fn from_function_head(pair: crate::Pair, context: &mut Context, output: Pattern) -> Self {
-        assert_eq!(pair.as_rule(), Rule::function_head);
-        let mut query = Self::new_unscoped(pair, context);
-        query.handle.arity.extend_len();
-        query.patterns.push(output);
-        query
-    }
-
-    fn new_unscoped(pair: crate::Pair, context: &mut Context) -> Self {
-        let mut pairs = pair.into_inner();
-        let atom = Atom::new(pairs.next().unwrap());
-        let scope = context.current_scope.join(atom);
-        let (arity, patterns) = pairs
-            .next()
-            .map(|pair| params(pair, context))
-            .unwrap_or((Arity::default(), vec![]));
-        let handle = Handle::from_parts(scope, arity);
-        Query { handle, patterns }
-    }
-
-    pub fn from_predicate(pair: crate::Pair, context: &mut Context) -> Option<Self> {
+    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(pair.as_rule(), Rule::predicate);
-        Self::new_scoped(pair, context)
-    }
-
-    pub fn from_call(pair: crate::Pair, context: &mut Context, output: Pattern) -> Option<Self> {
-        assert_eq!(pair.as_rule(), Rule::call);
-        let mut query = Self::new_scoped(pair, context)?;
-        query.handle.arity.extend_len();
-        query.patterns.push(output);
-        Some(query)
-    }
-
-    fn new_scoped(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         let mut pairs = pair.into_inner();
         let scope = Scope::new(pairs.next().unwrap(), context)?;
-        let (arity, patterns) = pairs
+        let (arity, args) = pairs
             .next()
-            .map(|pair| params(pair, context))
-            .unwrap_or((Arity::default(), vec![]));
+            .map(|pair| arguments(pair, context))
+            .unwrap_or_else(|| Some((Arity::default(), vec![])))?;
         let handle = Handle::from_parts(scope, arity);
-        Some(Query { handle, patterns })
+        Some(Query { handle, args })
     }
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.patterns
-            .iter()
-            .flat_map(|pattern| pattern.identifiers())
+        self.args.iter().flat_map(|pattern| pattern.identifiers())
     }
 
-    pub fn check_variables(&self, context: &mut Context) {
-        let counts = self
-            .identifiers()
-            .filter(|ident| !ident.is_wildcard())
-            .fold(
-                HashMap::<Identifier, usize>::default(),
-                |mut map, identifier| {
-                    *map.entry(identifier).or_default() += 1;
-                    map
-                },
-            );
+    pub fn args_mut(&mut self) -> impl Iterator<Item = &mut Expression> {
+        self.args.iter_mut()
+    }
 
-        for (identifier, count) in counts {
-            if count <= 1 {
-                context.error_singleton_variable(self.as_ref(), identifier.name());
-            }
-        }
+    pub fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
+    pub fn args(&self) -> &[Expression] {
+        &self.args
     }
 }
 
@@ -106,11 +55,11 @@ impl AsMut<Handle> for Query {
 impl Display for Query {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.handle.scope.fmt(f)?;
-        if self.patterns.is_empty() {
+        if self.args.is_empty() {
             return Ok(());
         }
         write!(f, "(")?;
-        for (i, pattern) in self.patterns.iter().enumerate() {
+        for (i, pattern) in self.args.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
@@ -135,33 +84,43 @@ impl Display for Query {
     }
 }
 
-fn params(pair: crate::Pair, context: &mut Context) -> (Arity, Vec<Pattern>) {
-    assert_eq!(pair.as_rule(), Rule::params);
+impl From<Head> for Query {
+    fn from(head: Head) -> Self {
+        Self {
+            handle: head.handle,
+            args: head.patterns.into_iter().map(Expression::from).collect(),
+        }
+    }
+}
+
+fn arguments(pair: crate::Pair, context: &mut Context) -> Option<(Arity, Vec<Expression>)> {
+    assert_eq!(pair.as_rule(), Rule::arguments);
     let mut pairs = pair.into_inner().peekable();
     let mut arity = Arity::default();
-    let mut patterns = vec![];
-    if pairs.peek().unwrap().as_rule() == Rule::bare_params {
-        patterns.extend(
+    let mut args = vec![];
+    if pairs.peek().unwrap().as_rule() == Rule::bare_arguments {
+        args.extend(
             pairs
                 .next()
                 .unwrap()
                 .into_inner()
-                .map(|pair| Pattern::new(pair, context)),
+                .map(|pair| Expression::new(pair, context))
+                .collect::<Option<Vec<_>>>()?,
         );
-        arity.len = patterns.len() as u32;
+        arity.len = args.len() as u32;
     }
     if let Some(pair) = pairs.next() {
-        assert_eq!(pair.as_rule(), Rule::named_params);
+        assert_eq!(pair.as_rule(), Rule::named_arguments);
         for pair in pair.into_inner() {
             let mut pairs = pair.into_inner();
             let name = Atom::new(pairs.next().unwrap());
-            let values = just!(Rule::bare_params, pairs)
+            let values = just!(Rule::bare_arguments, pairs)
                 .into_inner()
-                .map(|pair| Pattern::new(pair, context))
-                .collect::<Vec<_>>();
+                .map(|pair| Expression::new(pair, context))
+                .collect::<Option<Vec<_>>>()?;
             arity.push(name, values.len() as u32);
-            patterns.extend(values);
+            args.extend(values);
         }
     }
-    (arity, patterns)
+    Some((arity, args))
 }

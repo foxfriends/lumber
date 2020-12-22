@@ -9,7 +9,15 @@ macro_rules! test {
         fn $name() {
             let here = PathBuf::from(file!()).parent().unwrap().to_owned();
             let path = here.join(stringify!($name));
-            let program = Lumber::builder().test(true).build(path, $src).expect("syntax error");
+            let program = Lumber::builder().test(true).build(path, $src);
+            let program = match program {
+                Ok(program) => program,
+                Err(error) => {
+                    eprintln!("{}", error);
+                    assert!(false);
+                    return;
+                },
+            };
             $(
                 let question = Question::try_from($query).expect("question error");
                 let mut answers = program.ask(&question);
@@ -44,7 +52,6 @@ macro_rules! test {
 }
 
 mod accessibility;
-mod assumption;
 mod bindings;
 mod conjunction;
 mod disjunction;
@@ -53,4 +60,5 @@ mod once;
 mod operators;
 mod procession;
 mod records;
+mod relations;
 mod tests;

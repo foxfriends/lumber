@@ -1,203 +1,219 @@
 use super::*;
 use crate::parser::Rule;
-use pest::prec_climber::Assoc;
-use std::cell::RefCell;
 use std::fmt::{self, Display, Formatter};
 
-const fn left(token: &'static str) -> Operator {
-    Operator::new(token, Assoc::Left)
-}
-
-#[allow(dead_code)]
-const fn right(token: &'static str) -> Operator {
-    Operator::new(token, Assoc::Right)
-}
+#[derive(Clone, Debug)]
+pub(crate) struct Expression(Vec<Op<Atom>>);
 
 #[derive(Clone, Debug)]
-pub(crate) enum Expression {
-    Operation(Pattern, Vec<Unification>),
-    Value(Pattern),
-    #[cfg(feature = "builtin-sets")]
-    SetAggregation(Pattern, Body),
-    ListAggregation(Pattern, Body),
+pub(crate) enum Op<O = Atom, T = Term> {
+    Rator(O),
+    Rand(T),
+}
+
+pub(crate) trait OpTrait {
+    fn prec(&self) -> usize;
+    fn assoc(&self) -> Associativity;
+}
+
+impl<T> OpTrait for &T
+where
+    T: OpTrait,
+{
+    fn prec(&self) -> usize {
+        (*self).prec()
+    }
+
+    fn assoc(&self) -> Associativity {
+        (*self).assoc()
+    }
+}
+
+impl<O, T> Op<O, T> {
+    fn into_rator(self) -> Option<O> {
+        match self {
+            Self::Rator(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    fn into_rand(self) -> Option<T> {
+        match self {
+            Self::Rand(t) => Some(t),
+            _ => None,
+        }
+    }
 }
 
 impl Expression {
     pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
         assert_eq!(Rule::expression, pair.as_rule());
-        let pair = just!(pair.into_inner());
-        match pair.as_rule() {
-            Rule::operation => Self::new_operation(pair, context),
-            Rule::value => Self::new_value(pair, context),
-            Rule::aggregation => Self::new_aggregation(pair, context),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn new_operation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(Rule::operation, pair.as_rule());
-        let (result, work) = operation(pair, context)?;
-        Some(Self::Operation(result, work))
-    }
-
-    fn new_value(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(Rule::value, pair.as_rule());
-        let pair = just!(pair.into_inner());
-        match pair.as_rule() {
-            Rule::call => {
-                let output = Pattern::Variable(context.fresh_variable());
-                Some(Self::Operation(
-                    output.clone(),
-                    vec![Unification::Query(Query::from_call(pair, context, output)?)],
-                ))
-            }
-            _ => Some(Self::Value(Pattern::new_inner(pair, context))),
-        }
-    }
-
-    fn new_aggregation(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(Rule::aggregation, pair.as_rule());
-        let pair = just!(pair.into_inner());
-        let constructor = match pair.as_rule() {
-            #[cfg(feature = "builtin-sets")]
-            Rule::set_aggregation => Self::SetAggregation,
-            #[cfg(not(feature = "builtin-sets"))]
-            Rule::set_aggregation => unimplemented!(
-                "builtin-sets is not enabled, so set aggregation syntax cannot be used"
-            ),
-            Rule::list_aggregation => Self::ListAggregation,
-            _ => unreachable!(),
-        };
-        let pair = just!(Rule::aggregation_body, pair.into_inner());
-        let mut pairs = pair.into_inner();
-        let output = Pattern::new(pairs.next().unwrap(), context);
-        let body = Body::new_inner(pairs.next().unwrap(), context)?;
-        Some(constructor(output, body))
+        let operation = pair
+            .into_inner()
+            .map(|pair| match pair.as_rule() {
+                Rule::operator => Some(Op::Rator(Atom::from(pair.as_str()))),
+                Rule::term => Some(Op::Rand(Term::new(pair, context)?)),
+                _ => unreachable!(),
+            })
+            .collect::<Option<_>>()?;
+        Some(Self(operation))
     }
 
     pub fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
-        match self {
-            Self::Operation(.., unifications) => {
-                Box::new(unifications.iter_mut().flat_map(Unification::handles_mut))
-            }
-            Self::Value(..) => Box::new(std::iter::empty()),
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(.., body) => Box::new(body.handles_mut()),
-            Self::ListAggregation(.., body) => Box::new(body.handles_mut()),
-        }
+        Box::new(
+            self.0
+                .iter_mut()
+                .flat_map(|op| -> Box<dyn Iterator<Item = &mut Handle>> {
+                    match op {
+                        Op::Rator(..) => Box::new(std::iter::empty()),
+                        Op::Rand(term) => term.handles_mut(),
+                    }
+                }),
+        )
     }
 
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
-        match self {
-            Self::Operation(pattern, steps) => Box::new(
-                pattern
-                    .identifiers()
-                    .chain(steps.iter().flat_map(|step| step.identifiers())),
-            ),
-            Self::Value(pattern) => pattern.identifiers(),
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(pattern, body) => {
-                Box::new(pattern.identifiers().chain(body.identifiers()))
-            }
-            Self::ListAggregation(pattern, body) => {
-                Box::new(pattern.identifiers().chain(body.identifiers()))
+        Box::new(
+            self.0
+                .iter()
+                .filter_map(|op| match op {
+                    Op::Rand(term) => Some(term),
+                    _ => None,
+                })
+                .flat_map(|term| term.identifiers()),
+        )
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: F) {
+        if let Some(term) = self.climb_operators(
+            resolve,
+            Clone::clone,
+            Term::prefix_operator,
+            Term::infix_operator,
+        ) {
+            self.0 = vec![Op::Rand(term)];
+        }
+    }
+
+    pub fn climb_operators<
+        'a,
+        Out,
+        Resolved: OpTrait,
+        Res: FnMut(&OpKey) -> Option<Resolved>,
+        Init: Fn(&'a Term) -> Out,
+        Prefix: Fn(Out, Resolved) -> Out,
+        Infix: Copy + Fn(Out, Resolved, Out) -> Out,
+    >(
+        &'a self,
+        mut resolve: Res,
+        init: Init,
+        prefix: Prefix,
+        infix: Infix,
+    ) -> Option<Out> {
+        let mut collapsed = vec![];
+        // Resolve unary operators
+        let mut arity = OpArity::Unary;
+        let mut prefixes = vec![];
+        for op in &self.0 {
+            match op {
+                Op::Rator(name) if arity == OpArity::Unary => {
+                    let operator = resolve(&OpKey::Expression(name.clone(), arity))?;
+                    prefixes.push(operator);
+                }
+                Op::Rator(name) => {
+                    let operator = resolve(&OpKey::Expression(name.clone(), arity))?;
+                    arity = OpArity::Unary;
+                    collapsed.push(Op::Rator(operator));
+                }
+                Op::Rand(term) => {
+                    arity = OpArity::Binary;
+                    let reduced = prefixes.drain(..).rev().fold(init(term), &prefix);
+                    collapsed.push(Op::Rand(reduced));
+                }
             }
         }
+
+        Some(climb(collapsed.into_iter(), infix))
     }
 }
 
 impl Display for Expression {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.0
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<String>>()
+            .join(" ")
+            .fmt(f)
+    }
+}
+
+impl<O> Display for Op<O>
+where
+    O: AsRef<str>,
+{
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Operation(.., input) => {
-                for (i, unification) in input.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    unification.fmt(f)?;
+            Op::Rator(name) => write!(f, "{}", name.as_ref()),
+            Op::Rand(rand) => rand.fmt(f),
+        }
+    }
+}
+
+impl<T> From<T> for Expression
+where
+    Term: From<T>,
+{
+    fn from(value: T) -> Self {
+        Self(vec![Op::Rand(Term::from(value))])
+    }
+}
+
+fn climb<Out, Resolved: OpTrait, Infix: Copy + Fn(Out, Resolved, Out) -> Out>(
+    mut inputs: impl Iterator<Item = Op<Resolved, Out>>,
+    infix: Infix,
+) -> Out {
+    let lhs = inputs.next().and_then(Op::into_rand).unwrap();
+    climb_rec(lhs, 0, &mut inputs.peekable(), infix)
+}
+
+fn climb_rec<Out, Resolved: OpTrait, P, Infix: Copy + Fn(Out, Resolved, Out) -> Out>(
+    mut lhs: Out,
+    min_prec: usize,
+    inputs: &mut std::iter::Peekable<P>,
+    infix: Infix,
+) -> Out
+where
+    P: Iterator<Item = Op<Resolved, Out>>,
+{
+    while inputs.peek().is_some() {
+        let item = inputs.peek().unwrap();
+        let prec = match item {
+            Op::Rator(rator) => rator.prec(),
+            _ => unreachable!(),
+        };
+        if prec >= min_prec {
+            let op = inputs.next().and_then(Op::into_rator).unwrap();
+            let mut rhs = inputs.next().and_then(Op::into_rand).unwrap();
+
+            while inputs.peek().is_some() {
+                let item = inputs.peek().unwrap();
+                let (new_prec, assoc) = match item {
+                    Op::Rator(rator) => (rator.prec(), rator.assoc()),
+                    _ => unreachable!(),
+                };
+                if new_prec > prec || assoc == Associativity::Right && new_prec == prec {
+                    rhs = climb_rec(rhs, new_prec, inputs, infix);
+                } else {
+                    break;
                 }
-                Ok(())
             }
-            Self::Value(pattern) => pattern.fmt(f),
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(..) => todo!(),
-            Self::ListAggregation(pattern, body) => write!(f, "[{} : {}]", pattern, body),
+
+            lhs = infix(lhs, op, rhs);
+        } else {
+            break;
         }
     }
-}
 
-fn expression(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
-    let expression = Expression::new(pair, context)?;
-    match expression {
-        Expression::Value(value) => Some((value, vec![])),
-        Expression::Operation(output, steps) => Some((output, steps)),
-        aggregation => {
-            let output = Pattern::Variable(context.fresh_variable());
-            Some((
-                output.clone(),
-                vec![Unification::Assumption(output, aggregation)],
-            ))
-        }
-    }
-}
-
-fn operation(pair: crate::Pair, context: &mut Context) -> Option<(Pattern, Vec<Unification>)> {
-    let prec_climber = PrecClimber::new(vec![
-        // left("\\"),
-        // left("||"),
-        // left("&&"),
-        left("|"),
-        left("^"),
-        left("&"),
-        // left("==") | left("!="),
-        // left("<") | left(">") | left("<=") | left(">="),
-        left("+") | left("-"),
-        left("*") | left("/") | left("%"),
-        // right("**")
-    ]);
-    let context = RefCell::new(context);
-    prec_climber.climb(
-        pair.into_inner(),
-        |pair| expression(pair, *context.borrow_mut()),
-        |lhs, op, rhs| {
-            let context = &mut *context.borrow_mut();
-            let (lhs, mut lwork) = lhs?;
-            let (rhs, mut rwork) = rhs?;
-            let output = Pattern::Variable(context.fresh_variable());
-            let operation = match op.as_str() {
-                "+" => builtin::add(lhs, rhs, output.clone()),
-                "-" => builtin::sub(lhs, rhs, output.clone()),
-                "*" => builtin::mul(lhs, rhs, output.clone()),
-                "/" => builtin::div(lhs, rhs, output.clone()),
-                "%" => builtin::rem(lhs, rhs, output.clone()),
-                "|" => builtin::bitor(lhs, rhs, output.clone()),
-                "&" => builtin::bitand(lhs, rhs, output.clone()),
-                "^" => builtin::bitxor(lhs, rhs, output.clone()),
-                token => match op.into_inner().next() {
-                    Some(pair) => match pair.as_rule() {
-                        Rule::named_operator => {
-                            let pair = just!(pair.into_inner());
-                            let scope = Scope::new(pair, context)?;
-                            Unification::Query(Query::new(
-                                Handle::binop(scope),
-                                vec![lhs, rhs, output.clone()],
-                            ))
-                        }
-                        Rule::symbolic_operator => {
-                            context.error_unrecognized_operator(token);
-                            return None;
-                        }
-                        _ => unreachable!(),
-                    },
-                    None => {
-                        context.error_unrecognized_operator(token);
-                        return None;
-                    }
-                },
-            };
-            lwork.append(&mut rwork);
-            lwork.push(operation);
-            Some((output, lwork))
-        },
-    )
+    lhs
 }

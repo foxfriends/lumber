@@ -2,6 +2,7 @@ use super::*;
 use crate::program::*;
 use crate::{Lumber, Question};
 use pest::Span;
+use ramp::Int;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -56,7 +57,8 @@ impl<'p> Context<'p> {
         } else {
             vec![]
         };
-        let mut database: Database = Database::new(root_module.into_definitions());
+        let mut database: Database =
+            Database::new(root_module.into_definitions(), self.public_operators());
         for (_, header) in self
             .modules
             .iter()
@@ -72,8 +74,8 @@ impl<'p> Context<'p> {
             .into_iter()
             .filter_map(|test| {
                 let question = Question::new(test);
-                let answers = database.unify_test(&question).collect::<Vec<_>>();
-                if answers.is_empty() {
+                let failed = database.unify_test(&question).next().is_none();
+                if failed {
                     Some(question)
                 } else {
                     None
@@ -104,10 +106,6 @@ impl<'p> Context<'p> {
                 .insert(name.to_owned(), ident.clone());
             ident
         }
-    }
-
-    pub(crate) fn fresh_variable(&mut self) -> Identifier {
-        self.get_variable(&format!("#{}", self.current_environment.len()))
     }
 
     pub(crate) fn reset_environment(&mut self) {
@@ -150,6 +148,13 @@ impl<'p> Context<'p> {
         }
     }
 
+    pub(crate) fn declare_operator_export(&mut self, operator: Atom) {
+        let export = self.current_module_mut().insert_public_operator(operator);
+        if let Some(export) = export {
+            self.error_duplicate_export_op(export);
+        }
+    }
+
     pub(crate) fn declare_mutable(&mut self, handle: Handle) {
         let handle = self.current_module_mut().insert_mutable(handle);
         if let Some(handle) = handle {
@@ -187,6 +192,22 @@ impl<'p> Context<'p> {
         }
     }
 
+    pub(crate) fn declare_operator_alias(&mut self, operator: Atom, scope: Scope) {
+        let scope = self
+            .current_module_mut()
+            .insert_operator_alias(operator.clone(), scope);
+        if let Some(scope) = scope {
+            self.error_duplicate_operator_alias(operator, scope);
+        }
+    }
+
+    pub(crate) fn declare_operator(&mut self, operator: Operator) {
+        let operator = self.current_module_mut().insert_operator(operator);
+        if let Some(operator) = operator {
+            self.error_duplicate_operator(operator);
+        }
+    }
+
     pub(crate) fn declare_predicate(&mut self, predicate: Handle) {
         self.current_module_mut().insert(predicate);
     }
@@ -196,10 +217,35 @@ impl<'p> Context<'p> {
             .modules
             .iter()
             .filter(|(scope, _)| scope.library().is_empty());
-        for (scope, module) in modules {
+        for (scope, module) in modules.clone() {
             let errors = module.errors(self, natives);
             if !errors.is_empty() {
                 self.errors.entry(scope.clone()).or_default().extend(errors);
+            }
+        }
+        let mappings: HashMap<_, _> = modules
+            .map(|(a, b)| (a.clone(), b.clone()))
+            .collect::<Vec<(_, _)>>()
+            .into_iter()
+            .map(|(scope, module)| {
+                let mappings: HashMap<_, _> = module
+                    .operators
+                    .iter()
+                    .filter_map(|(op_key, operator)| {
+                        let handle = self.resolve_handle_in_scope(
+                            operator.handle(),
+                            &operator.handle().module(),
+                        )?;
+                        Some((op_key.clone(), handle))
+                    })
+                    .collect();
+                (scope, mappings)
+            })
+            .collect();
+        for (scope, mappings) in mappings {
+            let module = self.modules.get_mut(&scope).unwrap();
+            for (op_key, handle) in mappings {
+                *module.operators.get_mut(&op_key).unwrap().handle_mut() = handle;
             }
         }
     }
@@ -243,6 +289,39 @@ impl<'p> Context<'p> {
             }
         }
     }
+
+    pub(crate) fn resolve_operator(&mut self, operator: &OpKey) -> Option<Operator> {
+        self.resolve_operator_in_scope(operator, &self.current_scope.clone())
+    }
+
+    pub(crate) fn resolve_operator_in_scope<'a>(
+        &'a mut self,
+        operator: &OpKey,
+        in_scope: &Scope,
+    ) -> Option<Operator> {
+        let resolved = match self.modules.get(in_scope) {
+            Some(module) => module.resolve_operator(operator, in_scope, self),
+            None => {
+                self.error_undeclared_module_op(operator, in_scope);
+                return None;
+            }
+        };
+        match resolved {
+            Ok(resolved) => Some(resolved.clone()),
+            Err(error) => {
+                self.current_errors_mut().push(error);
+                None
+            }
+        }
+    }
+
+    pub(crate) fn public_operators(
+        &self,
+    ) -> impl Iterator<Item = (Scope, HashMap<OpKey, Operator>)> + '_ {
+        self.modules
+            .iter()
+            .map(move |(scope, module)| (scope.clone(), module.public_operators(self)))
+    }
 }
 
 impl Context<'_> {
@@ -261,6 +340,13 @@ impl Context<'_> {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "{} exported multiple times.",
             handle
+        )));
+    }
+
+    pub(crate) fn error_duplicate_export_op(&mut self, operator: Atom) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "operator {} exported multiple times.",
+            operator.as_ref()
         )));
     }
 
@@ -292,6 +378,13 @@ impl Context<'_> {
         )));
     }
 
+    pub(crate) fn error_duplicate_operator_alias(&mut self, import: Atom, from: Scope) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "{} already imported from {}.",
+            import, from
+        )));
+    }
+
     pub(crate) fn error_duplicate_glob(&mut self, module: Scope) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "Module {} imported multiple times.",
@@ -306,10 +399,10 @@ impl Context<'_> {
         )));
     }
 
-    pub(crate) fn error_unrecognized_operator(&mut self, token: &str) {
+    pub(crate) fn error_duplicate_operator(&mut self, operator: Operator) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
-            "Unrecognized operator `{}`.",
-            token
+            "Operator {:?} declared multiple times.",
+            operator,
         )));
     }
 
@@ -341,10 +434,45 @@ impl Context<'_> {
         )));
     }
 
+    pub(crate) fn error_undeclared_module_op(&mut self, operator: &OpKey, module: &Scope) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Referencing operator {} from undeclared module {}.",
+            operator, module,
+        )));
+    }
+
     pub(crate) fn error_unresolved_library_predicate(&mut self, handle: &Handle, library: &Atom) {
         self.current_errors_mut().push(crate::Error::parse(&format!(
             "No predicate {} is exported by the library {}.",
             handle, library,
         )));
+    }
+
+    pub(crate) fn error_operator_precedence(&mut self, name: Atom, precedence: Int) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Precedence {} for operator {} is too high (maximum is 9).",
+            precedence, name,
+        )))
+    }
+
+    pub(crate) fn error_unary_operator_restriction(&mut self, name: Atom) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Operator {} is defined as a unary expression operator, so must be right associative with maximum (9) precedence.",
+            name,
+        )))
+    }
+
+    pub(crate) fn error_operator_arity_relation(&mut self, name: Atom, len: u32) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Arity of relational operator {} must be 1 or 2, found {}.",
+            name, len,
+        )))
+    }
+
+    pub(crate) fn error_operator_arity_expression(&mut self, name: Atom, len: u32) {
+        self.current_errors_mut().push(crate::Error::parse(&format!(
+            "Arity of expression operator {} must be 2 or 3, found {}.",
+            name, len,
+        )))
     }
 }

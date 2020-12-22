@@ -26,18 +26,29 @@ impl Disjunction {
         Some(Self { cases })
     }
 
+    fn conjunctions_mut(&mut self) -> impl Iterator<Item = &mut Conjunction> {
+        self.cases
+            .iter_mut()
+            .flat_map(|(head, tail)| std::iter::once(head).chain(tail.iter_mut()))
+    }
+
+    fn conjunctions(&self) -> impl Iterator<Item = &Conjunction> {
+        self.cases
+            .iter()
+            .flat_map(|(head, tail)| std::iter::once(head).chain(tail.iter()))
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
+        self.conjunctions_mut()
+            .for_each(move |conjunction| conjunction.resolve_operators(&mut resolve))
+    }
+
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
-        self.cases.iter_mut().flat_map(|(head, tail)| {
-            head.handles_mut()
-                .chain(tail.iter_mut().flat_map(Conjunction::handles_mut))
-        })
+        self.conjunctions_mut().flat_map(Conjunction::handles_mut)
     }
 
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.cases.iter().flat_map(|(head, tail)| {
-            head.identifiers()
-                .chain(tail.iter().flat_map(Conjunction::identifiers))
-        })
+        self.conjunctions().flat_map(Conjunction::identifiers)
     }
 }
 

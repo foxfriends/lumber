@@ -26,23 +26,12 @@ impl Arity {
         Arity { len, fields }
     }
 
+    pub fn len(&self) -> u32 {
+        self.len + self.fields.iter().map(|(_, len)| *len).sum::<u32>()
+    }
+
     pub fn push(&mut self, atom: Atom, len: u32) {
         self.fields.push((atom, len));
-    }
-
-    pub fn extend_len(&mut self) {
-        *self
-            .fields
-            .last_mut()
-            .map(|field| &mut field.1)
-            .unwrap_or(&mut self.len) += 1;
-    }
-
-    pub fn new_len(len: u32) -> Self {
-        Self {
-            len,
-            fields: vec![],
-        }
     }
 
     pub fn can_alias(&self, other: &Self) -> bool {

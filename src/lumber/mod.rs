@@ -90,7 +90,7 @@ impl<'p> Lumber<'p> {
     /// If the main module is malformed (due to a syntax or referential error), the program will
     /// fail to parse and a parse error (or multiple parse errors) will be returned. This error
     /// can be shown to the user to hopefully aid in debugging the issue.
-    pub fn from_str<S: AsRef<str>>(source_code: S) -> crate::Result<Self> {
+    pub fn from_source<S: AsRef<str>>(source_code: S) -> crate::Result<Self> {
         let source_dir = std::env::current_dir()?;
         Self::new(
             Context::with_core(),
@@ -130,13 +130,11 @@ impl<'p> Lumber<'p> {
     /// deserialize the answer from each output binding. If an answer could not be instantiated
     /// fully (for example, due to a field required to deserialize the result remaining unbound),
     /// the result will be an `Err` containing the rest of the bindings, in an unstructured form.
-    pub fn query<'a, A: FromBinding>(
+    pub fn query<'a, A: FromBinding + 'a>(
         &'a self,
         query: &'a Question,
     ) -> impl Iterator<Item = Result<A, Binding>> + 'a {
-        self.database
-            .unify_question(query)
-            .map(|binding| A::from_binding(binding))
+        self.database.unify_question(query).map(A::from_binding)
     }
 
     /// Ask a question, returning an iterator over all possible answers, in raw binding form.

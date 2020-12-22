@@ -10,11 +10,11 @@ pub(crate) enum RuleKind {
 /// The definition of a rule. A predicate may be defined multiple times with disjoint
 /// heads and distinct bodies.
 #[derive(Default, Clone, Debug)]
-pub(crate) struct Definition(Vec<(Query, RuleKind, Option<Body>)>);
+pub(crate) struct Definition(Vec<(Head, RuleKind, Option<Body>)>);
 
 impl Definition {
-    pub fn insert(&mut self, query: Query, kind: RuleKind, body: Option<Body>) {
-        self.0.push((query, kind, body));
+    pub fn insert(&mut self, head: Head, kind: RuleKind, body: Option<Body>) {
+        self.0.push((head, kind, body));
     }
 
     pub fn bodies_mut(&mut self) -> impl Iterator<Item = &mut Body> {
@@ -25,8 +25,18 @@ impl Definition {
         self.0.append(&mut other.0);
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &(Query, RuleKind, Option<Body>)> {
+    pub fn iter(&self) -> impl Iterator<Item = &(Head, RuleKind, Option<Body>)> {
         self.0.iter()
+    }
+
+    pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, mut resolve: F) {
+        self.bodies_mut()
+            .for_each(move |body| body.resolve_handles(&mut resolve));
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
+        self.bodies_mut()
+            .for_each(move |body| body.resolve_operators(&mut resolve));
     }
 }
 

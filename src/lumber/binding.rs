@@ -16,11 +16,10 @@ impl Binding {
     pub(crate) fn transfer_from<'a, 'b>(
         mut output_binding: Cow<'b, Self>,
         input_binding: &Self,
-        source: &'a Query,
-        destination: &'a Query,
+        source: &[Cow<'a, Pattern>],
+        destination: &[Cow<'a, Pattern>],
     ) -> Option<Cow<'b, Self>> {
         let mut source_patterns: Vec<_> = source
-            .patterns
             .iter()
             .map(|source| input_binding.apply(source).unwrap())
             .collect();
@@ -38,9 +37,9 @@ impl Binding {
         }
         source_patterns
             .into_iter()
-            .zip(destination.patterns.iter())
+            .zip(destination.iter())
             .try_fold(output_binding, |binding, (source, destination)| {
-                unify_patterns(Cow::Owned(source), Cow::Borrowed(destination), binding, &[])
+                unify_patterns(Cow::Owned(source), destination.clone(), binding, &[])
             })
     }
 

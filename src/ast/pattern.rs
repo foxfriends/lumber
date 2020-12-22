@@ -93,8 +93,7 @@ impl Pattern {
 
     pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
         match pair.as_rule() {
-            Rule::bindable_pattern => Self::new_inner(just!(pair.into_inner()), context),
-            Rule::value_pattern => Self::new_inner(just!(pair.into_inner()), context),
+            Rule::value => Self::new_inner(just!(pair.into_inner()), context),
             Rule::bound_pattern => match pair.into_inner().next() {
                 Some(pair) => {
                     let inner = Self::new_inner(pair, context);
@@ -160,7 +159,7 @@ impl Pattern {
                 Self::Record(head, tail)
             }
             Rule::wildcard => Self::Wildcard(Identifier::wildcard(pair.as_str())),
-            _ => unreachable!(),
+            rule => unreachable!("unexpected {:?}", rule),
         }
     }
 

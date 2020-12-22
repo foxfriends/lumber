@@ -153,7 +153,7 @@ mod test {
     #[test]
     fn question_from_str_multi() {
         Question::try_from(
-            "hello(A) -> hello(B), hello(C); hello(C), hello(D) -> hello(E), F <- 3",
+            "hello(A) -> hello(B), hello(C); hello(C), hello(D) -> hello(E), F =:= 3",
         )
         .unwrap();
     }

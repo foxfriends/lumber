@@ -18,16 +18,6 @@ impl Body {
         Some(Self(Disjunction::new(pair, context)?))
     }
 
-    pub fn new_evaluation(terms: Vec<Unification>) -> Self {
-        let terms = terms
-            .into_iter()
-            .map(|term| Procession { steps: vec![term] })
-            .collect();
-        Self(Disjunction {
-            cases: vec![(Conjunction { terms }, None)],
-        })
-    }
-
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.0.handles_mut()
     }
@@ -36,7 +26,7 @@ impl Body {
         self.0.identifiers()
     }
 
-    pub fn check_variables(&self, head: &Query, context: &mut Context) {
+    pub fn check_variables(&self, head: &Head, context: &mut Context) {
         let counts = self
             .identifiers()
             .chain(head.identifiers())
@@ -54,6 +44,18 @@ impl Body {
                 context.error_singleton_variable(head.as_ref(), identifier.name());
             }
         }
+    }
+
+    pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, resolve: &mut F) {
+        self.handles_mut().for_each(move |handle| {
+            if let Some(resolved) = resolve(handle) {
+                *handle = resolved;
+            }
+        });
+    }
+
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: &mut F) {
+        self.0.resolve_operators(resolve)
     }
 }
 

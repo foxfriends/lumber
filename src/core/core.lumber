@@ -2,6 +2,8 @@
 
 :- nat(add/3).
 :- pub(add/3).
+:- pub(+).
+:- op(+, add/3, left, 6).
 
 :- test(add(1, 2, 3)).
 :- test(add(1, 2, A), equal(A, 3)).
@@ -20,24 +22,38 @@
 
 :- nat(sub/3).
 :- pub(sub/3).
+:- pub(-).
+:- op(-, sub/3, left, 6).
 
 :- nat(mul/3).
 :- pub(mul/3).
+:- pub(*).
+:- op(*, mul/3, left, 7).
 
 :- nat(div/3).
 :- pub(div/3).
+:- pub(/).
+:- op(/, div/3, left, 7).
 
 :- nat(rem/3).
 :- pub(rem/3).
+:- pub(%).
+:- op(%, rem/3, left, 7).
 
 :- nat(bitor/3).
 :- pub(bitor/3).
+:- pub(|).
+:- op(|, bitor/3, left, 5).
 
 :- nat(bitand/3).
 :- pub(bitand/3).
+:- pub(&).
+:- op(&, bitor/3, left, 7).
 
 :- nat(bitxor/3).
 :- pub(bitxor/3).
+:- pub(^).
+:- op(^, bitor/3, left, 6).
 
 :- pub(true/0).
 true.
@@ -58,15 +74,23 @@ equal(A, A).
 
 :- nat(leq/2).
 :- pub(leq/2).
+:- pub(<=).
+:- op(<=, leq/2).
 
 :- nat(geq/2).
 :- pub(geq/2).
+:- pub(>=).
+:- op(>=, geq/2).
 
 :- nat(lt/2).
 :- pub(lt/2).
+:- pub(<).
+:- op(<, lt/2).
 
 :- nat(gt/2).
 :- pub(gt/2).
+:- pub(>).
+:- op(>, gt/2).
 
 :- nat(print/1).
 :- pub(print/1).

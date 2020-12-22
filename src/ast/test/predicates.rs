@@ -72,9 +72,9 @@ no! {
 }
 
 yes! {
-    predicate_assumptions => r#"
+    predicate_unifications => r#"
     check(1, 2).
-    test :- A <- 1, B <- 2, check(A, B).
+    test :- A =:= 1, B =:= 2, check(A, B).
     "#
 }
 
@@ -105,12 +105,6 @@ yes! {
 yes! {
     predicate_complex => r#"
     a. b. c. e. d("C"). d("E").
-    test :- a, b, (c -> A <- "C"; e -> A <- "E"); d(A).
-    "#
-}
-
-no! {
-    predicate_left_arrow => r#"
-    test <- 3.
+    test :- a, b, (c -> A =:= "C"; e -> A =:= "E"); d(A).
     "#
 }

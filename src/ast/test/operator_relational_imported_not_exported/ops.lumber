@@ -1,0 +1,2 @@
+:- op(&&, and/2).
+and(true, true).
