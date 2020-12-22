@@ -212,9 +212,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
             return Err(Error::de(format!("expected {} found {}", name, st.name())));
         }
         match st.contents() {
-            None => Err(Error::de(format!(
-                "expected a newtype wrapper around a variant struct"
-            ))),
+            None => Err(Error::de(
+                "expected a newtype wrapper around a variant struct",
+            )),
             Some(contents) => {
                 visitor.visit_newtype_struct(&Deserializer::from_optional(contents.as_ref()))
             }
@@ -324,17 +324,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         match st.contents() {
             Some(Some(contents)) if contents.is_record() => {
                 let record = contents.as_record().unwrap();
-                if !record.iter().all(|(key, _)| fields.contains(&key.as_ref())) {
-                    return Err(Error::de(format!(
-                        "fields of serialized value do not match struct"
-                    )));
+                if !record.iter().all(|(key, _)| fields.contains(&key)) {
+                    return Err(Error::de("fields of serialized value do not match struct"));
                 }
                 visitor.visit_map(&mut MapDeserializer {
                     input: record,
                     index: 0,
                 })
             }
-            _ => Err(Error::de(format!("expected a struct containing a record"))),
+            _ => Err(Error::de("expected a struct containing a record")),
         }
     }
 
@@ -363,9 +361,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
                     input: variant_value,
                 })
             }
-            _ => Err(Error::de(format!(
-                "expected a newtype wrapper around a variant struct"
-            ))),
+            _ => Err(Error::de(
+                "expected a newtype wrapper around a variant struct",
+            )),
         }
     }
 
@@ -429,8 +427,7 @@ impl<'de, 'a> de::MapAccess<'de> for &'a mut MapDeserializer<'de> {
     {
         self.input
             .iter()
-            .skip(self.index)
-            .next()
+            .nth(self.index)
             .map(|(key, _)| seed.deserialize(key.into_deserializer()))
             .transpose()
     }
@@ -442,8 +439,7 @@ impl<'de, 'a> de::MapAccess<'de> for &'a mut MapDeserializer<'de> {
         let element = self
             .input
             .iter()
-            .skip(self.index)
-            .next()
+            .nth(self.index)
             .map(|(_, value)| seed.deserialize(&Deserializer::from_optional(value.as_ref())))
             .unwrap();
         self.index += 1;
