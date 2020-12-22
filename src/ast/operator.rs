@@ -138,12 +138,14 @@ impl Operator {
     pub fn handle_mut(&mut self) -> &mut Handle {
         &mut self.handle
     }
+}
 
-    pub fn assoc(&self) -> Associativity {
+impl OpTrait for Operator {
+    fn assoc(&self) -> Associativity {
         self.assoc
     }
 
-    pub fn prec(&self) -> usize {
+    fn prec(&self) -> usize {
         self.prec
     }
 }

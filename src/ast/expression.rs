@@ -11,6 +11,24 @@ pub(crate) enum Op<O = Atom, T = Term> {
     Rand(T),
 }
 
+pub(crate) trait OpTrait {
+    fn prec(&self) -> usize;
+    fn assoc(&self) -> Associativity;
+}
+
+impl<T> OpTrait for &T
+where
+    T: OpTrait,
+{
+    fn prec(&self) -> usize {
+        (*self).prec()
+    }
+
+    fn assoc(&self) -> Associativity {
+        (*self).assoc()
+    }
+}
+
 impl<O, T> Op<O, T> {
     fn into_rator(self) -> Option<O> {
         match self {
@@ -78,13 +96,15 @@ impl Expression {
     }
 
     pub fn climb_operators<
+        'a,
         Out,
-        Res: FnMut(&OpKey) -> Option<Operator>,
-        Init: Fn(&Term) -> Out,
-        Prefix: Fn(Out, Operator) -> Out,
-        Infix: Copy + Fn(Out, Operator, Out) -> Out,
+        Resolved: OpTrait,
+        Res: FnMut(&OpKey) -> Option<Resolved>,
+        Init: Fn(&'a Term) -> Out,
+        Prefix: Fn(Out, Resolved) -> Out,
+        Infix: Copy + Fn(Out, Resolved, Out) -> Out,
     >(
-        &self,
+        &'a self,
         mut resolve: Res,
         init: Init,
         prefix: Prefix,
@@ -114,14 +134,6 @@ impl Expression {
         }
 
         Some(climb(collapsed.into_iter(), infix))
-    }
-
-    pub fn single_term(&self) -> &Term {
-        assert_eq!(self.0.len(), 1);
-        match self.0.first().unwrap() {
-            Op::Rator(..) => unreachable!(),
-            Op::Rand(rand) => rand,
-        }
     }
 }
 
@@ -157,22 +169,22 @@ where
     }
 }
 
-fn climb<Out, Infix: Copy + Fn(Out, Operator, Out) -> Out>(
-    mut inputs: impl Iterator<Item = Op<Operator, Out>>,
+fn climb<Out, Resolved: OpTrait, Infix: Copy + Fn(Out, Resolved, Out) -> Out>(
+    mut inputs: impl Iterator<Item = Op<Resolved, Out>>,
     infix: Infix,
 ) -> Out {
     let lhs = inputs.next().and_then(Op::into_rand).unwrap();
     climb_rec(lhs, 0, &mut inputs.peekable(), infix)
 }
 
-fn climb_rec<Out, P, Infix: Copy + Fn(Out, Operator, Out) -> Out>(
+fn climb_rec<Out, Resolved: OpTrait, P, Infix: Copy + Fn(Out, Resolved, Out) -> Out>(
     mut lhs: Out,
     min_prec: usize,
     inputs: &mut std::iter::Peekable<P>,
     infix: Infix,
 ) -> Out
 where
-    P: Iterator<Item = Op<Operator, Out>>,
+    P: Iterator<Item = Op<Resolved, Out>>,
 {
     while inputs.peek().is_some() {
         let item = inputs.peek().unwrap();

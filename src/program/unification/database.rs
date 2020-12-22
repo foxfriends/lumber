@@ -337,7 +337,62 @@ impl Database<'_> {
         binding: Cow<'a, Binding>,
         public: bool,
     ) -> (Cow<'a, Pattern>, Bindings<'a>) {
-        self.evaluate_term(expression.single_term(), binding, public)
+        let eval = expression.climb_operators::<Box<
+            dyn Fn(Cow<'a, Binding>) -> (Cow<'a, Pattern>, Bindings<'a>),
+        >, _, _, _, _, _>(
+            |operator| self.resolve_operator(operator),
+            move |term| Box::new(move |binding| self.evaluate_term(term, binding, public)),
+            move |term, operator| {
+                Box::new(move |mut binding| {
+                    let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                    let (out, bindings) = term(binding);
+                    (
+                        Cow::Owned(dest.clone()),
+                        Box::new(bindings.flat_map(move |binding| {
+                            self.unify_query(
+                                operator.handle(),
+                                vec![out.clone(), Cow::Owned(dest.clone())],
+                                binding,
+                                public,
+                            )
+                        })),
+                    )
+                })
+            },
+            move |lhs, operator, rhs| {
+                let rhs = std::rc::Rc::new(rhs);
+                Box::new(move |mut binding| {
+                    let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                    let (lvar, bindings) = lhs(binding);
+                    let bindings = Box::new(bindings.flat_map({
+                        let rhs = rhs.clone();
+                        let dest = dest.clone();
+                        move |binding| {
+                            let (rvar, bindings) = rhs(binding);
+                            bindings.flat_map({
+                                let lvar = lvar.clone();
+                                let rvar = rvar.clone();
+                                let dest = dest.clone();
+                                move |binding| {
+                                    self.unify_query(
+                                        operator.handle(),
+                                        vec![lvar.clone(), rvar.clone(), Cow::Owned(dest.clone())],
+                                        binding,
+                                        public,
+                                    )
+                                }
+                            })
+                        }
+                    }));
+                    (Cow::Owned(dest), bindings)
+                })
+            },
+        );
+        match eval {
+            Some(eval) => eval(binding),
+            // TODO: is wildcard the only thing that can be returned? should we start throwing errors?
+            None => (Cow::Owned(Pattern::default()), Box::new(std::iter::empty())),
+        }
     }
 
     #[cfg_attr(feature = "test-perf", flamer::flame)]

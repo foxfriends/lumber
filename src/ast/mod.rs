@@ -32,7 +32,7 @@ pub(crate) use body::Body;
 pub(crate) use conjunction::Conjunction;
 pub(crate) use definition::{Definition, RuleKind};
 pub(crate) use disjunction::Disjunction;
-pub(crate) use expression::Expression;
+pub(crate) use expression::{Expression, OpTrait};
 pub(crate) use fields::Fields;
 pub(crate) use handle::{AsHandle, Handle};
 pub(crate) use head::Head;
@@ -50,11 +50,9 @@ pub(crate) use term::Term;
 
 mod context;
 mod module_header;
-// mod prec_climber;
 
 pub(crate) use context::Context;
 pub(crate) use module_header::ModuleHeader;
-// pub(crate) use prec_climber::PrecClimber;
 
 #[cfg(test)]
 mod test;
