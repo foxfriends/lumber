@@ -18,21 +18,25 @@ pub(crate) enum Pattern {
     /// A list of patterns (unifies with a list of the same length where the patterns each
     /// unify in order).
     List(Vec<Pattern>, Option<Box<Pattern>>),
+    /// Indexing into a list.
+    ListIndex(Box<Pattern>, Box<Pattern>),
     /// A set of patterns (unifies with a set containing the same elements, ignoring order
     /// and duplicates).
     #[cfg(feature = "builtin-sets")]
     Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A record, containing a set of fields.
     Record(Fields, Option<Box<Pattern>>),
+    /// Indexing into a record.
+    RecordIndex(Box<Pattern>, Box<Pattern>),
     /// A wildcard (unifies with anything).
     Wildcard(Identifier),
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
-    /// A value that must already be bound, at the time of checking (not wildcard)
+    /// A value that must already be bound, at the time of checking (not wildcard).
     Bound,
-    /// A value that must already not be bound, at the time of checking (wildcard only)
+    /// A value that must already not be bound, at the time of checking (wildcard only).
     Unbound,
-    /// A value that must match multiple patterns
+    /// A value that must match multiple patterns.
     All(Vec<Pattern>),
 }
 
@@ -52,8 +56,14 @@ impl PartialEq for Pattern {
             #[cfg(feature = "builtin-sets")]
             (Pattern::Set(lhs, ltail), Pattern::Set(rhs, rtail)) => lhs == rhs && ltail == rtail,
             (Pattern::List(lhs, ltail), Pattern::List(rhs, rtail)) => lhs == rhs && ltail == rtail,
+            (Pattern::ListIndex(llist, lind), Pattern::ListIndex(rlist, rind)) => {
+                llist == rlist && lind == rind
+            }
             (Pattern::Record(lhs, ltail), Pattern::Record(rhs, rtail)) => {
                 lhs == rhs && ltail == rtail
+            }
+            (Pattern::RecordIndex(lrec, lind), Pattern::RecordIndex(rrec, rind)) => {
+                lrec == rrec && lind == rind
             }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             (Pattern::Wildcard(lhs), Pattern::Wildcard(rhs)) => lhs == rhs,
@@ -74,7 +84,9 @@ impl Hash for Pattern {
             #[cfg(feature = "builtin-sets")]
             Pattern::Set(value, tail) => ("set", value, tail).hash(hasher),
             Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
+            Pattern::ListIndex(list, index) => ("listindex", list, index).hash(hasher),
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
+            Pattern::RecordIndex(record, index) => ("recordindex", record, index).hash(hasher),
             Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
             Pattern::Wildcard(value) => ("wildcard", value).hash(hasher),
             Pattern::Bound => "bound".hash(hasher),
@@ -93,6 +105,7 @@ impl Pattern {
 
     pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
         match pair.as_rule() {
+            Rule::value_pattern => Self::new_inner(just!(pair.into_inner()), context),
             Rule::value => Self::new_inner(just!(pair.into_inner()), context),
             Rule::bound_pattern => match pair.into_inner().next() {
                 Some(pair) => {
@@ -108,6 +121,18 @@ impl Pattern {
                 }
                 None => Self::Unbound,
             },
+            Rule::list_index => {
+                let mut pairs = pair.into_inner();
+                let list = Self::new_inner(pairs.next().unwrap(), context);
+                let index = Self::new_inner(pairs.next().unwrap(), context);
+                Self::ListIndex(Box::new(list), Box::new(index))
+            }
+            Rule::record_index => {
+                let mut pairs = pair.into_inner();
+                let record = Self::new_inner(pairs.next().unwrap(), context);
+                let index = Self::new_inner(pairs.next().unwrap(), context);
+                Self::RecordIndex(Box::new(record), Box::new(index))
+            }
             Rule::struct_ => Self::Struct(Struct::new(pair, context)),
             Rule::literal => Self::Literal(Literal::new(pair)),
             Rule::variable => Self::Variable(context.get_variable(pair.as_str())),
@@ -178,6 +203,9 @@ impl Pattern {
                     .flat_map(|(_, pattern)| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
+            Self::RecordIndex(col, ind) | Self::ListIndex(col, ind) => {
+                Box::new(col.identifiers().chain(ind.identifiers()))
+            }
             #[cfg(feature = "builtin-sets")]
             Self::Set(head, tail) => Box::new(
                 head.iter()
@@ -213,6 +241,9 @@ impl Pattern {
                             .flat_map(|pattern| pattern.identifiers_mut()),
                     ),
             ),
+            Self::RecordIndex(col, ind) | Self::ListIndex(col, ind) => {
+                Box::new(col.identifiers_mut().chain(ind.identifiers_mut()))
+            }
             #[cfg(feature = "builtin-sets")]
             Self::Set(head, tail) => Box::new(
                 head.iter_mut()
@@ -274,6 +305,12 @@ impl Display for Pattern {
                     Some(tail) => write!(f, ", ..{} }}", tail),
                     None => write!(f, " }}"),
                 }
+            }
+            Self::RecordIndex(record, ind) => {
+                write!(f, "{} {{ {} }}", record, ind)
+            }
+            Self::ListIndex(list, ind) => {
+                write!(f, "{} [ {} ]", list, ind)
             }
             Pattern::Struct(structure) => structure.fmt(f),
             Pattern::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),

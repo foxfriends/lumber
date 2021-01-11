@@ -49,6 +49,22 @@ impl Record {
         self.fields.insert(Atom::from(key.as_ref()), value);
     }
 
+    /// Gets a value from this record. Notice that this returns a double-Option. The first Option
+    /// refers to the presence of the key in the record, the second whether the value is bound or
+    /// not.
+    pub fn get(&self, key: impl AsRef<str>) -> Option<Option<&Value>> {
+        self.fields
+            .get(&Atom::from(key.as_ref()))
+            .map(Option::as_ref)
+    }
+
+    /// Removes a value from this record. Notice that this returns a double-Option. The first
+    /// Option refers to the presence of the key in the record, the second whether the value
+    /// is bound or not.
+    pub fn remove(&mut self, key: impl AsRef<str>) -> Option<Option<Value>> {
+        self.fields.remove(&Atom::from(key.as_ref()))
+    }
+
     /// Iterates over the entries of this record.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Option<Value>)> {
         self.fields.iter().map(|(key, value)| (key.as_ref(), value))

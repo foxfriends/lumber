@@ -176,6 +176,19 @@ impl Binding {
                     .flatten();
                 Ok(Pattern::Record(fields, rest))
             }
+            Pattern::RecordIndex(record, index) => {
+                let _record = self.apply(record)?;
+                let _index = match self.apply(index)? {
+                    Pattern::Struct(structure) if structure.is_atom() => structure.name,
+                    _ => {
+                        panic!("We have unified an atom with a non-atom value ({:?}). This should not happen.", index);
+                    }
+                };
+                todo!("this method is not currently able to make changes to the binding, but will need to for this step")
+            }
+            Pattern::ListIndex(_list, _index) => {
+                todo!("this method is not currently able to make changes to the binding, but will need to for this step")
+            }
             Pattern::Struct(crate::ast::Struct { name, contents }) => {
                 let contents = contents
                     .as_deref()

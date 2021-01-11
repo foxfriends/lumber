@@ -78,9 +78,12 @@ term              =  { "(" ~ expression ~ ")" | aggregation | pattern }
 operator          = ${ !"=:=" ~ !"->" ~ !"->>" ~ !"!" ~ !"?" ~ operator_symbol+ }
 operator_symbol   =  { "-" | "+" | "*" | "/" | "%" | "<" | ">" | "=" | "?" | "$" | "!" | "^" | "&" | "|" | "@" | "\\" | "~" }
 
-pattern           =  { bound_pattern | unbound_pattern | value }
-unbound_pattern   =  { "?" ~ value? }
-bound_pattern     =  { "!" ~ value? }
+pattern           =  { bound_pattern | unbound_pattern | value_pattern }
+unbound_pattern   =  { "?" ~ value_pattern? }
+bound_pattern     =  { "!" ~ value_pattern? }
+value_pattern     =  { list_index | record_index | value }
+list_index        =  { (!struct_ ~ value_pattern) ~ "[" ~ value ~ "]" }
+record_index      =  { (!struct_ ~ value_pattern) ~ "{" ~ value ~ "}" }
 value             =  { variable | wildcard | literal | struct_ | list | record | set }
 
 literal           =  { decimal | integer | string }
@@ -95,15 +98,13 @@ decimal_10        = ${ integer_10 ~ "." ~ integer_10 }
 
 string            = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
 
-list              =  { "[" ~ list_entries ~ (list_tail | ",")? ~ "]" | "[" ~ "]" }
-list_tail         =  { "," ~ ".." ~ (list | variable | wildcard)? }
-set               =  { "{" ~ list_entries ~ (set_tail | ",")? ~ "}" | "{" ~ "}" }
-set_tail          =  { "," ~ ".." ~ (set | variable | wildcard)? }
+list              =  { "[" ~ list_entries ~ (tail | ",")? ~ "]" | "[" ~ "]" }
+set               =  { "{" ~ list_entries ~ (tail | ",")? ~ "}" | "{" ~ "}" }
 list_entries      =  { pattern ~ ("," ~ pattern)* }
-record            =  { "{" ~ fields ~ (record_tail | ",")? ~ "}" | "{" ~ ":" ~ "}" }
+record            =  { "{" ~ fields ~ (tail | ",")? ~ "}" | "{" ~ ":" ~ "}" }
 fields            =  { field ~ ("," ~ field)* }
 field             =  { atom ~ ":" ~ pattern }
-record_tail       =  { "," ~ ".." ~ (record | variable | wildcard)? }
+tail              =  { "," ~ ".." ~ pattern? }
 
 WHITESPACE        = _{ " " | "\t" | NEWLINE }
 COMMENT           = _{ line_comment | block_comment }

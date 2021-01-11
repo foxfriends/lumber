@@ -49,6 +49,24 @@ impl List {
         self.values.len()
     }
 
+    /// Gets an element from the list by index. Notice that this returns a double-Option. The first Option
+    /// refers to the presence of the index in the list, the second whether the value is bound or
+    /// not.
+    pub fn get(&self, index: usize) -> Option<Option<&Value>> {
+        self.values.get(index).map(Option::as_ref)
+    }
+
+    /// Remove an element from the list by index. Notice that this returns a double-Option. The first Option
+    /// refers to the presence of the index in the list, the second whether the value is bound or
+    /// not. Later elements of the list will be shifted towards 0.
+    pub fn remove(&mut self, index: usize) -> Option<Option<Value>> {
+        if index < self.len() {
+            Some(self.values.remove(index))
+        } else {
+            None
+        }
+    }
+
     /// Checks whether this list is empty. This does not take into account the unknown elements.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()

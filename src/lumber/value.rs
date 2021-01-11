@@ -255,6 +255,36 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::Record(Record { fields, complete }))
             }
+            Pattern::RecordIndex(record, index) => {
+                let record = Option::<Value>::from(*record)?;
+                let index = Option::<Value>::from(*index)?;
+                match (record, index) {
+                    (Value::Record(mut record), Value::Struct(structure))
+                        if structure.is_atom() =>
+                    {
+                        record.remove(structure.name())? // Maybe if this is None it should be an error?
+                    }
+                    _ => None, // TODO: this should maybe be an error?
+                }
+            }
+            Pattern::ListIndex(list, index) => {
+                let list = Option::<Value>::from(*list)?;
+                let index = Option::<Value>::from(*index)?;
+                match (list, index) {
+                    (Value::List(mut list), Value::Integer(ref index)) => {
+                        list.remove(usize::from(index))? // Maybe if this is None it should be an error?
+                    }
+                    (Value::List(mut list), Value::Rational(index)) => {
+                        let (index, denominator) = index.into_parts();
+                        if denominator == 1 {
+                            list.remove(usize::from(&index))? // Maybe if this is None it should be an error?
+                        } else {
+                            None // TODO: should this be an error?
+                        }
+                    }
+                    _ => None, // TODO: this should maybe be an error?
+                }
+            }
             Pattern::Struct(structure) => {
                 let contents = structure
                     .contents

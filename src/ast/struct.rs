@@ -27,6 +27,10 @@ impl Struct {
         Self { name, contents }
     }
 
+    pub fn is_atom(&self) -> bool {
+        self.contents.is_none()
+    }
+
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.contents
             .iter()
