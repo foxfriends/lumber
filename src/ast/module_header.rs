@@ -197,7 +197,7 @@ impl ModuleHeader {
                 None => return Ok(None),
             }
         } else {
-            let candidates = self
+            let (mut errors, candidates) = self
                 .globbed_modules()
                 .filter_map(|scope| {
                     context
@@ -207,12 +207,25 @@ impl ModuleHeader {
                         .resolve_like(handle, from_scope, context, path)
                         .transpose()
                 })
-                .collect::<crate::Result<HashSet<_>>>()?;
+                .fold(
+                    (vec![], HashSet::new()),
+                    |(mut errs, mut oks), candidate| {
+                        match candidate {
+                            Ok(ok) => {
+                                oks.insert(ok);
+                            }
+                            Err(err) => {
+                                errs.push(err);
+                            }
+                        };
+                        (errs, oks)
+                    },
+                );
 
             if candidates.len() == 1 {
                 candidates.into_iter().next().unwrap()
             } else if candidates.is_empty() {
-                return Ok(None);
+                return errors.pop().map(Err).unwrap_or(Ok(None));
             } else {
                 return Err(crate::Error::parse(&format!(
                     "Ambiguous reference {}. Could be referring to any of:\n{}",

@@ -130,3 +130,15 @@ no! {
     :- mod(b).
     "#
 }
+
+yes! {
+    glob_private_and_public => r#"
+    :- mod(a).
+    :- mod(b).
+
+    :- use(a).
+    :- use(b).
+
+    hello :- test.
+    "#
+}
