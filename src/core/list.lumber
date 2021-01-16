@@ -26,6 +26,7 @@ in(T, [_, ..R]) :- in(T, R).
 :- test(in(a, [a, b, c])).
 :- test(in(b, [a, b, c])).
 :- test(in(c, [a, b, c])).
+:- test(in(d, [a, b, c]) ->> false; true).
 :- test(in(A, [a, b, c]), ^::equal(A, a)).
 :- test(in(A, [a, b, c]), ^::equal(A, b)).
 :- test(in(A, [a, b, c]), ^::equal(A, c)).
@@ -37,4 +38,5 @@ notin(T, [_, ..R]) :- notin(T, R).
 
 :- test(notin(a, [1, 2, 3])).
 :- test(notin(4, [1, 2, 3])).
+:- test(notin(3, [1, 2, 3]) ->> false; true).
 :- test(notin(_, [])).
