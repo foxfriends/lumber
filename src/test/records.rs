@@ -28,3 +28,24 @@ test! {
     ?- "recordTest(test { p: 3, q: 4 }, 5, test(O))"
         O = record! { "p" => 5, "q" => 4 };
 }
+
+// This is a weird bug I have experienced, seems like after destructuring G and then passing G
+// again to another function, G gets changed and then fails to unify on the way back out. This
+// should not be mutating G, everything is supposed to be immutable!
+test! {
+    record_destructure_and_then_call => "
+    :- pub(recordTest/3).
+
+    test(test { c: C, .. }, C).
+    hello(1).
+
+    recordTest(
+        G,
+        P,
+        test { a: P, ..Gs },
+    ) :-
+        G =:= test { a: _, ..Gs },
+        test(G, 3).
+    "
+    ?- "recordTest(test { a: 1, b: 2, c: 3 }, 4, test { a: 4, b: 2, c: 3 })";
+}
