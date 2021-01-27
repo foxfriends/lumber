@@ -29,7 +29,12 @@ impl Binding {
             .flat_map(Pattern::identifiers)
             .collect::<HashSet<_>>()
             .into_iter()
-            .map(|ident| (ident.clone(), output_binding.to_mut().copy_variable(ident.name())))
+            .map(|ident| {
+                (
+                    ident.clone(),
+                    output_binding.to_mut().copy_variable(ident.name()),
+                )
+            })
             .collect::<HashMap<_, _>>();
         for pattern in &mut source_patterns {
             for identifier in pattern.identifiers_mut() {
