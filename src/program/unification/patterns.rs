@@ -107,6 +107,7 @@ fn unify_patterns_inner<'p, 'b>(
         // with a wildcard (or a variable that has resolved to a wildcard).
         (Pattern::Wildcard(..), Pattern::Unbound) => Some((lhs, binding)),
         (Pattern::Unbound, Pattern::Wildcard(..)) => Some((rhs, binding)),
+        (Pattern::Unbound, Pattern::Unbound) => Some((lhs, binding)), // TODO: this one is a bit sketchy
         // Unifying wildcards provides no additional info. It is at this point that an explicit
         // occurs check must be made (it will be caught recursively in other cases).
         (Pattern::Wildcard(..), other) if !other.identifiers().any(|id| occurs.contains(&id)) => {

@@ -17,7 +17,7 @@ length([_, ..B], Len) :-
 
 :- test(length([], 0)).
 :- test(length([1, 2, 3], 3)).
-:- test(length([1, 2, 3], A), ^::equal(A, 3)).
+:- test(length([1, 2, 3], A), A =:= 3).
 
 :- pub(in/2).
 in(T, [T, ..]).
@@ -27,9 +27,9 @@ in(T, [_, ..R]) :- in(T, R).
 :- test(in(b, [a, b, c])).
 :- test(in(c, [a, b, c])).
 :- test(in(d, [a, b, c]) ->> false; true).
-:- test(in(A, [a, b, c]), ^::equal(A, a)).
-:- test(in(A, [a, b, c]), ^::equal(A, b)).
-:- test(in(A, [a, b, c]), ^::equal(A, c)).
+:- test(in(A, [a, b, c]), A =:= a).
+:- test(in(A, [a, b, c]), A =:= b).
+:- test(in(A, [a, b, c]), A =:= c).
 
 :- pub(notin/2).
 notin(_, []).
