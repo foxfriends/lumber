@@ -3,6 +3,7 @@ use crate::ast::*;
 use crate::program::unification::unify_patterns;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::fmt::{self, Display, Formatter};
 use std::iter::FromIterator;
 use std::rc::Rc;
 
@@ -212,5 +213,18 @@ impl FromIterator<Identifier> for Binding {
                 .map(|ident| (ident, Rc::new(Pattern::default())))
                 .collect(),
         )
+    }
+}
+
+impl Display for Binding {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if self.0.is_empty() {
+            return write!(f, "Binding {{}}");
+        }
+        writeln!(f, "Binding {{")?;
+        for (var, val) in &self.0 {
+            writeln!(f, "\t{} = {}", var, val)?;
+        }
+        write!(f, "}}")
     }
 }

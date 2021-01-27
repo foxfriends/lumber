@@ -108,7 +108,9 @@ fn unify_patterns_inner<'p, 'b>(
                     &occurs,
                 ),
                 val => {
-                    binding.to_mut().set(var.clone(), val.clone());
+                    if matches!(*var_pat, Pattern::Wildcard(..)) {
+                        binding.to_mut().set(var.clone(), val.clone());
+                    }
                     Some((Cow::Owned(pattern.into_owned()), binding))
                 }
             }
