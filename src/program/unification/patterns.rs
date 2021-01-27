@@ -25,35 +25,6 @@ fn unify_patterns_inner<'p, 'b>(
     occurs: &[Identifier],
 ) -> Option<(Cow<'p, Pattern>, Cow<'b, Binding>)> {
     match (lhs.as_ref(), rhs.as_ref()) {
-        // The All pattern just... unifies all of them
-        (Pattern::All(patterns), other) | (other, Pattern::All(patterns)) => patterns
-            .iter()
-            .try_fold(
-                (Cow::Borrowed(other), binding),
-                |(other, binding), pattern| {
-                    unify_patterns_inner(other, Cow::Borrowed(pattern), binding, occurs)
-                },
-            )
-            .map(|(cow, binding)| (Cow::Owned(cow.into_owned()), binding)),
-        // Any values must be the exact same value. We know nothing else about them.
-        (Pattern::Any(lhs_any), Pattern::Any(rhs_any)) if Rc::ptr_eq(lhs_any, rhs_any) => {
-            Some((lhs, binding))
-        }
-        // The "bound" pattern requires the other value to already be bound, so this is the only way
-        // a wildcard unification will fail.
-        (Pattern::Wildcard(..), Pattern::Bound) | (Pattern::Bound, Pattern::Wildcard(..)) => None,
-        // The "unbound" pattern requires the other value is not bound. That is: it will only unify
-        // with a wildcard (or a variable that has resolved to a wildcard).
-        (Pattern::Wildcard(..), Pattern::Unbound) => Some((lhs, binding)),
-        (Pattern::Unbound, Pattern::Wildcard(..)) => Some((rhs, binding)),
-        // Unifying wildcards provides no additional info. It is at this point that an explicit
-        // occurs check must be made (it will be caught recursively in other cases).
-        (Pattern::Wildcard(..), other) if !other.identifiers().any(|id| occurs.contains(&id)) => {
-            Some((rhs, binding))
-        }
-        (other, Pattern::Wildcard(..)) if !other.identifiers().any(|id| occurs.contains(&id)) => {
-            Some((lhs, binding))
-        }
         // Unifying a x with itself succeeds with no additional info.
         (Pattern::Variable(lhs_var), Pattern::Variable(rhs_var)) if lhs_var == rhs_var => {
             // We don't need to use occurs check here because `A =:= A` is allowed, despite
@@ -114,6 +85,35 @@ fn unify_patterns_inner<'p, 'b>(
                     Some((Cow::Owned(pattern.into_owned()), binding))
                 }
             }
+        }
+        // The All pattern just... unifies all of them
+        (Pattern::All(patterns), other) | (other, Pattern::All(patterns)) => patterns
+            .iter()
+            .try_fold(
+                (Cow::Borrowed(other), binding),
+                |(other, binding), pattern| {
+                    unify_patterns_inner(other, Cow::Borrowed(pattern), binding, occurs)
+                },
+            )
+            .map(|(cow, binding)| (Cow::Owned(cow.into_owned()), binding)),
+        // Any values must be the exact same value. We know nothing else about them.
+        (Pattern::Any(lhs_any), Pattern::Any(rhs_any)) if Rc::ptr_eq(lhs_any, rhs_any) => {
+            Some((lhs, binding))
+        }
+        // The "bound" pattern requires the other value to already be bound, so this is the only way
+        // a wildcard unification will fail.
+        (Pattern::Wildcard(..), Pattern::Bound) | (Pattern::Bound, Pattern::Wildcard(..)) => None,
+        // The "unbound" pattern requires the other value is not bound. That is: it will only unify
+        // with a wildcard (or a variable that has resolved to a wildcard).
+        (Pattern::Wildcard(..), Pattern::Unbound) => Some((lhs, binding)),
+        (Pattern::Unbound, Pattern::Wildcard(..)) => Some((rhs, binding)),
+        // Unifying wildcards provides no additional info. It is at this point that an explicit
+        // occurs check must be made (it will be caught recursively in other cases).
+        (Pattern::Wildcard(..), other) if !other.identifiers().any(|id| occurs.contains(&id)) => {
+            Some((rhs, binding))
+        }
+        (other, Pattern::Wildcard(..)) if !other.identifiers().any(|id| occurs.contains(&id)) => {
+            Some((lhs, binding))
         }
         // If not with a variable, a "bound" pattern unifies normally
         (_, Pattern::Bound) => Some((lhs, binding)),

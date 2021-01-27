@@ -41,3 +41,15 @@ test! {
         A = Value::atom("a"), B = Value::atom("b");
         A = Value::atom("c"), B = Value::atom("d");
 }
+
+test! {
+    bind_into_unbound => r#"
+    :- pub(hello/2).
+    hello(?A, A).
+    "#
+    ?- "hello(_, 1)";
+    ?- "hello(1, 1)"
+    ?- "hello(1, B)"
+    ?- "hello(A, 1)"
+        A = Value::integer(1);
+}

@@ -29,7 +29,7 @@ impl Binding {
             .flat_map(Pattern::identifiers)
             .collect::<HashSet<_>>()
             .into_iter()
-            .map(|ident| (ident, output_binding.to_mut().fresh_variable()))
+            .map(|ident| (ident.clone(), output_binding.to_mut().copy_variable(ident.name())))
             .collect::<HashMap<_, _>>();
         for pattern in &mut source_patterns {
             for identifier in pattern.identifiers_mut() {
@@ -60,6 +60,16 @@ impl Binding {
 
     pub(crate) fn fresh_variable(&mut self) -> Identifier {
         let name = format!("##{}", self.0.len());
+        let var = Identifier::new(name.clone());
+        self.0.insert(
+            var.clone(),
+            Rc::new(Pattern::Wildcard(Identifier::wildcard(name))),
+        );
+        var
+    }
+
+    pub(crate) fn copy_variable(&mut self, name: &str) -> Identifier {
+        let name = format!("##{}#{}", self.0.len(), name);
         let var = Identifier::new(name.clone());
         self.0.insert(
             var.clone(),
