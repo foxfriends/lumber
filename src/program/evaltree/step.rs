@@ -29,39 +29,6 @@ impl Step {
         }
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
-        match self {
-            Self::Relation(Some(lhs), operator, rhs) => {
-                if let Some(operator) = resolve(&OpKey::Relation(operator.clone(), OpArity::Binary))
-                {
-                    *self = Self::Query(Query {
-                        handle: operator.handle().clone(),
-                        args: vec![lhs.clone().into(), rhs.clone().into()],
-                    });
-                }
-                // an error should have been recorded in the context already otherwise
-            }
-            Self::Relation(None, operator, rhs) => {
-                if let Some(operator) = resolve(&OpKey::Relation(operator.clone(), OpArity::Unary))
-                {
-                    *self = Self::Query(Query {
-                        handle: operator.handle().clone(),
-                        args: vec![rhs.clone().into()],
-                    });
-                }
-                // an error should have been recorded in the context already otherwise
-            }
-            Self::Query(query) => query
-                .args_mut()
-                .for_each(|expr| expr.resolve_operators(&mut resolve)),
-            Self::Unification(lhs, rhs) => {
-                lhs.resolve_operators(&mut resolve);
-                rhs.resolve_operators(&mut resolve);
-            }
-            _ => {}
-        }
-    }
-
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
             Self::Query(query) => Box::new(query.identifiers()),

@@ -10,12 +10,6 @@ pub(crate) struct Procession {
 }
 
 impl Procession {
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
-        self.steps
-            .iter_mut()
-            .for_each(move |step| step.resolve_operators(&mut resolve))
-    }
-
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }

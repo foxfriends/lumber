@@ -29,7 +29,6 @@ pub(crate) use r#struct::Struct;
 pub(crate) use step::Step;
 pub(crate) use term::Term;
 
-pub(crate) use crate::ast::Arity;
 pub(crate) use crate::ast::Atom;
 pub(crate) use crate::ast::Handle;
 pub(crate) use crate::ast::Literal;

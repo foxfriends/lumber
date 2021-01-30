@@ -12,14 +12,6 @@ pub(crate) enum Term {
 }
 
 impl Term {
-    pub fn prefix_operator(term: Term, operator: Operator) -> Term {
-        Term::PrefixOp(operator, Box::new(term))
-    }
-
-    pub fn infix_operator(lhs: Term, operator: Operator, rhs: Term) -> Term {
-        Term::InfixOp(Box::new(lhs), operator, Box::new(rhs))
-    }
-
     pub fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
         match self {
             Self::Expression(expression) => expression.handles_mut(),

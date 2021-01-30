@@ -15,10 +15,6 @@ impl Query {
         self.args.iter().flat_map(|pattern| pattern.identifiers())
     }
 
-    pub fn args_mut(&mut self) -> impl Iterator<Item = &mut Expression> {
-        self.args.iter_mut()
-    }
-
     pub fn handle(&self) -> &Handle {
         &self.handle
     }
@@ -71,15 +67,6 @@ impl Display for Query {
         write!(f, ")")
     }
 }
-
-// impl From<Head> for Query {
-//     fn from(head: Head) -> Self {
-//         Self {
-//             handle: head.handle,
-//             args: head.patterns.into_iter().map(Expression::from).collect(),
-//         }
-//     }
-// }
 
 impl From<ast::Query> for Query {
     fn from(ast: ast::Query) -> Self {

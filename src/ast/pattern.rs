@@ -3,7 +3,6 @@ use super::*;
 use crate::parser::Rule;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
 /// A pattern against which other patterns can be unified.
 #[derive(Clone, Debug)]
@@ -184,46 +183,6 @@ impl Pattern {
             Self::All(patterns) => {
                 Box::new(patterns.iter().flat_map(|pattern| pattern.identifiers()))
             }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    /// Identifiers for every placeholder value in this pattern, including wildcards.
-    pub fn identifiers_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Identifier> + 'a> {
-        match self {
-            Self::Struct(s) => Box::new(s.identifiers_mut()),
-            Self::Variable(identifier) => Box::new(std::iter::once(identifier)),
-            Self::List(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut())
-                    .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
-                    ),
-            ),
-            Self::Record(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|(_, pattern)| pattern.identifiers_mut())
-                    .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
-                    ),
-            ),
-            #[cfg(feature = "builtin-sets")]
-            Self::Set(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut())
-                    .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
-                    ),
-            ),
-            Self::Wildcard(identifier) => Box::new(std::iter::once(identifier)),
-            Self::All(patterns) => Box::new(
-                patterns
-                    .iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut()),
-            ),
             _ => Box::new(std::iter::empty()),
         }
     }

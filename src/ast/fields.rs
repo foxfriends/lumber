@@ -23,24 +23,8 @@ impl Fields {
         Self { fields }
     }
 
-    pub fn len(&self) -> usize {
-        self.fields.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.fields.is_empty()
-    }
-
-    pub fn append(&mut self, other: &mut Self) {
-        self.fields.append(&mut other.fields);
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = (&Atom, &Pattern)> {
         self.fields.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Atom, &mut Pattern)> {
-        self.fields.iter_mut()
     }
 }
 

@@ -32,17 +32,6 @@ impl Expression {
         )
     }
 
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: F) {
-        if let Some(term) = self.climb_operators(
-            resolve,
-            Clone::clone,
-            Term::prefix_operator,
-            Term::infix_operator,
-        ) {
-            self.0 = vec![Op::Rand(term)];
-        }
-    }
-
     pub fn climb_operators<
         'a,
         Out,

@@ -14,10 +14,6 @@ impl Definition {
         self.0.iter_mut().filter_map(|(_, _, body)| body.as_mut())
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &(Head, RuleKind, Option<Body>)> {
-        self.0.iter()
-    }
-
     pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, mut resolve: F) {
         self.bodies_mut()
             .for_each(move |body| body.resolve_handles(&mut resolve));

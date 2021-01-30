@@ -14,18 +14,6 @@ impl Body {
     pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
         self.0.identifiers()
     }
-
-    pub fn resolve_handles<F: FnMut(&Handle) -> Option<Handle>>(&mut self, resolve: &mut F) {
-        self.handles_mut().for_each(move |handle| {
-            if let Some(resolved) = resolve(handle) {
-                *handle = resolved;
-            }
-        });
-    }
-
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: &mut F) {
-        self.0.resolve_operators(resolve)
-    }
 }
 
 impl Display for Body {

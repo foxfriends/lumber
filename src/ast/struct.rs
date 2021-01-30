@@ -32,12 +32,6 @@ impl Struct {
             .iter()
             .flat_map(|pattern| pattern.identifiers())
     }
-
-    pub fn identifiers_mut(&mut self) -> impl Iterator<Item = &mut Identifier> + '_ {
-        self.contents
-            .iter_mut()
-            .flat_map(|pattern| pattern.identifiers_mut())
-    }
 }
 
 impl Display for Struct {
