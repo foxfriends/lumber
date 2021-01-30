@@ -1,4 +1,5 @@
 mod database;
+pub(crate) mod evaltree;
 mod native_function;
 pub(crate) mod unification;
 

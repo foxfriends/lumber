@@ -1,5 +1,6 @@
+use super::evaltree::*;
 use super::*;
-use crate::ast::*;
+use crate::ast::ModuleHeader;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -63,15 +64,23 @@ pub(crate) struct Database<'p> {
 impl<'p> Database<'p> {
     pub fn new<D, O>(definitions: D, operators: O) -> Self
     where
-        D: IntoIterator<Item = (Handle, Definition)>,
-        O: IntoIterator<Item = (Scope, HashMap<OpKey, Operator>)>,
+        D: IntoIterator<Item = (crate::ast::Handle, crate::ast::Definition)>,
+        O: IntoIterator<
+            Item = (
+                crate::ast::Scope,
+                HashMap<crate::ast::OpKey, crate::ast::Operator>,
+            ),
+        >,
     {
         let definitions = definitions
             .into_iter()
             .fold(
                 HashMap::<Handle, Vec<Definition>>::default(),
                 |mut handles, (handle, entry)| {
-                    handles.entry(handle).or_default().push(entry);
+                    handles
+                        .entry(Handle::from(handle))
+                        .or_default()
+                        .push(Definition::from(entry));
                     handles
                 },
             )
@@ -80,12 +89,15 @@ impl<'p> Database<'p> {
                 (
                     handle,
                     DatabaseEntry::new(DatabaseDefinition::Static(
-                        definition.into_iter().collect(),
+                        definition.into_iter().map(Definition::from).collect(),
                     )),
                 )
             })
             .collect();
-        let operators = operators.into_iter().collect();
+        let operators = operators
+            .into_iter()
+            .map(|(key, op)| (key.into(), op.into()))
+            .collect();
         Self {
             definitions,
             operators,

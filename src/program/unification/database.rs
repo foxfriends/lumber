@@ -1,6 +1,6 @@
 use super::super::{Database, DatabaseDefinition};
+use super::evaltree::*;
 use super::{unify_patterns, Bindings};
-use crate::ast::*;
 use crate::{Binding, Question};
 use std::borrow::Cow;
 

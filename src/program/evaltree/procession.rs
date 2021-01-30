@@ -1,0 +1,46 @@
+use super::*;
+use crate::ast;
+use std::fmt::{self, Display, Formatter};
+
+/// A sequence of narrowing steps.
+#[derive(Default, Clone, Debug)]
+pub(crate) struct Procession {
+    /// Steps after which backtracking is skipped.
+    pub(crate) steps: Vec<Step>,
+}
+
+impl Procession {
+    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, mut resolve: F) {
+        self.steps
+            .iter_mut()
+            .for_each(move |step| step.resolve_operators(&mut resolve))
+    }
+
+    pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
+        self.steps.iter_mut().flat_map(|step| step.handles_mut())
+    }
+
+    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
+        self.steps.iter().flat_map(|step| step.identifiers())
+    }
+}
+
+impl Display for Procession {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for (i, step) in self.steps.iter().enumerate() {
+            if i != 0 {
+                write!(f, " -> ")?;
+            }
+            step.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl From<ast::Procession> for Procession {
+    fn from(ast: ast::Procession) -> Procession {
+        Procession {
+            steps: ast.steps.into_iter().map(Step::from).collect(),
+        }
+    }
+}

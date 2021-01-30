@@ -1,4 +1,4 @@
-use crate::ast::*;
+use super::evaltree::*;
 use crate::Binding;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};

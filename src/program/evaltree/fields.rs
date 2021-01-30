@@ -1,28 +1,14 @@
 use super::*;
-use crate::parser::Rule;
+use crate::ast;
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
 
 #[derive(Clone, Hash, Eq, PartialEq, Default, Debug)]
 pub(crate) struct Fields {
-    pub fields: BTreeMap<Atom, Pattern>,
+    fields: BTreeMap<Atom, Pattern>,
 }
 
 impl Fields {
-    pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
-        assert_eq!(pair.as_rule(), Rule::fields);
-        let fields = pair
-            .into_inner()
-            .map(|pair| {
-                let mut pairs = pair.into_inner();
-                let atom = Atom::new(pairs.next().unwrap());
-                let pattern = Pattern::new(pairs.next().unwrap(), context);
-                (atom, pattern)
-            })
-            .collect();
-        Self { fields }
-    }
-
     pub fn len(&self) -> usize {
         self.fields.len()
     }
@@ -76,5 +62,17 @@ impl IntoIterator for Fields {
 
     fn into_iter(self) -> Self::IntoIter {
         self.fields.into_iter()
+    }
+}
+
+impl From<ast::Fields> for Fields {
+    fn from(ast: ast::Fields) -> Self {
+        Self {
+            fields: ast
+                .fields
+                .into_iter()
+                .map(|(k, v)| (k, Pattern::from(v)))
+                .collect(),
+        }
     }
 }

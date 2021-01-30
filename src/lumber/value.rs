@@ -2,7 +2,7 @@
 #[cfg(feature = "builtin-sets")]
 use super::Set;
 use super::{List, Record, Struct};
-use crate::ast::{Identifier, Literal, Pattern};
+use crate::program::evaltree::{Identifier, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -301,7 +301,7 @@ impl Into<Pattern> for Option<Value> {
             ),
             Some(Value::Struct(Struct { name, contents })) => {
                 let contents = contents.map(|contents| Box::new((*contents).into()));
-                Pattern::Struct(crate::ast::Struct::from_parts(name, contents))
+                Pattern::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
             }
             Some(Value::Any(any)) => Pattern::Any(any),
         }

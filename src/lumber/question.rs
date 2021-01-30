@@ -1,5 +1,6 @@
-use crate::ast::*;
+use crate::ast::{self, Context};
 use crate::parser::*;
+use crate::program::evaltree::Body;
 use crate::{Binding, Value};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
@@ -15,7 +16,8 @@ pub struct Question {
 }
 
 impl Question {
-    pub(crate) fn new(body: Body) -> Self {
+    pub(crate) fn new(body: impl Into<Body>) -> Self {
+        let body = body.into();
         let initial_binding = body.identifiers().collect();
         Self {
             body,
@@ -104,8 +106,8 @@ impl TryFrom<&str> for Question {
         let mut pairs = pair.into_inner();
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
-        match Body::new(pair, &mut context) {
-            Some(body) => Ok(Self::new(body)),
+        match ast::Body::new(pair, &mut context) {
+            Some(body) => Ok(Self::new(Body::from(body))),
             None => Err(crate::Error::parse(&format!(
                 "invalid syntax in question: {}",
                 src

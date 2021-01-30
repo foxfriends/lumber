@@ -1,6 +1,7 @@
 #![allow(clippy::redundant_allocation)]
 use super::*;
-use crate::parser::Rule;
+use crate::ast;
+use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -17,15 +18,12 @@ pub(crate) enum Pattern {
     /// A list of patterns (unifies with a list of the same length where the patterns each
     /// unify in order).
     List(Vec<Pattern>, Option<Box<Pattern>>),
-    /// A set of patterns (unifies with a set containing the same elements, ignoring order
-    /// and duplicates).
-    #[cfg(feature = "builtin-sets")]
-    Set(Vec<Pattern>, Option<Box<Pattern>>),
     /// A record, containing a set of fields.
     Record(Fields, Option<Box<Pattern>>),
     /// A wildcard (unifies with anything).
     Wildcard(Identifier),
     /// An unknown Rust value.
+    Any(Rc<Box<dyn Any>>),
     /// A value that must already be bound, at the time of checking (not wildcard)
     Bound,
     /// A value that must already not be bound, at the time of checking (wildcard only)
@@ -53,6 +51,7 @@ impl PartialEq for Pattern {
             (Pattern::Record(lhs, ltail), Pattern::Record(rhs, rtail)) => {
                 lhs == rhs && ltail == rtail
             }
+            (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
             (Pattern::Wildcard(lhs), Pattern::Wildcard(rhs)) => lhs == rhs,
             (Pattern::Bound, Pattern::Bound) => true,
             (Pattern::Unbound, Pattern::Unbound) => true,
@@ -72,6 +71,7 @@ impl Hash for Pattern {
             Pattern::Set(value, tail) => ("set", value, tail).hash(hasher),
             Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
+            Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
             Pattern::Wildcard(value) => ("wildcard", value).hash(hasher),
             Pattern::Bound => "bound".hash(hasher),
             Pattern::Unbound => "unbound".hash(hasher),
@@ -81,84 +81,6 @@ impl Hash for Pattern {
 }
 
 impl Pattern {
-    pub fn new(pair: crate::Pair, context: &mut Context) -> Self {
-        assert_eq!(pair.as_rule(), Rule::pattern);
-        let pair = just!(pair.into_inner());
-        Self::new_inner(pair, context)
-    }
-
-    pub fn new_inner(pair: crate::Pair, context: &mut Context) -> Self {
-        match pair.as_rule() {
-            Rule::value => Self::new_inner(just!(pair.into_inner()), context),
-            Rule::bound_pattern => match pair.into_inner().next() {
-                Some(pair) => {
-                    let inner = Self::new_inner(pair, context);
-                    Self::All(vec![Self::Bound, inner])
-                }
-                None => Self::Bound,
-            },
-            Rule::unbound_pattern => match pair.into_inner().next() {
-                Some(pair) => {
-                    let inner = Self::new_inner(pair, context);
-                    Self::All(vec![Self::Unbound, inner])
-                }
-                None => Self::Unbound,
-            },
-            Rule::struct_ => Self::Struct(Struct::new(pair, context)),
-            Rule::literal => Self::Literal(Literal::new(pair)),
-            Rule::variable => Self::Variable(context.get_variable(pair.as_str())),
-            Rule::list => {
-                let mut pairs = pair.into_inner();
-                let head = match pairs.next() {
-                    Some(head) => head
-                        .into_inner()
-                        .map(|pair| Self::new(pair, context))
-                        .collect(),
-                    None => return Self::List(vec![], None),
-                };
-                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
-                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_list_tail"))),
-                });
-                Self::List(head, tail)
-            }
-            #[cfg(not(feature = "builtin-sets"))]
-            Rule::set => {
-                unimplemented!("builtin-sets is not enabled, so set pattern syntax cannot be used.")
-            }
-            #[cfg(feature = "builtin-sets")]
-            Rule::set => {
-                let mut pairs = pair.into_inner();
-                let head = match pairs.next() {
-                    Some(head) => head
-                        .into_inner()
-                        .map(|pair| Self::new(pair, context))
-                        .collect(),
-                    None => return Self::Set(vec![], None),
-                };
-                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
-                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_set_tail"))),
-                });
-                Self::Set(head, tail)
-            }
-            Rule::record => {
-                let mut pairs = pair.into_inner();
-                let head = match pairs.next() {
-                    Some(head) => Fields::new(head, context),
-                    None => return Self::Record(Fields::default(), None),
-                };
-                let tail = pairs.next().map(|pair| match pair.into_inner().next() {
-                    Some(pair) => Box::new(Pattern::new_inner(pair, context)),
-                    None => Box::new(Pattern::Wildcard(Identifier::wildcard("_record_tail"))),
-                });
-                Self::Record(head, tail)
-            }
-            Rule::wildcard => Self::Wildcard(Identifier::wildcard(pair.as_str())),
-            rule => unreachable!("unexpected {:?}", rule),
-        }
-    }
-
     /// Identifiers for every placeholder value in this pattern, including wildcards.
     pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
         match self {
@@ -272,6 +194,7 @@ impl Display for Pattern {
                 }
             }
             Pattern::Struct(structure) => structure.fmt(f),
+            Pattern::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
             Pattern::Variable(var) => var.fmt(f),
             Pattern::Wildcard(..) => "_".fmt(f),
             Pattern::Bound => "!".fmt(f),
@@ -281,6 +204,30 @@ impl Display for Pattern {
                     pat.fmt(f)?;
                 }
                 Ok(())
+            }
+        }
+    }
+}
+
+impl From<ast::Pattern> for Pattern {
+    fn from(ast: ast::Pattern) -> Pattern {
+        match ast {
+            ast::Pattern::Literal(lit) => Self::Literal(lit),
+            ast::Pattern::Variable(id) => Self::Variable(Identifier::from(id)),
+            ast::Pattern::Struct(st) => Self::Struct(Struct::from(st)),
+            ast::Pattern::List(list, rest) => Self::List(
+                list.into_iter().map(Pattern::from).collect(),
+                rest.map(|pat| Box::new(Pattern::from(*pat))),
+            ),
+            ast::Pattern::Record(record, rest) => Self::Record(
+                Fields::from(record),
+                rest.map(|pat| Box::new(Pattern::from(*pat))),
+            ),
+            ast::Pattern::Wildcard(id) => Self::Wildcard(Identifier::from(id)),
+            ast::Pattern::Bound => Self::Bound,
+            ast::Pattern::Unbound => Self::Unbound,
+            ast::Pattern::All(patterns) => {
+                Self::All(patterns.into_iter().map(Pattern::from).collect())
             }
         }
     }

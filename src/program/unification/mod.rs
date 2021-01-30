@@ -1,3 +1,4 @@
+use super::evaltree;
 use crate::Binding;
 use std::borrow::Cow;
 

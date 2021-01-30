@@ -1,5 +1,5 @@
 use super::Value;
-use crate::ast::*;
+use crate::program::evaltree::*;
 use crate::program::unification::unify_patterns;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -192,13 +192,13 @@ impl Binding {
                     .flatten();
                 Ok(Pattern::Record(fields, rest))
             }
-            Pattern::Struct(crate::ast::Struct { name, contents }) => {
+            Pattern::Struct(crate::program::evaltree::Struct { name, contents }) => {
                 let contents = contents
                     .as_deref()
                     .map(|contents| self.apply(&contents))
                     .transpose()?
                     .map(Box::new);
-                Ok(Pattern::Struct(crate::ast::Struct {
+                Ok(Pattern::Struct(crate::program::evaltree::Struct {
                     name: name.clone(),
                     contents,
                 }))

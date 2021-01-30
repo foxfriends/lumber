@@ -1,3 +1,4 @@
+use crate::ast;
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -8,7 +9,7 @@ use std::rc::Rc;
 /// Note that the original name of the variable is stored elsewhere, as it is not relevant
 /// to the computation but is useful in output and debugging.
 #[derive(Clone, Eq, Debug)]
-pub(crate) struct Identifier(pub Rc<String>, pub bool);
+pub struct Identifier(Rc<String>, bool);
 
 impl Hash for Identifier {
     fn hash<H>(&self, hasher: &mut H)
@@ -58,5 +59,11 @@ impl Identifier {
 impl Display for Identifier {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl From<ast::Identifier> for Identifier {
+    fn from(ast: ast::Identifier) -> Self {
+        Self(ast.0, ast.1)
     }
 }

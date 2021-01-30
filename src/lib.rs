@@ -7,6 +7,7 @@
 #[macro_use]
 mod lumber;
 mod ast;
+mod climb;
 mod core;
 mod error;
 mod parser;
