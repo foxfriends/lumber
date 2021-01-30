@@ -223,7 +223,7 @@ impl From<ast::Pattern> for Pattern {
                 Fields::from(record),
                 rest.map(|pat| Box::new(Pattern::from(*pat))),
             ),
-            ast::Pattern::Wildcard(id) => Self::Wildcard(Identifier::from(id)),
+            ast::Pattern::Wildcard => Self::Wildcard(Identifier::wildcard("_")),
             ast::Pattern::Bound => Self::Bound,
             ast::Pattern::Unbound => Self::Unbound,
             ast::Pattern::All(patterns) => {

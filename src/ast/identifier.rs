@@ -8,7 +8,7 @@ use std::rc::Rc;
 /// Note that the original name of the variable is stored elsewhere, as it is not relevant
 /// to the computation but is useful in output and debugging.
 #[derive(Clone, Eq, Debug)]
-pub(crate) struct Identifier(pub Rc<String>, pub bool);
+pub(crate) struct Identifier(pub Rc<String>);
 
 impl Hash for Identifier {
     fn hash<H>(&self, hasher: &mut H)
@@ -39,19 +39,11 @@ impl PartialOrd for Identifier {
 
 impl Identifier {
     pub(crate) fn new(name: String) -> Self {
-        Self(Rc::new(name), false)
-    }
-
-    pub(crate) fn wildcard<S: Into<String>>(name: S) -> Self {
-        Self(Rc::new(name.into()), true)
+        Self(Rc::new(name))
     }
 
     pub fn name(&self) -> &str {
         self.0.as_str()
-    }
-
-    pub fn is_wildcard(&self) -> bool {
-        self.1
     }
 }
 
