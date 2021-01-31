@@ -1,6 +1,6 @@
-use super::Value;
 use crate::program::evaltree::*;
 use crate::program::unification::unify_patterns;
+use crate::Value;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
@@ -10,7 +10,7 @@ use std::rc::Rc;
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
 #[derive(Default, Clone, Debug)]
-pub struct Binding(pub(crate) HashMap<Identifier, Rc<Pattern>>);
+pub(crate) struct Binding(pub HashMap<Identifier, Rc<Pattern>>);
 
 impl Binding {
     #[cfg_attr(feature = "test-perf", flamer::flame)]

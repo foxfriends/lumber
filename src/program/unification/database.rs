@@ -1,7 +1,7 @@
 use super::super::{Database, DatabaseDefinition};
 use super::evaltree::*;
-use super::{unify_patterns, Bindings};
-use crate::{Binding, Question};
+use super::{unify_patterns, Binding, Bindings};
+use crate::Question;
 use std::borrow::Cow;
 
 type Evaluation<'a> = (Cow<'a, Pattern>, Bindings<'a>);

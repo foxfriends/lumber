@@ -1,5 +1,5 @@
 use super::evaltree::*;
-use crate::Binding;
+use super::Binding;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;

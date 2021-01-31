@@ -1,8 +1,8 @@
+use super::{Answer, Value};
 use crate::ast::{self, Context};
 use crate::parser::*;
 use crate::program::evaltree::Body;
-use crate::{Binding, Value};
-use std::collections::BTreeMap;
+use crate::program::Binding;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 
@@ -63,15 +63,17 @@ impl Question {
     }
 
     /// Uses a binding to extract the answer to this question.
-    pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
+    pub(crate) fn answer(&self, binding: &Binding) -> Answer {
         self.body
             .identifiers()
             .filter(|ident| !ident.is_wildcard())
             .map(|identifier| {
-                Some((
+                (
                     identifier.name().to_owned(),
-                    binding.extract(binding.get(&identifier)?.as_ref()).ok()?,
-                ))
+                    binding
+                        .extract(binding.get(&identifier).unwrap().as_ref())
+                        .unwrap(),
+                )
             })
             .collect()
     }

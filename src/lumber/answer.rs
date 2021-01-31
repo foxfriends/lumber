@@ -1,10 +1,40 @@
-use super::Binding;
+use super::Value;
+use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
+use std::iter::FromIterator;
 
-/// Describes how to convert a binding of variables into a more structured form.
-///
-/// Currently this is implemented manually, but eventually will be derivable.
-pub trait FromBinding: Sized {
-    /// Constructs a value of this type from a binding of variables. If the construction
-    /// cannot be completed, the full, unmodified binding should be returned as an `Err`.
-    fn from_binding(binding: Binding) -> Result<Self, Binding>;
+/// An answer to a question. Contains a single valid binding of the named variables in the question
+/// to values that satisfy the program.
+#[derive(Clone)]
+pub struct Answer {
+    variables: HashMap<String, Option<Value>>,
+}
+
+impl FromIterator<(String, Option<Value>)> for Answer {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (String, Option<Value>)>,
+    {
+        Self {
+            variables: HashMap::from_iter(iter),
+        }
+    }
+}
+
+impl Display for Answer {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if self.variables.is_empty() {
+            return write!(f, "true");
+        }
+        for (i, (var, val)) in self.variables.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            match val {
+                Some(val) => write!(f, "{} = {}", var, val)?,
+                None => write!(f, "{} = _", var)?,
+            }
+        }
+        Ok(())
+    }
 }

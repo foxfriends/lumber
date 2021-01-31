@@ -1,5 +1,4 @@
-use super::evaltree;
-use crate::Binding;
+use super::{evaltree, Binding};
 use std::borrow::Cow;
 
 mod database;
