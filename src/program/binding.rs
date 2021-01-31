@@ -10,11 +10,11 @@ use std::rc::Rc;
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
 #[derive(Default, Clone, Debug)]
-pub(crate) struct Binding(pub HashMap<Identifier, Rc<Pattern>>);
+pub(crate) struct Binding(HashMap<Identifier, Rc<Pattern>>);
 
 impl Binding {
     #[cfg_attr(feature = "test-perf", flamer::flame)]
-    pub(crate) fn transfer_from<'a, 'b>(
+    pub fn transfer_from<'a, 'b>(
         mut output_binding: Cow<'b, Self>,
         input_binding: &Self,
         source: &[Cow<'a, Pattern>],
@@ -49,7 +49,7 @@ impl Binding {
             })
     }
 
-    pub(crate) fn get(&self, identifier: &Identifier) -> Option<Rc<Pattern>> {
+    pub fn get(&self, identifier: &Identifier) -> Option<Rc<Pattern>> {
         let pattern = self.0.get(identifier)?;
         match pattern.as_ref() {
             Pattern::Variable(identifier) => self.get(identifier),
@@ -57,13 +57,13 @@ impl Binding {
         }
     }
 
-    pub(crate) fn set(&mut self, identifier: Identifier, pattern: Pattern) -> Rc<Pattern> {
+    pub fn set(&mut self, identifier: Identifier, pattern: Pattern) -> Rc<Pattern> {
         let rc = Rc::new(pattern);
         self.0.insert(identifier, rc.clone());
         rc
     }
 
-    pub(crate) fn fresh_variable(&mut self) -> Identifier {
+    pub fn fresh_variable(&mut self) -> Identifier {
         let name = format!("##{}", self.0.len());
         let var = Identifier::new(name.clone());
         self.0.insert(
@@ -73,7 +73,7 @@ impl Binding {
         var
     }
 
-    pub(crate) fn copy_variable(&mut self, name: &str) -> Identifier {
+    pub fn copy_variable(&mut self, name: &str) -> Identifier {
         let name = format!("##{}#{}", self.0.len(), name);
         let var = Identifier::new(name.clone());
         self.0.insert(
@@ -83,7 +83,7 @@ impl Binding {
         var
     }
 
-    pub(crate) fn bind(&mut self, variable: &str, value: Value) {
+    pub fn bind(&mut self, variable: &str, value: Value) {
         let identifier = self
             .0
             .keys()
@@ -93,11 +93,11 @@ impl Binding {
         self.set(identifier, Some(value).into());
     }
 
-    pub(crate) fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
+    pub fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
         Ok(self.apply(pattern)?.into())
     }
 
-    pub(crate) fn apply(&self, pattern: &Pattern) -> crate::Result<Pattern> {
+    pub fn apply(&self, pattern: &Pattern) -> crate::Result<Pattern> {
         #[cfg(feature = "test-perf")]
         let _guard = {
             let name = match pattern {
