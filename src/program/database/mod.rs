@@ -34,7 +34,7 @@ impl<'p> Database<'p> {
                 HashMap::<Handle, Vec<Definition>>::default(),
                 |mut handles, (handle, entry)| {
                     handles
-                        .entry(Handle::from(handle))
+                        .entry(handle)
                         .or_default()
                         .push(Definition::from(entry));
                     handles
@@ -50,13 +50,9 @@ impl<'p> Database<'p> {
                 )
             })
             .collect();
-        let operators = operators
-            .into_iter()
-            .map(|(key, op)| (key.into(), op.into()))
-            .collect();
         Self {
             definitions,
-            operators,
+            operators: operators.into_iter().collect(),
         }
     }
 
