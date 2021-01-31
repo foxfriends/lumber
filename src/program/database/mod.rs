@@ -1,57 +1,13 @@
 use super::evaltree::*;
 use super::*;
 use crate::ast::ModuleHeader;
-use std::cell::RefCell;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
-pub(crate) struct DatabaseEntry<'p> {
-    public: bool,
-    definition: DatabaseDefinition<'p>,
-}
+mod definition;
+mod entry;
 
-impl<'p> DatabaseEntry<'p> {
-    fn new(definition: DatabaseDefinition<'p>) -> Self {
-        Self {
-            public: false,
-            definition,
-        }
-    }
-
-    fn set_public(&mut self) {
-        self.public = true;
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum DatabaseDefinition<'p> {
-    Static(Definition),
-    Mutable(RefCell<Definition>),
-    Alias(Handle),
-    Native(NativeFunction<'p>),
-}
-
-impl DatabaseDefinition<'_> {
-    fn set_mutable(&mut self) {
-        match self {
-            Self::Static(def) => *self = Self::Mutable(RefCell::new(std::mem::take(def))),
-            _ => panic!("Cannot change definition to mutable"),
-        }
-    }
-
-    fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
-        match self {
-            Self::Static(def) => Box::new(def.bodies_mut().flat_map(|body| body.handles_mut())),
-            Self::Mutable(def) => Box::new(
-                def.get_mut()
-                    .bodies_mut()
-                    .flat_map(|body| body.handles_mut()),
-            ),
-            Self::Alias(handle) => Box::new(std::iter::once(handle)),
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-}
+pub(crate) use definition::DatabaseDefinition;
+use entry::DatabaseEntry;
 
 #[derive(Clone, Default, Debug)]
 pub(crate) struct Database<'p> {
