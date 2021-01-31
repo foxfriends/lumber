@@ -24,8 +24,6 @@ impl Term {
             Self::PrefixOp(operator, term) => {
                 Box::new(std::iter::once(operator.handle_mut()).chain(term.handles_mut()))
             }
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(.., body) => Box::new(body.handles_mut()),
             Self::ListAggregation(.., body) => Box::new(body.handles_mut()),
         }
     }
@@ -36,10 +34,6 @@ impl Term {
             Self::Value(pattern) => pattern.identifiers(),
             Self::PrefixOp(.., term) => term.identifiers(),
             Self::InfixOp(lhs, .., rhs) => Box::new(lhs.identifiers().chain(rhs.identifiers())),
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(pattern, body) => {
-                Box::new(pattern.identifiers().chain(body.identifiers()))
-            }
             Self::ListAggregation(pattern, body) => {
                 Box::new(pattern.identifiers().chain(body.identifiers()))
             }
@@ -54,8 +48,6 @@ impl Display for Term {
             Self::Value(pattern) => pattern.fmt(f),
             Self::InfixOp(lhs, operator, rhs) => write!(f, "{} {} {}", lhs, operator, rhs),
             Self::PrefixOp(operator, term) => write!(f, "{} {}", operator, term),
-            #[cfg(feature = "builtin-sets")]
-            Self::SetAggregation(..) => todo!(),
             Self::ListAggregation(pattern, body) => write!(f, "[{} : {}]", pattern, body),
         }
     }

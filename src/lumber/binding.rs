@@ -104,8 +104,6 @@ impl Binding {
                 Pattern::Variable(identifier) => format!("var {}", identifier.name()),
                 Pattern::Wildcard(identifier) => format!("wild {}", identifier.name()),
                 Pattern::List(..) => "list".to_owned(),
-                #[cfg(feature = "builtin-sets")]
-                Pattern::Set(..) => "set".to_owned(),
                 Pattern::Record(..) => "record".to_owned(),
                 Pattern::Struct(s) => format!("struct {}", s.name),
                 Pattern::Literal(..) => "literal".to_owned(),
@@ -148,28 +146,6 @@ impl Binding {
                     .transpose()?
                     .flatten();
                 Ok(Pattern::List(patterns, rest))
-            }
-            #[cfg(feature = "builtin-sets")]
-            Pattern::Set(patterns, rest) => {
-                let mut patterns = patterns
-                    .iter()
-                    .map(|pattern| self.apply(pattern))
-                    .collect::<crate::Result<Vec<_>>>()?;
-                let rest = rest
-                    .as_ref()
-                    .map(|pattern| -> crate::Result<Option<Box<Pattern>>> {
-                        match self.apply(&*pattern)? {
-                            Pattern::Set(mut head, rest) => {
-                                patterns.append(&mut head);
-                                Ok(rest)
-                            }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
-                            v => panic!("We have unified a set with a non-set value ({:?}). This should not happen.", v),
-                        }
-                    })
-                    .transpose()?
-                    .flatten();
-                Ok(Pattern::Set(patterns, rest))
             }
             Pattern::Record(fields, rest) => {
                 let mut fields = fields

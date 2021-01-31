@@ -1,6 +1,4 @@
 #![allow(clippy::redundant_allocation)]
-#[cfg(feature = "builtin-sets")]
-use super::Set;
 use super::{List, Record, Struct};
 use crate::program::evaltree::{Identifier, Literal, Pattern};
 use ramp::{int::Int, rational::Rational};
@@ -18,9 +16,6 @@ pub enum Value {
     Rational(Rational),
     /// A string value.
     String(String),
-    /// An unordered, duplicate-free collection of values.
-    #[cfg(feature = "builtin-sets")]
-    Set(Set),
     /// An ordered collection of values, which may contain duplicates.
     List(List),
     /// A set of key value(s) pairs.
@@ -38,8 +33,6 @@ impl PartialEq for Value {
             (Value::Integer(lhs), Value::Integer(rhs)) => lhs == rhs,
             (Value::Rational(lhs), Value::Rational(rhs)) => lhs == rhs,
             (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
-            #[cfg(feature = "builtin-sets")]
-            (Value::Set(lhs), Value::Set(rhs)) => lhs == rhs,
             (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
             (Value::Struct(lhs), Value::Struct(rhs)) => lhs == rhs,
             (Value::Record(lhs), Value::Record(rhs)) => lhs == rhs,
@@ -241,12 +234,6 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::List(List { values, complete }))
             }
-            #[cfg(feature = "builtin-sets")]
-            Pattern::Set(patterns, rest) => {
-                let values = patterns.into_iter().map(Into::into).collect();
-                let complete = rest.is_none();
-                Some(Value::Set(Set::new(values, complete)))
-            }
             Pattern::Record(fields, rest) => {
                 let fields = fields
                     .into_iter()
@@ -284,8 +271,6 @@ impl Into<Pattern> for Option<Value> {
                     ))))
                 },
             ),
-            #[cfg(feature = "builtin-sets")]
-            Some(Value::Set(..)) => todo!(),
             Some(Value::Record(Record { fields, complete })) => Pattern::Record(
                 fields
                     .into_iter()
@@ -314,8 +299,6 @@ impl Display for Value {
             Value::Integer(int) => int.fmt(f),
             Value::Rational(rat) => rat.to_f64().fmt(f),
             Value::String(string) => write!(f, "{:?}", string),
-            #[cfg(feature = "builtin-sets")]
-            Value::Set(set) => set.fmt(f),
             Value::List(list) => list.fmt(f),
             Value::Record(record) => record.fmt(f),
             Value::Struct(structure) => structure.fmt(f),

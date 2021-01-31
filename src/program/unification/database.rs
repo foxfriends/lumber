@@ -452,14 +452,6 @@ impl Database<'_> {
                 (Cow::Owned(dest), bindings)
             }
             Term::Value(pattern) => (Cow::Borrowed(pattern), Box::new(std::iter::once(binding))),
-            #[cfg(feature = "builtin-sets")]
-            Term::SetAggregation(pattern, body) => {
-                let solutions = self
-                    .unify_body(body, Cow::Borrowed(binding), public)
-                    .map(|binding| binding.apply(&pattern).unwrap())
-                    .collect();
-                Some(Cow::Owned(Pattern::Set(solutions, None)))
-            }
             Term::ListAggregation(pattern, body) => {
                 let solutions = self
                     .unify_body(body, binding.clone(), public)

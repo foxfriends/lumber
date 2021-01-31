@@ -45,8 +45,6 @@ impl PartialEq for Pattern {
             (Pattern::Struct(lhs), Pattern::Struct(rhs)) => lhs == rhs,
             (Pattern::Variable(lhs), Pattern::Variable(rhs)) => lhs == rhs,
             (Pattern::Literal(lhs), Pattern::Literal(rhs)) => lhs == rhs,
-            #[cfg(feature = "builtin-sets")]
-            (Pattern::Set(lhs, ltail), Pattern::Set(rhs, rtail)) => lhs == rhs && ltail == rtail,
             (Pattern::List(lhs, ltail), Pattern::List(rhs, rtail)) => lhs == rhs && ltail == rtail,
             (Pattern::Record(lhs, ltail), Pattern::Record(rhs, rtail)) => {
                 lhs == rhs && ltail == rtail
@@ -67,8 +65,6 @@ impl Hash for Pattern {
             Pattern::Struct(value) => ("struct", value).hash(hasher),
             Pattern::Variable(value) => ("variable", value).hash(hasher),
             Pattern::Literal(value) => ("literal", value).hash(hasher),
-            #[cfg(feature = "builtin-sets")]
-            Pattern::Set(value, tail) => ("set", value, tail).hash(hasher),
             Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
             Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
@@ -94,12 +90,6 @@ impl Pattern {
             Self::Record(head, tail) => Box::new(
                 head.iter()
                     .flat_map(|(_, pattern)| pattern.identifiers())
-                    .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
-            ),
-            #[cfg(feature = "builtin-sets")]
-            Self::Set(head, tail) => Box::new(
-                head.iter()
-                    .flat_map(|pattern| pattern.identifiers())
                     .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
             ),
             Self::Wildcard(identifier) => Box::new(std::iter::once(identifier.clone())),
@@ -131,15 +121,6 @@ impl Pattern {
                             .flat_map(|pattern| pattern.identifiers_mut()),
                     ),
             ),
-            #[cfg(feature = "builtin-sets")]
-            Self::Set(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut())
-                    .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
-                    ),
-            ),
             Self::Wildcard(identifier) => Box::new(std::iter::once(identifier)),
             Self::All(patterns) => Box::new(
                 patterns
@@ -163,8 +144,6 @@ impl Display for Pattern {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Pattern::Literal(lit) => lit.fmt(f),
-            #[cfg(feature = "builtin-sets")]
-            Pattern::Set(head, tail) => todo!(),
             Pattern::List(head, tail) => {
                 write!(f, "[")?;
                 for (i, pattern) in head.iter().enumerate() {

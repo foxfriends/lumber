@@ -15,8 +15,6 @@ mod builder;
 mod list;
 mod question;
 mod record;
-#[cfg(feature = "builtin-sets")]
-mod set;
 mod r#struct;
 mod value;
 
@@ -27,8 +25,6 @@ pub use list::List;
 pub use question::Question;
 pub use r#struct::Struct;
 pub use record::Record;
-#[cfg(feature = "builtin-sets")]
-pub use set::Set;
 pub use value::Value;
 
 /// A Lumber program, for use either as a full program, or linked to by another Lumber program
