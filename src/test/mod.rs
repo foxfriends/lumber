@@ -22,28 +22,22 @@ macro_rules! test {
                 let question = Question::try_from($query).expect("question error");
                 let mut answers = program.ask(&question);
                 $(
-                    let mut answer = question
-                        .answer(
-                            &answers
-                                .next()
-                                .expect(&format!("{:?} - expected another answer", $query))
-                        )
-                        .expect(&format!("{:?} answers should be bound", $query));
+                    let mut answer = answers
+                        .next()
+                        .expect(&format!("{:?} - expected another answer", $query));
                     $(
                         assert_eq!(
                             answer
                                 .remove(stringify!($var))
-                                .expect(&format!("{:?}: var {:?} should exist", $query, stringify!($var)))
-                                .as_ref()
                                 .expect(&format!("{:?}: var {:?} should be set", $query, stringify!($var))),
-                            &$value,
+                            $value,
                             "{:?} -> {} = {}",
                             $query,
                             stringify!($var),
                             $value,
                         );
                     )*
-                    assert!(answer.values().all(Option::is_none));
+                    assert!(answer.into_iter().map(|(_, value)| value).all(|val| val.is_none()));
                 )*
                 assert!(answers.next().is_none(), "{:?} expected no more answers", $query);
             )*

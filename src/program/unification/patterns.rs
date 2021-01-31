@@ -544,9 +544,9 @@ mod test {
 
     fn id(name: &str, binding: &mut Binding) -> Pattern {
         let identifier = Identifier::new(name.to_owned());
-        binding.0.insert(
+        binding.set(
             identifier.clone(),
-            Rc::new(Pattern::Wildcard(Identifier::wildcard("_"))),
+            Pattern::Wildcard(Identifier::wildcard("_")),
         );
         Pattern::Variable(identifier)
     }
