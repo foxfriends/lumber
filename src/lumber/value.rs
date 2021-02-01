@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_allocation)]
 use super::{List, Record, Struct};
-use crate::program::evaltree::{Identifier, Literal, Pattern};
+use crate::program::evaltree::{Identifier, Literal, Pattern, Variable};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -224,7 +224,6 @@ impl From<Pattern> for Option<Value> {
     fn from(pattern: Pattern) -> Self {
         match pattern {
             Pattern::Variable(..) => None,
-            Pattern::Wildcard(..) => None,
             Pattern::Bound | Pattern::Unbound => None,
             Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
             Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
@@ -257,7 +256,7 @@ impl From<Pattern> for Option<Value> {
 impl Into<Pattern> for Option<Value> {
     fn into(self) -> Pattern {
         match self {
-            None => Pattern::Wildcard(Identifier::wildcard("_from_none")),
+            None => Pattern::Variable(Variable::new_generationless(Identifier::wildcard("_"))),
             Some(Value::Integer(int)) => Pattern::Literal(Literal::Integer(int)),
             Some(Value::Rational(rat)) => Pattern::Literal(Literal::Rational(rat)),
             Some(Value::String(string)) => Pattern::Literal(Literal::String(string)),
@@ -266,8 +265,8 @@ impl Into<Pattern> for Option<Value> {
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
-                        "_from_list_tail",
+                    Some(Box::new(Pattern::Variable(Variable::new_generationless(
+                        Identifier::wildcard("_"),
                     ))))
                 },
             ),
@@ -279,8 +278,8 @@ impl Into<Pattern> for Option<Value> {
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
-                        "_from_record_tail",
+                    Some(Box::new(Pattern::Variable(Variable::new_generationless(
+                        Identifier::wildcard("_"),
                     ))))
                 },
             ),

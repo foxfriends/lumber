@@ -26,8 +26,9 @@ impl Disjunction {
         self.conjunctions_mut().flat_map(Conjunction::handles_mut)
     }
 
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.conjunctions().flat_map(Conjunction::identifiers)
+    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
+        self.conjunctions()
+            .flat_map(move |conjunction| conjunction.variables(generation))
     }
 }
 

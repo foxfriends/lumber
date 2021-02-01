@@ -10,14 +10,6 @@ pub(crate) struct Head {
     pub(crate) patterns: Vec<Pattern>,
 }
 
-impl Head {
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.patterns
-            .iter()
-            .flat_map(|pattern| pattern.identifiers())
-    }
-}
-
 impl AsRef<Handle> for Head {
     fn as_ref(&self) -> &Handle {
         &self.handle

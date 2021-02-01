@@ -16,16 +16,10 @@ impl Struct {
         Self { name, contents }
     }
 
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
+    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
         self.contents
             .iter()
-            .flat_map(|pattern| pattern.identifiers())
-    }
-
-    pub fn identifiers_mut(&mut self) -> impl Iterator<Item = &mut Identifier> + '_ {
-        self.contents
-            .iter_mut()
-            .flat_map(|pattern| pattern.identifiers_mut())
+            .flat_map(move |pattern| pattern.variables(generation))
     }
 }
 

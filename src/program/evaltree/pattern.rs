@@ -12,7 +12,7 @@ pub(crate) enum Pattern {
     /// A structured pattern (unifies structurally with another query of the same name).
     Struct(Struct),
     /// A single variable (unifies with anything but only once).
-    Variable(Identifier),
+    Variable(Variable),
     /// A literal value (unifies only with itself).
     Literal(Literal),
     /// A list of patterns (unifies with a list of the same length where the patterns each
@@ -20,8 +20,6 @@ pub(crate) enum Pattern {
     List(Vec<Pattern>, Option<Box<Pattern>>),
     /// A record, containing a set of fields.
     Record(Fields, Option<Box<Pattern>>),
-    /// A wildcard (unifies with anything).
-    Wildcard(Identifier),
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
     /// A value that must already be bound, at the time of checking (not wildcard)
@@ -30,12 +28,6 @@ pub(crate) enum Pattern {
     Unbound,
     /// A value that must match multiple patterns
     All(Vec<Pattern>),
-}
-
-impl Default for Pattern {
-    fn default() -> Self {
-        Self::Wildcard(Identifier::wildcard("_default"))
-    }
 }
 
 impl Eq for Pattern {}
@@ -50,7 +42,6 @@ impl PartialEq for Pattern {
                 lhs == rhs && ltail == rtail
             }
             (Pattern::Any(lhs), Pattern::Any(rhs)) => Rc::ptr_eq(lhs, rhs),
-            (Pattern::Wildcard(lhs), Pattern::Wildcard(rhs)) => lhs == rhs,
             (Pattern::Bound, Pattern::Bound) => true,
             (Pattern::Unbound, Pattern::Unbound) => true,
             (Pattern::All(lhs), Pattern::All(rhs)) => lhs.eq(rhs),
@@ -68,7 +59,6 @@ impl Hash for Pattern {
             Pattern::List(value, tail) => ("list", value, tail).hash(hasher),
             Pattern::Record(value, tail) => ("record", value, tail).hash(hasher),
             Pattern::Any(value) => ("any", Rc::as_ptr(value)).hash(hasher),
-            Pattern::Wildcard(value) => ("wildcard", value).hash(hasher),
             Pattern::Bound => "bound".hash(hasher),
             Pattern::Unbound => "unbound".hash(hasher),
             Pattern::All(patterns) => ("all", patterns).hash(hasher),
@@ -77,55 +67,31 @@ impl Hash for Pattern {
 }
 
 impl Pattern {
-    /// Identifiers for every placeholder value in this pattern, including wildcards.
-    pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+    /// All variables in this pattern, resolved to a particular generation
+    pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Struct(s) => Box::new(s.identifiers()),
-            Self::Variable(identifier) => Box::new(std::iter::once(identifier.clone())),
+            Self::Struct(s) => Box::new(s.variables(generation)),
+            Self::Variable(variable) => Box::new(std::iter::once(variable.set_current(generation))),
             Self::List(head, tail) => Box::new(
                 head.iter()
-                    .flat_map(|pattern| pattern.identifiers())
-                    .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
-            ),
-            Self::Record(head, tail) => Box::new(
-                head.iter()
-                    .flat_map(|(_, pattern)| pattern.identifiers())
-                    .chain(tail.iter().flat_map(|pattern| pattern.identifiers())),
-            ),
-            Self::Wildcard(identifier) => Box::new(std::iter::once(identifier.clone())),
-            Self::All(patterns) => {
-                Box::new(patterns.iter().flat_map(|pattern| pattern.identifiers()))
-            }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    /// Identifiers for every placeholder value in this pattern, including wildcards.
-    pub fn identifiers_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Identifier> + 'a> {
-        match self {
-            Self::Struct(s) => Box::new(s.identifiers_mut()),
-            Self::Variable(identifier) => Box::new(std::iter::once(identifier)),
-            Self::List(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut())
+                    .flat_map(move |pattern| pattern.variables(generation))
                     .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
+                        tail.iter()
+                            .flat_map(move |pattern| pattern.variables(generation)),
                     ),
             ),
             Self::Record(head, tail) => Box::new(
-                head.iter_mut()
-                    .flat_map(|(_, pattern)| pattern.identifiers_mut())
+                head.iter()
+                    .flat_map(move |(_, pattern)| pattern.variables(generation))
                     .chain(
-                        tail.iter_mut()
-                            .flat_map(|pattern| pattern.identifiers_mut()),
+                        tail.iter()
+                            .flat_map(move |pattern| pattern.variables(generation)),
                     ),
             ),
-            Self::Wildcard(identifier) => Box::new(std::iter::once(identifier)),
             Self::All(patterns) => Box::new(
                 patterns
-                    .iter_mut()
-                    .flat_map(|pattern| pattern.identifiers_mut()),
+                    .iter()
+                    .flat_map(move |pattern| pattern.variables(generation)),
             ),
             _ => Box::new(std::iter::empty()),
         }
@@ -133,10 +99,6 @@ impl Pattern {
 
     pub fn is_container(&self) -> bool {
         matches!(self, Self::List(..) | Self::Record(..))
-    }
-
-    pub fn is_wildcard(&self) -> bool {
-        matches!(self, Self::Wildcard(..))
     }
 }
 
@@ -153,7 +115,6 @@ impl Display for Pattern {
                     pattern.fmt(f)?;
                 }
                 match tail {
-                    Some(tail) if tail.is_wildcard() => write!(f, ", ..]"),
                     Some(tail) => write!(f, ", ..{}]", tail),
                     None => write!(f, "]"),
                 }
@@ -167,7 +128,6 @@ impl Display for Pattern {
                     write!(f, "{}: {}", key, pattern)?;
                 }
                 match tail {
-                    Some(tail) if tail.is_wildcard() => write!(f, ", .. }}"),
                     Some(tail) => write!(f, ", ..{} }}", tail),
                     None => write!(f, " }}"),
                 }
@@ -175,7 +135,6 @@ impl Display for Pattern {
             Pattern::Struct(structure) => structure.fmt(f),
             Pattern::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
             Pattern::Variable(var) => var.fmt(f),
-            Pattern::Wildcard(..) => "_".fmt(f),
             Pattern::Bound => "!".fmt(f),
             Pattern::Unbound => "?".fmt(f),
             Pattern::All(inner) => {
@@ -192,7 +151,9 @@ impl From<ast::Pattern> for Pattern {
     fn from(ast: ast::Pattern) -> Pattern {
         match ast {
             ast::Pattern::Literal(lit) => Self::Literal(lit),
-            ast::Pattern::Variable(id) => Self::Variable(Identifier::from(id)),
+            ast::Pattern::Variable(id) => {
+                Self::Variable(Variable::new_generationless(Identifier::from(id)))
+            }
             ast::Pattern::Struct(st) => Self::Struct(Struct::from(st)),
             ast::Pattern::List(list, rest) => Self::List(
                 list.into_iter().map(Pattern::from).collect(),
@@ -202,7 +163,9 @@ impl From<ast::Pattern> for Pattern {
                 Fields::from(record),
                 rest.map(|pat| Box::new(Pattern::from(*pat))),
             ),
-            ast::Pattern::Wildcard => Self::Wildcard(Identifier::wildcard("_")),
+            ast::Pattern::Wildcard => {
+                Self::Variable(Variable::new_generationless(Identifier::wildcard("_")))
+            }
             ast::Pattern::Bound => Self::Bound,
             ast::Pattern::Unbound => Self::Unbound,
             ast::Pattern::All(patterns) => {

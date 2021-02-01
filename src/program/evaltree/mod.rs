@@ -13,6 +13,7 @@ mod query;
 mod step;
 mod r#struct;
 mod term;
+mod variable;
 
 pub(crate) use body::Body;
 pub(crate) use conjunction::Conjunction;
@@ -28,6 +29,7 @@ pub(crate) use query::Query;
 pub(crate) use r#struct::Struct;
 pub(crate) use step::Step;
 pub(crate) use term::Term;
+pub(crate) use variable::Variable;
 
 pub(crate) use crate::ast::Atom;
 pub(crate) use crate::ast::Handle;

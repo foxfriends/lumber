@@ -1,96 +1,117 @@
+use super::unification::unify_patterns_new_generation;
 use crate::program::evaltree::*;
-use crate::program::unification::unify_patterns;
 use crate::Value;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::iter::FromIterator;
 use std::rc::Rc;
 
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
-#[derive(Default, Clone, Debug)]
-pub(crate) struct Binding(HashMap<Identifier, Rc<Pattern>>);
+#[derive(Clone, Debug)]
+pub(crate) struct Binding {
+    variables: HashMap<Variable, Rc<Pattern>>,
+    generations: Vec<usize>,
+    next_generation: usize,
+}
+
+#[cfg(test)]
+impl Default for Binding {
+    fn default() -> Self {
+        Self {
+            variables: HashMap::default(),
+            generations: vec![0],
+            next_generation: 1,
+        }
+    }
+}
 
 impl Binding {
+    pub fn new(body: &Body) -> Self {
+        Self {
+            variables: body
+                .variables(0)
+                .into_iter()
+                .map(|var| (var.clone(), Rc::new(Pattern::Variable(var))))
+                .collect(),
+            generations: vec![0],
+            next_generation: 1,
+        }
+    }
+
+    pub fn generation(&self) -> usize {
+        *self.generations.last().unwrap()
+    }
+
+    pub fn prev_generation(&self) -> usize {
+        self.generations[self.generations.len() - 2]
+    }
+
     #[cfg_attr(feature = "test-perf", flamer::flame)]
-    pub fn transfer_from<'a, 'b>(
-        mut output_binding: Cow<'b, Self>,
-        input_binding: &Self,
+    pub fn start_generation<'a, 'b>(
+        &self,
+        body: Option<&Body>,
         source: &[Cow<'a, Pattern>],
         destination: &[Cow<'a, Pattern>],
     ) -> Option<Cow<'b, Self>> {
-        let mut source_patterns: Vec<_> = source
-            .iter()
-            .map(|source| input_binding.apply(source).unwrap())
-            .collect();
-        let identifiers_map = source_patterns
-            .iter()
-            .flat_map(Pattern::identifiers)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .map(|ident| {
-                (
-                    ident.clone(),
-                    output_binding.to_mut().copy_variable(ident.name()),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-        for pattern in &mut source_patterns {
-            for identifier in pattern.identifiers_mut() {
-                *identifier = identifiers_map.get(identifier).unwrap().clone();
-            }
-        }
-        source_patterns
-            .into_iter()
-            .zip(destination.iter())
-            .try_fold(output_binding, |binding, (source, destination)| {
-                unify_patterns(Cow::Owned(source), destination.clone(), binding, &[])
-            })
+        let mut binding = self.clone();
+        let generation = binding.next_generation;
+        binding.generations.push(generation);
+        binding.next_generation += 1;
+        binding.variables.extend(
+            destination
+                .iter()
+                .flat_map(|pat| pat.variables(generation))
+                .chain(body.into_iter().flat_map(|body| body.variables(generation)))
+                .map(|var| (var.clone(), Rc::new(Pattern::Variable(var)))),
+        );
+        source.iter().zip(destination.iter()).try_fold(
+            Cow::Owned(binding),
+            |binding, (source, destination)| {
+                unify_patterns_new_generation(source.clone(), destination.clone(), binding)
+            },
+        )
     }
 
-    pub fn get(&self, identifier: &Identifier) -> Option<Rc<Pattern>> {
-        let pattern = self.0.get(identifier)?;
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
+    pub fn end_generation(mut self) -> Self {
+        self.generations.pop();
+        self
+    }
+
+    pub fn get(&self, var: &Variable) -> Option<Rc<Pattern>> {
+        let pattern = self.variables.get(var)?;
         match pattern.as_ref() {
-            Pattern::Variable(identifier) => self.get(identifier),
+            Pattern::Variable(new_var) if new_var != var => self.get(new_var),
             _ => Some(pattern.clone()),
         }
     }
 
-    pub fn set(&mut self, identifier: Identifier, pattern: Pattern) -> Rc<Pattern> {
+    pub fn set(&mut self, var: Variable, pattern: Pattern) -> Rc<Pattern> {
         let rc = Rc::new(pattern);
-        self.0.insert(identifier, rc.clone());
+        self.variables
+            .insert(var.set_current(self.generation()), rc.clone());
         rc
     }
 
-    pub fn fresh_variable(&mut self) -> Identifier {
-        let name = format!("##{}", self.0.len());
-        let var = Identifier::new(name.clone());
-        self.0.insert(
-            var.clone(),
-            Rc::new(Pattern::Wildcard(Identifier::wildcard(name))),
-        );
+    pub fn fresh_variable(&mut self) -> Variable {
+        let name = format!("${}", self.variables.len());
+        let var = Variable::new(Identifier::new(name), self.generation());
+        self.variables
+            .insert(var.clone(), Rc::new(Pattern::Variable(var.clone())));
         var
     }
 
-    pub fn copy_variable(&mut self, name: &str) -> Identifier {
-        let name = format!("##{}#{}", self.0.len(), name);
-        let var = Identifier::new(name.clone());
-        self.0.insert(
-            var.clone(),
-            Rc::new(Pattern::Wildcard(Identifier::wildcard(name))),
-        );
-        var
-    }
-
-    pub fn bind(&mut self, variable: &str, value: Value) {
-        let identifier = self
-            .0
+    pub fn bind(&mut self, name: &str, value: Value) {
+        let var = self
+            .variables
             .keys()
-            .find(|id| id.name() == variable)
+            .find(|var| {
+                var.name() == name && var.generation(self.generation()) == self.generation()
+            })
             .unwrap()
             .clone();
-        self.set(identifier, Some(value).into());
+        *self.variables.get_mut(&var).unwrap() = Rc::new(Some(value).into());
     }
 
     pub fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
@@ -102,7 +123,6 @@ impl Binding {
         let _guard = {
             let name = match pattern {
                 Pattern::Variable(identifier) => format!("var {}", identifier.name()),
-                Pattern::Wildcard(identifier) => format!("wild {}", identifier.name()),
                 Pattern::List(..) => "list".to_owned(),
                 Pattern::Record(..) => "record".to_owned(),
                 Pattern::Struct(s) => format!("struct {}", s.name),
@@ -115,15 +135,18 @@ impl Binding {
         };
 
         match pattern {
-            Pattern::Variable(identifier) => {
-                let pattern = self.0.get(identifier).ok_or_else(|| {
+            Pattern::Variable(variable) => {
+                let variable = variable.set_current(self.generation());
+                let pattern = self.variables.get(&variable).ok_or_else(|| {
                     crate::Error::binding(
                         "The pattern contains variables that are not relevant to this binding.",
                     )
                 })?;
-                match self.apply(pattern) {
-                    Ok(Pattern::Wildcard(..)) => Ok(Pattern::Variable(identifier.clone())),
-                    pattern => pattern,
+                match pattern.as_ref() {
+                    Pattern::Variable(var) if var == &variable => {
+                        Ok(Pattern::Variable(var.clone()))
+                    }
+                    _ => self.apply(pattern),
                 }
             }
             Pattern::List(patterns, rest) => {
@@ -139,7 +162,7 @@ impl Binding {
                                 patterns.append(&mut head);
                                 Ok(rest)
                             }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
+                            pat @ Pattern::Variable(..) => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a list with a non-list value ({:?}). This should not happen.", v),
                         }
                     })
@@ -160,7 +183,7 @@ impl Binding {
                                 fields.append(&mut head);
                                 Ok(rest)
                             }
-                            pat @ Pattern::Variable(..) | pat @ Pattern::Wildcard(..) => Ok(Some(Box::new(pat))),
+                            pat @ Pattern::Variable(..) => Ok(Some(Box::new(pat))),
                             v => panic!("We have unified a record with a non-record value ({:?}). This should not happen.", v),
                         }
                     })
@@ -183,7 +206,6 @@ impl Binding {
             Pattern::Any(..) => Ok(pattern.clone()),
             Pattern::Bound => Ok(Pattern::Bound),
             Pattern::Unbound => Ok(Pattern::Unbound),
-            Pattern::Wildcard(id) => Ok(Pattern::Wildcard(id.clone())),
             Pattern::All(inner) => Ok(Pattern::All(
                 inner
                     .iter()
@@ -194,27 +216,20 @@ impl Binding {
     }
 }
 
-impl FromIterator<Identifier> for Binding {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = Identifier>,
-    {
-        Self(
-            iter.into_iter()
-                .map(|ident| (ident, Rc::new(Pattern::default())))
-                .collect(),
-        )
-    }
-}
-
 impl Display for Binding {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if self.0.is_empty() {
+        if self.variables.is_empty() {
             return write!(f, "Binding {{}}");
         }
         writeln!(f, "Binding {{")?;
-        for (var, val) in &self.0 {
-            writeln!(f, "\t{} = {}", var, val)?;
+        for (var, val) in &self.variables {
+            writeln!(
+                f,
+                "\t{} ({}) = {}",
+                var,
+                var.generation(self.generation()),
+                val
+            )?;
         }
         write!(f, "}}")
     }

@@ -11,8 +11,8 @@ impl Body {
         self.0.handles_mut()
     }
 
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.0.identifiers()
+    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
+        self.0.variables(generation)
     }
 }
 

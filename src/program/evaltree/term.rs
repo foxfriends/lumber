@@ -28,15 +28,19 @@ impl Term {
         }
     }
 
-    pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+    pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Expression(expression) => expression.identifiers(),
-            Self::Value(pattern) => pattern.identifiers(),
-            Self::PrefixOp(.., term) => term.identifiers(),
-            Self::InfixOp(lhs, .., rhs) => Box::new(lhs.identifiers().chain(rhs.identifiers())),
-            Self::ListAggregation(pattern, body) => {
-                Box::new(pattern.identifiers().chain(body.identifiers()))
+            Self::Expression(expression) => expression.variables(generation),
+            Self::Value(pattern) => pattern.variables(generation),
+            Self::PrefixOp(.., term) => term.variables(generation),
+            Self::InfixOp(lhs, .., rhs) => {
+                Box::new(lhs.variables(generation).chain(rhs.variables(generation)))
             }
+            Self::ListAggregation(pattern, body) => Box::new(
+                pattern
+                    .variables(generation)
+                    .chain(body.variables(generation)),
+            ),
         }
     }
 }

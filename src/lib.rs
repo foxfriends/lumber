@@ -2,7 +2,7 @@
 //!
 //! More info will be available soon.
 
-#![feature(bindings_after_at, generators, generator_trait)]
+#![feature(bindings_after_at, generators, generator_trait, hash_drain_filter)]
 
 #[macro_use]
 mod lumber;

@@ -14,8 +14,10 @@ impl Procession {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }
 
-    pub fn identifiers(&self) -> impl Iterator<Item = Identifier> + '_ {
-        self.steps.iter().flat_map(|step| step.identifiers())
+    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
+        self.steps
+            .iter()
+            .flat_map(move |step| step.variables(generation))
     }
 }
 

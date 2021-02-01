@@ -18,7 +18,7 @@ pub struct Question {
 impl Question {
     pub(crate) fn new(body: impl Into<Body>) -> Self {
         let body = body.into();
-        let initial_binding = body.identifiers().collect();
+        let initial_binding = Binding::new(&body);
         Self {
             body,
             initial_binding,
@@ -65,13 +65,13 @@ impl Question {
     /// Uses a binding to extract the answer to this question.
     pub(crate) fn answer(&self, binding: &Binding) -> Answer {
         self.body
-            .identifiers()
-            .filter(|ident| !ident.is_wildcard())
-            .map(|identifier| {
+            .variables(0)
+            .filter(|variable| !variable.is_wildcard())
+            .map(|variable| {
                 (
-                    identifier.name().to_owned(),
+                    variable.name().to_owned(),
                     binding
-                        .extract(binding.get(&identifier).unwrap().as_ref())
+                        .extract(binding.get(&variable).unwrap().as_ref())
                         .unwrap(),
                 )
             })

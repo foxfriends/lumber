@@ -24,10 +24,6 @@ impl Fields {
     pub fn iter(&self) -> impl Iterator<Item = (&Atom, &Pattern)> {
         self.fields.iter()
     }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Atom, &mut Pattern)> {
-        self.fields.iter_mut()
-    }
 }
 
 impl Into<BTreeMap<Atom, Pattern>> for Fields {
