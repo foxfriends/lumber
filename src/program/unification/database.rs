@@ -161,7 +161,7 @@ impl Database<'_> {
             Step::Query(query) => Box::new(
                 self.evaluate_expressions(query.args(), binding, public)
                     .flat_map(move |(arguments, binding)| {
-                        self.unify_query(query.handle(), arguments.clone(), binding, public)
+                        self.unify_query(query.handle(), arguments, binding, public)
                     }),
             ),
             Step::Relation(None, op, rhs) => {
@@ -201,7 +201,6 @@ impl Database<'_> {
                                             .flat_map(move |(rvar, bindings)| {
                                                 bindings.flat_map({
                                                     let lvar = lvar.clone();
-                                                    let rvar = rvar.clone();
                                                     move |binding| {
                                                         self.unify_query(
                                                             handle,
@@ -224,27 +223,20 @@ impl Database<'_> {
                 self.evaluate_expression(lhs, binding, public)
                     .into_iter()
                     .flat_map(move |(lvar, bindings)| {
-                        bindings.flat_map({
-                            let lvar = lvar.clone();
-                            move |binding| {
-                                self.evaluate_expression(rhs, binding, public)
-                                    .into_iter()
-                                    .flat_map({
-                                        let lvar = lvar.clone();
-                                        move |(rvar, bindings)| {
-                                            bindings.flat_map({
-                                                let lvar = lvar.clone();
-                                                move |binding| {
-                                                    unify_patterns(
-                                                        lvar.clone(),
-                                                        rvar.clone(),
-                                                        binding,
-                                                    )
-                                                }
-                                            })
-                                        }
-                                    })
-                            }
+                        bindings.flat_map(move |binding| {
+                            self.evaluate_expression(rhs, binding, public)
+                                .into_iter()
+                                .flat_map({
+                                    let lvar = lvar.clone();
+                                    move |(rvar, bindings)| {
+                                        bindings.flat_map({
+                                            let lvar = lvar.clone();
+                                            move |binding| {
+                                                unify_patterns(lvar.clone(), rvar.clone(), binding)
+                                            }
+                                        })
+                                    }
+                                })
                         })
                     }),
             ),
@@ -320,12 +312,11 @@ impl Database<'_> {
                 .iter()
                 .map({
                     let input_binding = input_binding.clone();
-                    let expressions = expressions.clone();
                     move |(head, kind, body)| {
                         let output_binding = input_binding.start_generation(
                             body.as_ref(),
                             &expressions,
-                            &head.patterns.iter().cloned().collect::<Vec<_>>(),
+                            &head.patterns.to_vec(),
                         );
                         (output_binding, *kind, body)
                     }
@@ -391,7 +382,6 @@ impl Database<'_> {
                         let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                         let (lvar, bindings) = lhs(binding)?;
                         let bindings = Box::new(bindings.flat_map({
-                            let lvar = lvar.clone();
                             let rhs = rhs.clone();
                             let dest = dest.clone();
                             move |binding| {
@@ -403,7 +393,6 @@ impl Database<'_> {
                                         move |(rvar, bindings)| {
                                             bindings.flat_map({
                                                 let lvar = lvar.clone();
-                                                let rvar = rvar.clone();
                                                 let dest = dest.clone();
                                                 move |binding| {
                                                     self.unify_query(
@@ -442,7 +431,6 @@ impl Database<'_> {
                 let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                 let (rvar, bindings) = self.evaluate_term(rhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
-                    let rvar = rvar.clone();
                     let dest = dest.clone();
                     move |binding| {
                         self.unify_query(
@@ -460,7 +448,6 @@ impl Database<'_> {
                 let (lvar, bindings) = self.evaluate_term(lhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
                     let dest = dest.clone();
-                    let lvar = lvar.clone();
                     move |binding| {
                         self.evaluate_term(rhs, binding, public)
                             .into_iter()
@@ -470,7 +457,6 @@ impl Database<'_> {
                                 move |(rvar, bindings)| {
                                     bindings.flat_map({
                                         let lvar = lvar.clone();
-                                        let rvar = rvar.clone();
                                         let dest = dest.clone();
                                         move |binding| {
                                             self.unify_query(

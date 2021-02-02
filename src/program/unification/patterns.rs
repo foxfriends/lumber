@@ -5,11 +5,11 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
 #[cfg_attr(feature = "test-perf", flamer::flame)]
-pub(crate) fn unify_patterns<'b>(
+pub(crate) fn unify_patterns(
     lhs: Pattern,
     rhs: Pattern,
-    binding: Cow<'b, Binding>,
-) -> Option<Cow<'b, Binding>> {
+    binding: Cow<'_, Binding>,
+) -> Option<Cow<'_, Binding>> {
     Some(
         unify_patterns_inner(
             lhs,
@@ -23,11 +23,11 @@ pub(crate) fn unify_patterns<'b>(
 }
 
 #[cfg_attr(feature = "test-perf", flamer::flame)]
-pub(crate) fn unify_patterns_new_generation<'b>(
+pub(crate) fn unify_patterns_new_generation(
     lhs: Pattern,
     rhs: Pattern,
-    binding: Cow<'b, Binding>,
-) -> Option<Cow<'b, Binding>> {
+    binding: Cow<'_, Binding>,
+) -> Option<Cow<'_, Binding>> {
     Some(
         unify_patterns_inner(
             lhs,
@@ -41,13 +41,13 @@ pub(crate) fn unify_patterns_new_generation<'b>(
 }
 
 #[cfg_attr(feature = "test-perf", flamer::flame)]
-fn unify_patterns_inner<'p, 'b>(
+fn unify_patterns_inner(
     lhs: Pattern,
     rhs: Pattern,
     lhs_gen: usize,
     rhs_gen: usize,
-    binding: Cow<'b, Binding>,
-) -> Option<(Pattern, Cow<'b, Binding>)> {
+    binding: Cow<'_, Binding>,
+) -> Option<(Pattern, Cow<'_, Binding>)> {
     match (lhs.kind(), rhs.kind()) {
         // The All pattern just... unifies all of them
         (.., PatternKind::All(..)) => unify_patterns_inner(rhs, lhs, rhs_gen, lhs_gen, binding),
@@ -263,7 +263,7 @@ fn unify_patterns_inner<'p, 'b>(
                     let tail_pat = binding.get(&ident).unwrap();
                     let (tail, binding) = unify_patterns_inner(
                         Pattern::new(PatternKind::Record(tail, None)),
-                        tail_pat.clone(),
+                        tail_pat,
                         lhs_gen,
                         rhs_gen,
                         binding,
@@ -480,7 +480,7 @@ fn unify_full_prefix<'b>(
         |(mut patterns, binding), (lhs, rhs)| {
             let (pattern, binding) =
                 unify_patterns_inner(lhs.clone(), rhs.clone(), lhs_gen, rhs_gen, binding)?;
-            patterns.push(pattern.clone());
+            patterns.push(pattern);
             Some((patterns, binding))
         },
     )?;

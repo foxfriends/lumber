@@ -47,7 +47,7 @@ impl Binding {
     }
 
     #[cfg_attr(feature = "test-perf", flamer::flame)]
-    pub fn start_generation<'a, 'b>(
+    pub fn start_generation<'b>(
         &self,
         body: Option<&Body>,
         source: &[Pattern],
