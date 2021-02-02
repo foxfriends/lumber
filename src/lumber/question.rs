@@ -70,9 +70,7 @@ impl Question {
             .map(|variable| {
                 (
                     variable.name().to_owned(),
-                    binding
-                        .extract(binding.get(&variable).unwrap().as_ref())
-                        .unwrap(),
+                    binding.extract(&binding.get(&variable).unwrap()).unwrap(),
                 )
             })
             .collect()

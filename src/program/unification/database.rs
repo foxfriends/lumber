@@ -4,8 +4,8 @@ use super::{unify_patterns, Binding, Bindings};
 use crate::Question;
 use std::borrow::Cow;
 
-type Evaluation<'a> = (Cow<'a, Pattern>, Bindings<'a>);
-type MultipleEvaluations<'a> = (Vec<Cow<'a, Pattern>>, Cow<'a, Binding>);
+type Evaluation<'a> = (Pattern, Bindings<'a>);
+type MultipleEvaluations<'a> = (Vec<Pattern>, Cow<'a, Binding>);
 
 #[cfg(feature = "test-perf")]
 struct FlameIterator<I>(I, usize);
@@ -236,8 +236,8 @@ impl Database<'_> {
                                                 let lvar = lvar.clone();
                                                 move |binding| {
                                                     unify_patterns(
-                                                        Cow::Borrowed(&lvar),
-                                                        Cow::Borrowed(&rvar),
+                                                        lvar.clone(),
+                                                        rvar.clone(),
                                                         binding,
                                                     )
                                                 }
@@ -276,7 +276,7 @@ impl Database<'_> {
     fn unify_query<'a>(
         &'a self,
         handle: &Handle,
-        args: Vec<Cow<'a, Pattern>>,
+        args: Vec<Pattern>,
         binding: Cow<'a, Binding>,
         public: bool,
     ) -> Bindings<'a> {
@@ -300,7 +300,7 @@ impl Database<'_> {
                         .map(Into::into)
                         .zip(args.clone().into_iter())
                         .try_fold(binding.clone(), |binding, (lhs, rhs)| {
-                            unify_patterns(Cow::Borrowed(&lhs), rhs, binding)
+                            unify_patterns(lhs, rhs, binding)
                         })
                 }))
             }
@@ -312,7 +312,7 @@ impl Database<'_> {
     fn unify_definition<'a>(
         &'a self,
         definition: &'a Definition,
-        expressions: Vec<Cow<'a, Pattern>>,
+        expressions: Vec<Pattern>,
         input_binding: Cow<'a, Binding>,
     ) -> Bindings<'a> {
         Box::new(
@@ -325,7 +325,7 @@ impl Database<'_> {
                         let output_binding = input_binding.start_generation(
                             body.as_ref(),
                             &expressions,
-                            &head.patterns.iter().map(Cow::Borrowed).collect::<Vec<_>>(),
+                            &head.patterns.iter().cloned().collect::<Vec<_>>(),
                         );
                         (output_binding, *kind, body)
                     }
@@ -368,25 +368,27 @@ impl Database<'_> {
                 move |term| Box::new(move |binding| self.evaluate_term(term, binding, public)),
                 move |term, operator| {
                     Box::new(move |mut binding| {
-                        let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                        let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                         let (out, bindings) = term(binding)?;
-                        Some((
-                            Cow::Owned(dest.clone()),
-                            Box::new(bindings.flat_map(move |binding| {
+                        let bindings =
+                            Box::new(bindings.flat_map({ let dest = dest.clone(); move |binding| {
                                 self.unify_query(
                                     operator.handle(),
-                                    vec![out.clone(), Cow::Owned(dest.clone())],
+                                    vec![out.clone(), dest.clone()],
                                     binding,
                                     public,
                                 )
-                            })),
+                            }}));
+                        Some((
+                            dest,
+                            bindings,
                         ))
                     })
                 },
                 move |lhs, operator, rhs| {
                     let rhs = std::rc::Rc::new(rhs);
                     Box::new(move |mut binding| {
-                        let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                        let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                         let (lvar, bindings) = lhs(binding)?;
                         let bindings = Box::new(bindings.flat_map({
                             let lvar = lvar.clone();
@@ -409,7 +411,7 @@ impl Database<'_> {
                                                         vec![
                                                             lvar.clone(),
                                                             rvar.clone(),
-                                                            Cow::Owned(dest.clone()),
+                                                            dest.clone(),
                                                         ],
                                                         binding,
                                                         public,
@@ -420,7 +422,7 @@ impl Database<'_> {
                                     })
                             }
                         }));
-                        Some((Cow::Owned(dest), bindings))
+                        Some((dest, bindings))
                     })
                 },
             );
@@ -437,7 +439,7 @@ impl Database<'_> {
         match term {
             Term::Expression(expression) => self.evaluate_expression(expression, binding, public),
             Term::PrefixOp(op, rhs) => {
-                let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                 let (rvar, bindings) = self.evaluate_term(rhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
                     let rvar = rvar.clone();
@@ -445,16 +447,16 @@ impl Database<'_> {
                     move |binding| {
                         self.unify_query(
                             op.handle(),
-                            vec![rvar.clone(), Cow::Owned(dest.clone())],
+                            vec![rvar.clone(), dest.clone()],
                             binding,
                             public,
                         )
                     }
                 }));
-                Some((Cow::Owned(dest), bindings))
+                Some((dest, bindings))
             }
             Term::InfixOp(lhs, op, rhs) => {
-                let dest = Pattern::Variable(binding.to_mut().fresh_variable());
+                let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
                 let (lvar, bindings) = self.evaluate_term(lhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
                     let dest = dest.clone();
@@ -473,11 +475,7 @@ impl Database<'_> {
                                         move |binding| {
                                             self.unify_query(
                                                 op.handle(),
-                                                vec![
-                                                    lvar.clone(),
-                                                    rvar.clone(),
-                                                    Cow::Owned(dest.clone()),
-                                                ],
+                                                vec![lvar.clone(), rvar.clone(), dest.clone()],
                                                 binding,
                                                 public,
                                             )
@@ -487,18 +485,16 @@ impl Database<'_> {
                             })
                     }
                 }));
-                Some((Cow::Owned(dest), bindings))
+                Some((dest, bindings))
             }
-            Term::Value(pattern) => {
-                Some((Cow::Borrowed(pattern), Box::new(std::iter::once(binding))))
-            }
+            Term::Value(pattern) => Some((pattern.clone(), Box::new(std::iter::once(binding)))),
             Term::ListAggregation(pattern, body) => {
                 let solutions = self
                     .unify_body(body, binding.clone(), public)
-                    .map(|binding| binding.apply(&pattern).unwrap())
+                    .map(move |binding| binding.apply(&pattern).unwrap())
                     .collect();
                 Some((
-                    Cow::Owned(Pattern::List(solutions, None)),
+                    Pattern::new(PatternKind::List(solutions, None)),
                     Box::new(std::iter::once(binding)),
                 ))
             }

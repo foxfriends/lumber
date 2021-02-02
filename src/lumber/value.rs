@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_allocation)]
 use super::{List, Record, Struct};
-use crate::program::evaltree::{Identifier, Literal, Pattern, Variable};
+use crate::program::evaltree::{Identifier, Literal, Pattern, PatternKind, Variable};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -222,18 +222,18 @@ where
 
 impl From<Pattern> for Option<Value> {
     fn from(pattern: Pattern) -> Self {
-        match pattern {
-            Pattern::Variable(..) => None,
-            Pattern::Bound | Pattern::Unbound => None,
-            Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
-            Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
-            Pattern::Literal(Literal::String(string)) => Some(Value::String(string)),
-            Pattern::List(patterns, rest) => {
+        match pattern.kind().clone() {
+            PatternKind::Variable(..) => None,
+            PatternKind::Bound | PatternKind::Unbound => None,
+            PatternKind::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
+            PatternKind::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
+            PatternKind::Literal(Literal::String(string)) => Some(Value::String(string)),
+            PatternKind::List(patterns, rest) => {
                 let values = patterns.into_iter().map(Into::into).collect();
                 let complete = rest.is_none();
                 Some(Value::List(List { values, complete }))
             }
-            Pattern::Record(fields, rest) => {
+            PatternKind::Record(fields, rest) => {
                 let fields = fields
                     .into_iter()
                     .map(|(key, pattern)| (key, pattern.into()))
@@ -241,36 +241,32 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::Record(Record { fields, complete }))
             }
-            Pattern::Struct(structure) => {
-                let contents = structure
-                    .contents
-                    .map(|contents| Box::new((*contents).into()));
+            PatternKind::Struct(structure) => {
+                let contents = structure.contents.map(Into::into).map(Box::new);
                 Some(Value::Struct(Struct::raw(structure.name, contents)))
             }
-            Pattern::Any(any) => Some(Value::Any(any)),
-            Pattern::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
+            PatternKind::Any(any) => Some(Value::Any(any)),
+            PatternKind::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
         }
     }
 }
 
 impl Into<Pattern> for Option<Value> {
     fn into(self) -> Pattern {
-        match self {
-            None => Pattern::Variable(Variable::new_generationless(Identifier::wildcard("_"))),
-            Some(Value::Integer(int)) => Pattern::Literal(Literal::Integer(int)),
-            Some(Value::Rational(rat)) => Pattern::Literal(Literal::Rational(rat)),
-            Some(Value::String(string)) => Pattern::Literal(Literal::String(string)),
-            Some(Value::List(List { values, complete })) => Pattern::List(
+        let kind = match self {
+            None => PatternKind::Variable(Variable::new_generationless(Identifier::wildcard("_"))),
+            Some(Value::Integer(int)) => PatternKind::Literal(Literal::Integer(int)),
+            Some(Value::Rational(rat)) => PatternKind::Literal(Literal::Rational(rat)),
+            Some(Value::String(string)) => PatternKind::Literal(Literal::String(string)),
+            Some(Value::List(List { values, complete })) => PatternKind::List(
                 values.into_iter().map(Into::into).collect(),
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Variable(Variable::new_generationless(
-                        Identifier::wildcard("_"),
-                    ))))
+                    Some(Pattern::wildcard())
                 },
             ),
-            Some(Value::Record(Record { fields, complete })) => Pattern::Record(
+            Some(Value::Record(Record { fields, complete })) => PatternKind::Record(
                 fields
                     .into_iter()
                     .map(|(key, value)| (key, value.into()))
@@ -278,17 +274,16 @@ impl Into<Pattern> for Option<Value> {
                 if complete {
                     None
                 } else {
-                    Some(Box::new(Pattern::Variable(Variable::new_generationless(
-                        Identifier::wildcard("_"),
-                    ))))
+                    Some(Pattern::wildcard())
                 },
             ),
             Some(Value::Struct(Struct { name, contents })) => {
-                let contents = contents.map(|contents| Box::new((*contents).into()));
-                Pattern::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
+                let contents = contents.map(|contents| (*contents).into());
+                PatternKind::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
             }
-            Some(Value::Any(any)) => Pattern::Any(any),
-        }
+            Some(Value::Any(any)) => PatternKind::Any(any),
+        };
+        Pattern::new(kind)
     }
 }
 

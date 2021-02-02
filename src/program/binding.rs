@@ -4,13 +4,12 @@ use crate::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::rc::Rc;
 
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
 /// represent a valid solution to a query.
 #[derive(Clone, Debug)]
 pub(crate) struct Binding {
-    variables: HashMap<Variable, Rc<Pattern>>,
+    variables: HashMap<Variable, Pattern>,
     generations: Vec<usize>,
     next_generation: usize,
 }
@@ -32,7 +31,7 @@ impl Binding {
             variables: body
                 .variables(0)
                 .into_iter()
-                .map(|var| (var.clone(), Rc::new(Pattern::Variable(var))))
+                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var))))
                 .collect(),
             generations: vec![0],
             next_generation: 1,
@@ -51,8 +50,8 @@ impl Binding {
     pub fn start_generation<'a, 'b>(
         &self,
         body: Option<&Body>,
-        source: &[Cow<'a, Pattern>],
-        destination: &[Cow<'a, Pattern>],
+        source: &[Pattern],
+        destination: &[Pattern],
     ) -> Option<Cow<'b, Self>> {
         let mut binding = self.clone();
         let generation = binding.next_generation;
@@ -63,7 +62,7 @@ impl Binding {
                 .iter()
                 .flat_map(|pat| pat.variables(generation))
                 .chain(body.into_iter().flat_map(|body| body.variables(generation)))
-                .map(|var| (var.clone(), Rc::new(Pattern::Variable(var)))),
+                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var)))),
         );
         source.iter().zip(destination.iter()).try_fold(
             Cow::Owned(binding),
@@ -79,26 +78,26 @@ impl Binding {
         self
     }
 
-    pub fn get(&self, var: &Variable) -> Option<Rc<Pattern>> {
+    pub fn get(&self, var: &Variable) -> Option<Pattern> {
         let pattern = self.variables.get(var)?;
-        match pattern.as_ref() {
-            Pattern::Variable(new_var) if new_var != var => self.get(new_var),
+        match pattern.kind() {
+            PatternKind::Variable(new_var) if new_var != var => self.get(new_var),
             _ => Some(pattern.clone()),
         }
     }
 
-    pub fn set(&mut self, var: Variable, pattern: Pattern) -> Rc<Pattern> {
-        let rc = Rc::new(pattern);
+    pub fn set(&mut self, var: Variable, pattern: Pattern) {
         self.variables
-            .insert(var.set_current(self.generation()), rc.clone());
-        rc
+            .insert(var.set_current(self.generation()), pattern);
     }
 
     pub fn fresh_variable(&mut self) -> Variable {
         let name = format!("${}", self.variables.len());
         let var = Variable::new(Identifier::new(name), self.generation());
-        self.variables
-            .insert(var.clone(), Rc::new(Pattern::Variable(var.clone())));
+        self.variables.insert(
+            var.clone(),
+            Pattern::new(PatternKind::Variable(var.clone())),
+        );
         var
     }
 
@@ -111,7 +110,7 @@ impl Binding {
             })
             .unwrap()
             .clone();
-        *self.variables.get_mut(&var).unwrap() = Rc::new(Some(value).into());
+        *self.variables.get_mut(&var).unwrap() = Some(value).into();
     }
 
     pub fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
@@ -122,97 +121,97 @@ impl Binding {
         #[cfg(feature = "test-perf")]
         let _guard = {
             let name = match pattern {
-                Pattern::Variable(identifier) => format!("var {}", identifier.name()),
-                Pattern::List(..) => "list".to_owned(),
-                Pattern::Record(..) => "record".to_owned(),
-                Pattern::Struct(s) => format!("struct {}", s.name),
-                Pattern::Literal(..) => "literal".to_owned(),
-                Pattern::All(..) => "all".to_owned(),
-                Pattern::Any(..) => "any".to_owned(),
+                PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
+                PatternKind::List(..) => "list".to_owned(),
+                PatternKind::Record(..) => "record".to_owned(),
+                PatternKind::Struct(s) => format!("struct {}", s.name),
+                PatternKind::Literal(..) => "literal".to_owned(),
+                PatternKind::All(..) => "all".to_owned(),
+                PatternKind::Any(..) => "any".to_owned(),
                 _ => format!("{:?}", pattern.to_owned()),
             };
             flame::start_guard(format!("apply({})", name))
         };
 
-        match pattern {
-            Pattern::Variable(variable) => {
+        let output = match pattern.kind() {
+            PatternKind::Variable(variable) => {
                 let variable = variable.set_current(self.generation());
                 let pattern = self.variables.get(&variable).ok_or_else(|| {
                     crate::Error::binding(
                         "The pattern contains variables that are not relevant to this binding.",
                     )
                 })?;
-                match pattern.as_ref() {
-                    Pattern::Variable(var) if var == &variable => {
-                        Ok(Pattern::Variable(var.clone()))
-                    }
+                return match pattern.kind() {
+                    PatternKind::Variable(var) if var == &variable => Ok(pattern.clone()),
                     _ => self.apply(pattern),
-                }
+                };
             }
-            Pattern::List(patterns, rest) => {
+            PatternKind::List(patterns, rest) => {
                 let mut patterns = patterns
                     .iter()
                     .map(|pattern| self.apply(pattern))
                     .collect::<crate::Result<Vec<_>>>()?;
                 let rest = rest
                     .as_ref()
-                    .map(|pattern| -> crate::Result<Option<Box<Pattern>>> {
-                        match self.apply(&*pattern)? {
-                            Pattern::List(mut head, rest) => {
-                                patterns.append(&mut head);
-                                Ok(rest)
+                    .map(|pattern| -> crate::Result<Option<Pattern>> {
+                        let pattern = self.apply(pattern)?;
+                        match pattern.kind() {
+                            PatternKind::List(head, rest) => {
+                                patterns.append(&mut head.clone());
+                                Ok(rest.clone())
                             }
-                            pat @ Pattern::Variable(..) => Ok(Some(Box::new(pat))),
+                            PatternKind::Variable(..) => Ok(Some(pattern)),
                             v => panic!("We have unified a list with a non-list value ({:?}). This should not happen.", v),
                         }
                     })
                     .transpose()?
                     .flatten();
-                Ok(Pattern::List(patterns, rest))
+                PatternKind::List(patterns, rest)
             }
-            Pattern::Record(fields, rest) => {
+            PatternKind::Record(fields, rest) => {
                 let mut fields = fields
                     .iter()
                     .map(|(key, pattern)| Ok((key.clone(), self.apply(pattern)?)))
                     .collect::<crate::Result<Fields>>()?;
                 let rest = rest
                     .as_ref()
-                    .map(|pattern| -> crate::Result<Option<Box<Pattern>>> {
-                        match self.apply(&*pattern)? {
-                            Pattern::Record(mut head, rest) => {
-                                fields.append(&mut head);
-                                Ok(rest)
+                    .map(|pattern| -> crate::Result<Option<Pattern>> {
+                        let pattern = self.apply(pattern)?;
+                        match pattern.kind() {
+                            PatternKind::Record(head, rest) => {
+                                fields.append(&mut head.clone());
+                                Ok(rest.clone())
                             }
-                            pat @ Pattern::Variable(..) => Ok(Some(Box::new(pat))),
+                            PatternKind::Variable(..) => Ok(Some(pattern)),
                             v => panic!("We have unified a record with a non-record value ({:?}). This should not happen.", v),
                         }
                     })
                     .transpose()?
                     .flatten();
-                Ok(Pattern::Record(fields, rest))
+                PatternKind::Record(fields, rest)
             }
-            Pattern::Struct(crate::program::evaltree::Struct { name, contents }) => {
+            PatternKind::Struct(crate::program::evaltree::Struct { name, contents }) => {
                 let contents = contents
-                    .as_deref()
+                    .as_ref()
                     .map(|contents| self.apply(&contents))
-                    .transpose()?
-                    .map(Box::new);
-                Ok(Pattern::Struct(crate::program::evaltree::Struct {
+                    .transpose()?;
+                PatternKind::Struct(crate::program::evaltree::Struct {
                     name: name.clone(),
                     contents,
-                }))
+                })
             }
-            Pattern::Literal(..) => Ok(pattern.clone()),
-            Pattern::Any(..) => Ok(pattern.clone()),
-            Pattern::Bound => Ok(Pattern::Bound),
-            Pattern::Unbound => Ok(Pattern::Unbound),
-            Pattern::All(inner) => Ok(Pattern::All(
+            PatternKind::Literal(..) => return Ok(pattern.clone()),
+            PatternKind::Any(..) => return Ok(pattern.clone()),
+            PatternKind::Bound => PatternKind::Bound,
+            PatternKind::Unbound => PatternKind::Unbound,
+            PatternKind::All(inner) => PatternKind::All(
                 inner
                     .iter()
                     .map(|pattern| self.apply(&pattern))
                     .collect::<crate::Result<Vec<_>>>()?,
-            )),
-        }
+            ),
+        };
+        Ok(Pattern::new(output))
     }
 }
 

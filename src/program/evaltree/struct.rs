@@ -8,11 +8,11 @@ pub(crate) struct Struct {
     /// The tag of the struct
     pub(crate) name: Atom,
     /// The contents of the struct
-    pub(crate) contents: Option<Box<Pattern>>,
+    pub(crate) contents: Option<Pattern>,
 }
 
 impl Struct {
-    pub fn from_parts(name: Atom, contents: Option<Box<Pattern>>) -> Self {
+    pub fn from_parts(name: Atom, contents: Option<Pattern>) -> Self {
         Self { name, contents }
     }
 
@@ -28,7 +28,7 @@ impl Display for Struct {
         self.name.fmt(f)?;
         match &self.contents {
             None => Ok(()),
-            Some(pattern) if pattern.is_container() => write!(f, " {}", pattern),
+            Some(pattern) if pattern.kind().is_container() => write!(f, " {}", pattern),
             Some(pattern) => write!(f, "({})", pattern),
         }
     }
@@ -38,7 +38,7 @@ impl From<ast::Struct> for Struct {
     fn from(ast: ast::Struct) -> Self {
         Self {
             name: ast.name,
-            contents: ast.contents.map(|pat| Box::new(Pattern::from(*pat))),
+            contents: ast.contents.map(|pat| Pattern::from(*pat)),
         }
     }
 }
