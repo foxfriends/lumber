@@ -12,8 +12,8 @@ pub(crate) fn unify_patterns(
 ) -> Option<Cow<'_, Binding>> {
     Some(
         unify_patterns_inner(
-            lhs.default_age(binding.generation()),
-            rhs.default_age(binding.generation()),
+            lhs.default_age(Some(binding.generation())),
+            rhs.default_age(Some(binding.generation())),
             binding,
         )?
         .1,
@@ -28,8 +28,8 @@ pub(crate) fn unify_patterns_new_generation(
 ) -> Option<Cow<'_, Binding>> {
     Some(
         unify_patterns_inner(
-            lhs.default_age(binding.prev_generation()),
-            rhs.default_age(binding.generation()),
+            lhs.default_age(Some(binding.prev_generation())),
+            rhs.default_age(Some(binding.generation())),
             binding,
         )?
         .1,
@@ -42,8 +42,8 @@ fn unify_patterns_inner(
     rhs: Pattern,
     binding: Cow<'_, Binding>,
 ) -> Option<(Pattern, Cow<'_, Binding>)> {
-    let lhs_age = lhs.age().unwrap();
-    let rhs_age = rhs.age().unwrap();
+    let lhs_age = lhs.age();
+    let rhs_age = rhs.age();
 
     match (lhs.kind(), rhs.kind()) {
         // The All pattern just... unifies all of them
@@ -111,7 +111,7 @@ fn unify_patterns_inner(
             let var_pat = binding.get(&var).unwrap();
             match var_pat.kind() {
                 PatternKind::Variable(pat_var) if pat_var == var => {
-                    if rhs.variables(rhs_age).any(|occurred| var == &occurred) {
+                    if rhs.variables().any(|occurred| var == &occurred) {
                         return None;
                     }
                     let mut binding = binding;

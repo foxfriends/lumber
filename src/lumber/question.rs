@@ -65,8 +65,9 @@ impl Question {
     /// Uses a binding to extract the answer to this question.
     pub(crate) fn answer(&self, binding: &Binding) -> Answer {
         self.body
-            .variables(0)
+            .variables()
             .filter(|variable| !variable.is_wildcard())
+            .map(|var| var.set_current(0))
             .map(|variable| {
                 (
                     variable.name().to_owned(),

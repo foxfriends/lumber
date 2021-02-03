@@ -76,32 +76,24 @@ impl PatternKind {
         }
     }
 
-    /// All variables in this pattern, resolved to a particular generation
-    pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
+    /// All variables in this pattern
+    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Struct(s) => Box::new(s.variables(generation)),
-            Self::Variable(variable) => Box::new(std::iter::once(variable.set_current(generation))),
+            Self::Struct(s) => Box::new(s.variables()),
+            Self::Variable(variable) => Box::new(std::iter::once(variable.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()
-                    .flat_map(move |pattern| pattern.variables(generation))
-                    .chain(
-                        tail.iter()
-                            .flat_map(move |pattern| pattern.variables(generation)),
-                    ),
+                    .flat_map(move |pattern| pattern.variables())
+                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
             ),
             Self::Record(head, tail) => Box::new(
                 head.iter()
-                    .flat_map(move |(_, pattern)| pattern.variables(generation))
-                    .chain(
-                        tail.iter()
-                            .flat_map(move |pattern| pattern.variables(generation)),
-                    ),
+                    .flat_map(move |(_, pattern)| pattern.variables())
+                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
             ),
-            Self::All(patterns) => Box::new(
-                patterns
-                    .iter()
-                    .flat_map(move |pattern| pattern.variables(generation)),
-            ),
+            Self::All(patterns) => {
+                Box::new(patterns.iter().flat_map(move |pattern| pattern.variables()))
+            }
             _ => Box::new(std::iter::empty()),
         }
     }

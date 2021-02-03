@@ -14,10 +14,8 @@ impl Conjunction {
         self.terms.iter_mut().flat_map(|term| term.handles_mut())
     }
 
-    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
-        self.terms
-            .iter()
-            .flat_map(move |term| term.variables(generation))
+    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
+        self.terms.iter().flat_map(|term| term.variables())
     }
 }
 

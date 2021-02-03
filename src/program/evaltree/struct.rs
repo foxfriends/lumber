@@ -16,10 +16,8 @@ impl Struct {
         Self { name, contents }
     }
 
-    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
-        self.contents
-            .iter()
-            .flat_map(move |pattern| pattern.variables(generation))
+    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
+        self.contents.iter().flat_map(|pattern| pattern.variables())
     }
 }
 

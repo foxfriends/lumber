@@ -11,10 +11,8 @@ pub(crate) struct Query {
 }
 
 impl Query {
-    pub fn variables(&self, generation: usize) -> impl Iterator<Item = Variable> + '_ {
-        self.args
-            .iter()
-            .flat_map(move |pattern| pattern.variables(generation))
+    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
+        self.args.iter().flat_map(|pattern| pattern.variables())
     }
 
     pub fn handle(&self) -> &Handle {

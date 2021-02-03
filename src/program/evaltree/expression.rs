@@ -20,7 +20,7 @@ impl Expression {
         )
     }
 
-    pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
+    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         Box::new(
             self.0
                 .iter()
@@ -28,7 +28,7 @@ impl Expression {
                     Op::Rand(term) => Some(term),
                     _ => None,
                 })
-                .flat_map(move |term| term.variables(generation)),
+                .flat_map(|term| term.variables()),
         )
     }
 

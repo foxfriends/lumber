@@ -29,8 +29,8 @@ impl Binding {
     pub fn new(body: &Body) -> Self {
         Self {
             variables: body
-                .variables(0)
-                .into_iter()
+                .variables()
+                .map(|var| var.set_current(0))
                 .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var))))
                 .collect(),
             generations: vec![0],
@@ -60,9 +60,14 @@ impl Binding {
         binding.variables.extend(
             destination
                 .iter()
-                .flat_map(|pat| pat.variables(generation))
-                .chain(body.into_iter().flat_map(|body| body.variables(generation)))
-                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
+                .flat_map(|pat| pat.variables())
+                .chain(body.into_iter().flat_map(|body| body.variables()))
+                .map(|var| {
+                    (
+                        var.set_current(generation),
+                        Pattern::from(PatternKind::Variable(var)),
+                    )
+                }),
         );
         source.iter().zip(destination.iter()).try_fold(
             Cow::Owned(binding),
@@ -119,7 +124,7 @@ impl Binding {
     }
 
     pub fn apply(&self, pattern: &Pattern) -> crate::Result<Pattern> {
-        let age = pattern.age().unwrap_or_else(|| self.generation());
+        let age = pattern.age().or_else(|| Some(self.generation()));
 
         #[cfg(feature = "test-perf")]
         let _guard = {
@@ -138,7 +143,7 @@ impl Binding {
 
         let output = match pattern.kind() {
             PatternKind::Variable(variable) => {
-                let variable = variable.set_current(age);
+                let variable = variable.set_current(age.unwrap());
                 let pattern = self.variables.get(&variable).ok_or_else(|| {
                     crate::Error::binding(
                         "The pattern contains variables that are not relevant to this binding.",

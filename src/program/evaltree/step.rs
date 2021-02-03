@@ -29,20 +29,18 @@ impl Step {
         }
     }
 
-    pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
+    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Query(query) => Box::new(query.variables(generation)),
-            Self::Body(body) => Box::new(body.variables(generation)),
+            Self::Query(query) => Box::new(query.variables()),
+            Self::Body(body) => Box::new(body.variables()),
             Self::Relation(lhs, _, rhs) => Box::new(
                 lhs.iter()
-                    .flat_map(move |term| term.variables(generation))
-                    .chain(rhs.variables(generation)),
+                    .flat_map(|term| term.variables())
+                    .chain(rhs.variables()),
             ),
-            Self::Unification(pattern, expression) => Box::new(
-                pattern
-                    .variables(generation)
-                    .chain(expression.variables(generation)),
-            ),
+            Self::Unification(pattern, expression) => {
+                Box::new(pattern.variables().chain(expression.variables()))
+            }
         }
     }
 }

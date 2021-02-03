@@ -31,23 +31,23 @@ impl Pattern {
         self.age
     }
 
-    pub fn default_age(&self, age: usize) -> Self {
-        if self.age.is_some() {
+    pub fn default_age(&self, age: Option<usize>) -> Self {
+        if self.age.is_some() || age.is_none() {
             return self.clone();
         }
         match self.pattern.as_ref() {
             p @ PatternKind::Variable(var) if var.generation().is_none() => {
-                Self::new(p.clone(), age)
+                Self::new(p.clone(), age.unwrap())
             }
             _ => Self {
                 pattern: self.pattern.clone(),
-                age: Some(age),
+                age,
             },
         }
     }
 
-    pub fn variables(&self, generation: usize) -> Box<dyn Iterator<Item = Variable> + '_> {
-        self.pattern.variables(generation)
+    pub fn variables(&self) -> Box<dyn Iterator<Item = Variable> + '_> {
+        self.pattern.variables()
     }
 }
 
