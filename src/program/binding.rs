@@ -30,7 +30,7 @@ impl Binding {
         Self {
             variables: body
                 .variables()
-                .map(|var| var.set_current(0))
+                .map(|var| var.set_current(Some(0)))
                 .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var), 0)))
                 .collect(),
             generations: vec![0],
@@ -62,9 +62,10 @@ impl Binding {
                 .iter()
                 .flat_map(|pat| pat.variables())
                 .chain(body.into_iter().flat_map(|body| body.variables()))
+                .map(|var| var.set_current(Some(generation)))
                 .map(|var| {
                     (
-                        var.set_current(generation),
+                        var.clone(),
                         Pattern::new(PatternKind::Variable(var), generation),
                     )
                 }),
@@ -93,7 +94,7 @@ impl Binding {
 
     pub fn set(&mut self, var: Variable, pattern: Pattern) {
         self.variables
-            .insert(var.set_current(self.generation()), pattern);
+            .insert(var.set_current(Some(self.generation())), pattern);
     }
 
     pub fn fresh_variable(&mut self) -> Variable {
@@ -143,7 +144,7 @@ impl Binding {
 
         let output = match pattern.kind() {
             PatternKind::Variable(variable) => {
-                let variable = variable.set_current(age.unwrap());
+                let variable = variable.set_current(age);
                 let pattern = self.variables.get(&variable).ok_or_else(|| {
                     crate::Error::binding(
                         "The pattern contains variables that are not relevant to this binding.",

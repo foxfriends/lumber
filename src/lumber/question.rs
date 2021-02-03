@@ -67,7 +67,7 @@ impl Question {
         self.body
             .variables()
             .filter(|variable| !variable.is_wildcard())
-            .map(|var| var.set_current(0))
+            .map(|var| var.set_current(Some(0)))
             .map(|variable| {
                 (
                     variable.name().to_owned(),

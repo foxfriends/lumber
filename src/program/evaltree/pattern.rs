@@ -11,8 +11,12 @@ pub(crate) struct Pattern {
 
 impl Pattern {
     pub fn new(kind: PatternKind, age: usize) -> Self {
+        let kind = match kind {
+            PatternKind::Variable(var) => PatternKind::Variable(var.set_current(Some(age))),
+            _ => kind,
+        };
         Self {
-            pattern: Rc::new(kind.set_age(age)),
+            pattern: Rc::new(kind),
             age: Some(age),
         }
     }
@@ -65,9 +69,18 @@ impl From<ast::Pattern> for Pattern {
 
 impl From<PatternKind> for Pattern {
     fn from(kind: PatternKind) -> Self {
-        Self {
-            pattern: Rc::new(kind),
-            age: None,
+        match kind {
+            PatternKind::Variable(var) => {
+                let age = var.generation();
+                Self {
+                    pattern: Rc::new(PatternKind::Variable(var)),
+                    age,
+                }
+            }
+            _ => Self {
+                pattern: Rc::new(kind),
+                age: None,
+            },
         }
     }
 }

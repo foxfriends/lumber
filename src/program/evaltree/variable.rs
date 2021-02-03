@@ -23,10 +23,10 @@ impl Variable {
         }
     }
 
-    pub fn set_current(&self, now: usize) -> Self {
-        match self.generation {
-            None => Self::new(self.identifier.clone(), now),
-            Some(..) => self.clone(),
+    pub fn set_current(&self, now: Option<usize>) -> Self {
+        Self {
+            identifier: self.identifier.clone(),
+            generation: self.generation.or(now),
         }
     }
 

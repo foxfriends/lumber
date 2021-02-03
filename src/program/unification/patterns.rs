@@ -151,8 +151,16 @@ fn unify_patterns_inner(
                 && rhs_str.contents.is_some() =>
         {
             let (contents, binding) = unify_patterns_inner(
-                lhs_str.contents.clone().unwrap(),
-                rhs_str.contents.clone().unwrap(),
+                lhs_str
+                    .contents
+                    .as_ref()
+                    .map(|contents| contents.default_age(lhs_age))
+                    .unwrap(),
+                rhs_str
+                    .contents
+                    .as_ref()
+                    .map(|contents| contents.default_age(rhs_age))
+                    .unwrap(),
                 binding,
             )?;
             Some((
@@ -187,13 +195,12 @@ fn unify_patterns_inner(
         (PatternKind::List(head, Some(tail)), PatternKind::List(full, None)) => {
             match tail.kind() {
                 PatternKind::Variable(variable) => {
-                    let variable = variable;
                     let (output, tail, binding) = unify_full_prefix(
                         head.iter().map(|pat| pat.default_age(lhs_age)).collect(),
                         full.iter().map(|pat| pat.default_age(rhs_age)).collect(),
                         binding,
                     )?;
-                    let tail_pat = binding.get(&variable).unwrap();
+                    let tail_pat = binding.get(&variable.set_current(lhs_age)).unwrap();
                     let (tail, binding) = unify_patterns_inner(
                         Pattern::from(PatternKind::List(tail, None)),
                         tail_pat,
@@ -272,7 +279,7 @@ fn unify_patterns_inner(
                             .collect(),
                         binding,
                     )?;
-                    let tail_pat = binding.get(&ident).unwrap();
+                    let tail_pat = binding.get(&ident.set_current(lhs_age)).unwrap();
                     let (tail, binding) = unify_patterns_inner(
                         Pattern::from(PatternKind::Record(tail, None)),
                         tail_pat,
@@ -307,8 +314,11 @@ fn unify_patterns_inner(
                 binding,
             )?;
             if intersection.is_empty() {
-                let (tail, binding) =
-                    unify_patterns_inner(lhs_tail.clone(), rhs_tail.clone(), binding)?;
+                let (tail, binding) = unify_patterns_inner(
+                    lhs_tail.default_age(lhs_age),
+                    rhs_tail.default_age(rhs_age),
+                    binding,
+                )?;
                 return Some((
                     Pattern::from(PatternKind::Record(intersection, Some(tail))),
                     binding,
@@ -326,8 +336,10 @@ fn unify_patterns_inner(
             ));
             lhs_rest.append(&mut rhs_rest);
             let out_tail = Pattern::from(PatternKind::Record(lhs_rest, Some(unknown_tail)));
-            let (_, binding) = unify_patterns_inner(lhs_tail.clone(), new_lhs_tail, binding)?;
-            let (_, binding) = unify_patterns_inner(rhs_tail.clone(), new_rhs_tail, binding)?;
+            let (_, binding) =
+                unify_patterns_inner(lhs_tail.default_age(lhs_age), new_lhs_tail, binding)?;
+            let (_, binding) =
+                unify_patterns_inner(rhs_tail.default_age(rhs_age), new_rhs_tail, binding)?;
             Some((
                 Pattern::from(PatternKind::Record(intersection, Some(out_tail))),
                 binding,
