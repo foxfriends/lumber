@@ -158,7 +158,7 @@ impl Binding {
             PatternKind::List(patterns, rest) => {
                 let mut patterns = patterns
                     .iter()
-                    .map(|pattern| self.apply(pattern))
+                    .map(|pattern| self.apply(&pattern.default_age(age)))
                     .collect::<crate::Result<Vec<_>>>()?;
                 let rest = rest
                     .as_ref()
