@@ -185,7 +185,7 @@ impl Binding {
                 let rest = rest
                     .as_ref()
                     .map(|pattern| -> crate::Result<Option<Pattern>> {
-                        let pattern = self.apply(pattern)?;
+                        let pattern = self.apply(&pattern.default_age(age))?;
                         match pattern.kind() {
                             PatternKind::Record(head, rest) => {
                                 fields.append(&mut head.clone());
