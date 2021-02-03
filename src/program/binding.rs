@@ -84,7 +84,10 @@ impl Binding {
     }
 
     pub fn get(&self, var: &Variable) -> Option<Pattern> {
-        let pattern = self.variables.get(var)?;
+        // Though most variables/patterns are stored with an age, sometimes wildcards are not.
+        // That may be an oversight in another area... but can be solved by defaulting the age
+        // here anyway.
+        let pattern = self.variables.get(var)?.default_age(var.generation());
         match pattern.kind() {
             PatternKind::Variable(new_var) if new_var != var => self.get(new_var),
             _ => Some(pattern.clone()),
