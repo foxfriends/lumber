@@ -31,7 +31,7 @@ impl Binding {
             variables: body
                 .variables()
                 .map(|var| var.set_current(0))
-                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var))))
+                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var), 0)))
                 .collect(),
             generations: vec![0],
             next_generation: 1,
@@ -65,7 +65,7 @@ impl Binding {
                 .map(|var| {
                     (
                         var.set_current(generation),
-                        Pattern::from(PatternKind::Variable(var)),
+                        Pattern::new(PatternKind::Variable(var), generation),
                     )
                 }),
         );
@@ -84,10 +84,7 @@ impl Binding {
     }
 
     pub fn get(&self, var: &Variable) -> Option<Pattern> {
-        // Though most variables/patterns are stored with an age, sometimes wildcards are not.
-        // That may be an oversight in another area... but can be solved by defaulting the age
-        // here anyway.
-        let pattern = self.variables.get(var)?.default_age(var.generation());
+        let pattern = self.variables.get(var)?;
         match pattern.kind() {
             PatternKind::Variable(new_var) if new_var != var => self.get(new_var),
             _ => Some(pattern.clone()),
@@ -104,7 +101,7 @@ impl Binding {
         let var = Variable::new(Identifier::new(name), self.generation());
         self.variables.insert(
             var.clone(),
-            Pattern::from(PatternKind::Variable(var.clone())),
+            Pattern::new(PatternKind::Variable(var.clone()), self.generation()),
         );
         var
     }
