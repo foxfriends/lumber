@@ -359,7 +359,7 @@ impl Database<'_> {
                 move |term| Box::new(move |binding| self.evaluate_term(term, binding, public)),
                 move |term, operator| {
                     Box::new(move |mut binding| {
-                        let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
+                        let dest = Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
                         let (out, bindings) = term(binding)?;
                         let bindings =
                             Box::new(bindings.flat_map({ let dest = dest.clone(); move |binding| {
@@ -379,7 +379,7 @@ impl Database<'_> {
                 move |lhs, operator, rhs| {
                     let rhs = std::rc::Rc::new(rhs);
                     Box::new(move |mut binding| {
-                        let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
+                        let dest = Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
                         let (lvar, bindings) = lhs(binding)?;
                         let bindings = Box::new(bindings.flat_map({
                             let rhs = rhs.clone();
@@ -428,7 +428,7 @@ impl Database<'_> {
         match term {
             Term::Expression(expression) => self.evaluate_expression(expression, binding, public),
             Term::PrefixOp(op, rhs) => {
-                let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
+                let dest = Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
                 let (rvar, bindings) = self.evaluate_term(rhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
                     let dest = dest.clone();
@@ -444,7 +444,7 @@ impl Database<'_> {
                 Some((dest, bindings))
             }
             Term::InfixOp(lhs, op, rhs) => {
-                let dest = Pattern::new(PatternKind::Variable(binding.to_mut().fresh_variable()));
+                let dest = Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
                 let (lvar, bindings) = self.evaluate_term(lhs, binding, public)?;
                 let bindings = Box::new(bindings.flat_map({
                     let dest = dest.clone();
@@ -480,7 +480,7 @@ impl Database<'_> {
                     .map(move |binding| binding.apply(&pattern).unwrap())
                     .collect();
                 Some((
-                    Pattern::new(PatternKind::List(solutions, None)),
+                    Pattern::from(PatternKind::List(solutions, None)),
                     Box::new(std::iter::once(binding)),
                 ))
             }

@@ -34,8 +34,8 @@ impl Variable {
         self.identifier.name()
     }
 
-    pub fn generation(&self, current: usize) -> usize {
-        self.generation.unwrap_or(current)
+    pub fn generation(&self) -> Option<usize> {
+        self.generation
     }
 
     pub fn is_wildcard(&self) -> bool {

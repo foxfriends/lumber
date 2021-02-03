@@ -31,7 +31,7 @@ impl Binding {
             variables: body
                 .variables(0)
                 .into_iter()
-                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var))))
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var))))
                 .collect(),
             generations: vec![0],
             next_generation: 1,
@@ -62,7 +62,7 @@ impl Binding {
                 .iter()
                 .flat_map(|pat| pat.variables(generation))
                 .chain(body.into_iter().flat_map(|body| body.variables(generation)))
-                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var)))),
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
         );
         source.iter().zip(destination.iter()).try_fold(
             Cow::Owned(binding),
@@ -96,7 +96,7 @@ impl Binding {
         let var = Variable::new(Identifier::new(name), self.generation());
         self.variables.insert(
             var.clone(),
-            Pattern::new(PatternKind::Variable(var.clone())),
+            Pattern::from(PatternKind::Variable(var.clone())),
         );
         var
     }
@@ -106,7 +106,8 @@ impl Binding {
             .variables
             .keys()
             .find(|var| {
-                var.name() == name && var.generation(self.generation()) == self.generation()
+                var.name() == name
+                    && var.generation().unwrap_or_else(|| self.generation()) == self.generation()
             })
             .unwrap()
             .clone();
@@ -118,6 +119,8 @@ impl Binding {
     }
 
     pub fn apply(&self, pattern: &Pattern) -> crate::Result<Pattern> {
+        let age = pattern.age().unwrap_or_else(|| self.generation());
+
         #[cfg(feature = "test-perf")]
         let _guard = {
             let name = match pattern {
@@ -135,7 +138,7 @@ impl Binding {
 
         let output = match pattern.kind() {
             PatternKind::Variable(variable) => {
-                let variable = variable.set_current(self.generation());
+                let variable = variable.set_current(age);
                 let pattern = self.variables.get(&variable).ok_or_else(|| {
                     crate::Error::binding(
                         "The pattern contains variables that are not relevant to this binding.",
@@ -143,7 +146,7 @@ impl Binding {
                 })?;
                 return match pattern.kind() {
                     PatternKind::Variable(var) if var == &variable => Ok(pattern.clone()),
-                    _ => self.apply(pattern),
+                    _ => self.apply(&pattern.default_age(age)),
                 };
             }
             PatternKind::List(patterns, rest) => {
@@ -154,7 +157,7 @@ impl Binding {
                 let rest = rest
                     .as_ref()
                     .map(|pattern| -> crate::Result<Option<Pattern>> {
-                        let pattern = self.apply(pattern)?;
+                        let pattern = self.apply(&pattern.default_age(age))?;
                         match pattern.kind() {
                             PatternKind::List(head, rest) => {
                                 patterns.append(&mut head.clone());
@@ -171,7 +174,7 @@ impl Binding {
             PatternKind::Record(fields, rest) => {
                 let mut fields = fields
                     .iter()
-                    .map(|(key, pattern)| Ok((key.clone(), self.apply(pattern)?)))
+                    .map(|(key, pattern)| Ok((key.clone(), self.apply(&pattern.default_age(age))?)))
                     .collect::<crate::Result<Fields>>()?;
                 let rest = rest
                     .as_ref()
@@ -193,7 +196,7 @@ impl Binding {
             PatternKind::Struct(crate::program::evaltree::Struct { name, contents }) => {
                 let contents = contents
                     .as_ref()
-                    .map(|contents| self.apply(&contents))
+                    .map(|pattern| self.apply(&pattern.default_age(age)))
                     .transpose()?;
                 PatternKind::Struct(crate::program::evaltree::Struct {
                     name: name.clone(),
@@ -207,11 +210,11 @@ impl Binding {
             PatternKind::All(inner) => PatternKind::All(
                 inner
                     .iter()
-                    .map(|pattern| self.apply(&pattern))
+                    .map(|pattern| self.apply(&pattern.default_age(age)))
                     .collect::<crate::Result<Vec<_>>>()?,
             ),
         };
-        Ok(Pattern::new(output))
+        Ok(Pattern::from(output))
     }
 }
 
@@ -226,7 +229,7 @@ impl Display for Binding {
                 f,
                 "\t{} ({}) = {}",
                 var,
-                var.generation(self.generation()),
+                var.generation().unwrap_or_else(|| self.generation()),
                 val
             )?;
         }

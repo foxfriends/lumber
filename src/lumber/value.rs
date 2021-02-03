@@ -283,7 +283,7 @@ impl Into<Pattern> for Option<Value> {
             }
             Some(Value::Any(any)) => PatternKind::Any(any),
         };
-        Pattern::new(kind)
+        Pattern::from(kind)
     }
 }
 

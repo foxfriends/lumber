@@ -9,10 +9,6 @@ pub(crate) struct Fields {
 }
 
 impl Fields {
-    pub fn len(&self) -> usize {
-        self.fields.len()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
