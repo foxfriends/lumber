@@ -4,6 +4,26 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
+fn occurs(variable: &Variable, pattern: Pattern, binding: &Binding) -> bool {
+    pattern
+        .variables()
+        .map(|var| var.set_current(pattern.age()))
+        .any(|ref var| {
+            if var == variable {
+                return true;
+            }
+            if var.generation().is_none() {
+                return false; // a real wildcard is not bound to anything, so it can't contain anything...
+            }
+            let pattern = binding.get(var).unwrap();
+            match pattern.kind() {
+                PatternKind::Variable(v) if v == variable => true,
+                PatternKind::Variable(..) => false,
+                _ => occurs(variable, pattern.clone(), binding),
+            }
+        })
+}
+
 #[cfg_attr(feature = "test-perf", flamer::flame)]
 pub(crate) fn unify_patterns(
     lhs: Pattern,
@@ -111,7 +131,7 @@ fn unify_patterns_inner(
             let var_pat = binding.get(&var).unwrap();
             match var_pat.kind() {
                 PatternKind::Variable(pat_var) if pat_var == var => {
-                    if rhs.variables().any(|occurred| var == &occurred) {
+                    if occurs(var, rhs.clone(), binding.as_ref()) {
                         return None;
                     }
                     let mut binding = binding;
@@ -233,14 +253,20 @@ fn unify_patterns_inner(
             // the remaining head and tail of the other list.
             let (suffix, binding) = if lhs.len() < rhs.len() {
                 unify_patterns_inner(
-                    lhs_tail.clone(),
-                    Pattern::from(PatternKind::List(remaining, Some(rhs_tail.clone()))),
+                    lhs_tail.default_age(lhs_age),
+                    Pattern::from(PatternKind::List(
+                        remaining,
+                        Some(rhs_tail.default_age(rhs_age)),
+                    )),
                     binding,
                 )?
             } else {
                 unify_patterns_inner(
-                    Pattern::from(PatternKind::List(remaining, Some(lhs_tail.clone()))),
-                    rhs_tail.clone(),
+                    Pattern::from(PatternKind::List(
+                        remaining,
+                        Some(lhs_tail.default_age(lhs_age)),
+                    )),
+                    rhs_tail.default_age(rhs_age),
                     binding,
                 )?
             };

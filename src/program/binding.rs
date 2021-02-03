@@ -31,7 +31,7 @@ impl Binding {
             variables: body
                 .variables()
                 .map(|var| var.set_current(Some(0)))
-                .map(|var| (var.clone(), Pattern::new(PatternKind::Variable(var), 0)))
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var))))
                 .collect(),
             generations: vec![0],
             next_generation: 1,
@@ -63,12 +63,7 @@ impl Binding {
                 .flat_map(|pat| pat.variables())
                 .chain(body.into_iter().flat_map(|body| body.variables()))
                 .map(|var| var.set_current(Some(generation)))
-                .map(|var| {
-                    (
-                        var.clone(),
-                        Pattern::new(PatternKind::Variable(var), generation),
-                    )
-                }),
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
         );
         source.iter().zip(destination.iter()).try_fold(
             Cow::Owned(binding),
@@ -102,22 +97,27 @@ impl Binding {
         let var = Variable::new(Identifier::new(name), self.generation());
         self.variables.insert(
             var.clone(),
-            Pattern::new(PatternKind::Variable(var.clone()), self.generation()),
+            Pattern::from(PatternKind::Variable(var.clone())),
         );
         var
     }
 
     pub fn bind(&mut self, name: &str, value: Value) {
+        let generation = self.generation();
         let var = self
             .variables
             .keys()
-            .find(|var| {
-                var.name() == name
-                    && var.generation().unwrap_or_else(|| self.generation()) == self.generation()
-            })
+            .find(|var| var.name() == name && var.generation().unwrap_or(generation) == generation)
             .unwrap()
             .clone();
-        *self.variables.get_mut(&var).unwrap() = Some(value).into();
+        let pattern: Pattern = Some(value).into();
+        self.variables.extend(
+            pattern
+                .variables()
+                .map(|var| var.set_current(Some(generation)))
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
+        );
+        *self.variables.get_mut(&var).unwrap() = pattern;
     }
 
     pub fn extract(&self, pattern: &Pattern) -> crate::Result<Option<Value>> {
