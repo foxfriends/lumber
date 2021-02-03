@@ -10,6 +10,13 @@ pub(crate) struct Pattern {
 }
 
 impl Pattern {
+    pub fn new(kind: PatternKind, age: usize) -> Self {
+        Self {
+            pattern: Rc::new(kind.set_age(age)),
+            age: Some(age),
+        }
+    }
+
     pub fn wildcard() -> Self {
         Self::from(PatternKind::Variable(Variable::new_generationless(
             Identifier::wildcard("_"),
@@ -25,9 +32,17 @@ impl Pattern {
     }
 
     pub fn default_age(&self, age: usize) -> Self {
-        Self {
-            pattern: self.pattern.clone(),
-            age: self.age.or(Some(age)),
+        if self.age.is_some() {
+            return self.clone();
+        }
+        match self.pattern.as_ref() {
+            p @ PatternKind::Variable(var) if var.generation().is_none() => {
+                Self::new(p.clone(), age)
+            }
+            _ => Self {
+                pattern: self.pattern.clone(),
+                age: Some(age),
+            },
         }
     }
 

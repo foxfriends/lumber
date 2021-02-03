@@ -69,6 +69,13 @@ impl Hash for PatternKind {
 }
 
 impl PatternKind {
+    pub fn set_age(self, age: usize) -> Self {
+        match self {
+            PatternKind::Variable(var) => PatternKind::Variable(var.set_current(age)),
+            _ => self,
+        }
+    }
+
     /// All variables in this pattern, resolved to a particular generation
     pub fn variables<'a>(&'a self, generation: usize) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {

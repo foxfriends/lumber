@@ -57,9 +57,7 @@ fn unify_patterns_inner(
                 })
         }
         // Unifying a x with itself succeeds with no additional info.
-        (PatternKind::Variable(lhs_var), PatternKind::Variable(rhs_var))
-            if lhs_var.set_current(lhs_age) == rhs_var.set_current(rhs_age) =>
-        {
+        (PatternKind::Variable(lhs_var), PatternKind::Variable(rhs_var)) if lhs_var == rhs_var => {
             // We don't need to use occurs check here because `A =:= A` is allowed, despite
             // `A` being in the occurs list already.
             Some((lhs, binding))
@@ -67,8 +65,6 @@ fn unify_patterns_inner(
         // Unifying a x with a different x, we use the natural order of variables
         // to designate one as the source of truth and the other as a reference.
         (PatternKind::Variable(lhs_var), PatternKind::Variable(rhs_var)) => {
-            let lhs_var = lhs_var.set_current(lhs_age);
-            let rhs_var = rhs_var.set_current(rhs_age);
             let lhs_pat = binding.get(&lhs_var).unwrap();
             let rhs_pat = binding.get(&rhs_var).unwrap();
             let (pattern, mut binding) = match (lhs_pat.kind(), rhs_pat.kind()) {
@@ -79,11 +75,11 @@ fn unify_patterns_inner(
                 _ => unify_patterns_inner(lhs_pat, rhs_pat, binding)?,
             };
             if lhs_var <= rhs_var {
-                binding.to_mut().set(lhs_var, pattern.clone());
-                binding.to_mut().set(rhs_var, lhs);
+                binding.to_mut().set(lhs_var.clone(), pattern.clone());
+                binding.to_mut().set(rhs_var.clone(), lhs);
             } else {
-                binding.to_mut().set(rhs_var, pattern.clone());
-                binding.to_mut().set(lhs_var, rhs);
+                binding.to_mut().set(rhs_var.clone(), pattern.clone());
+                binding.to_mut().set(lhs_var.clone(), rhs);
             }
             Some((pattern, binding))
         }
@@ -91,8 +87,7 @@ fn unify_patterns_inner(
         // an unbound variable unification will fail.
         (PatternKind::Bound, PatternKind::Variable(..)) => unify_patterns_inner(rhs, lhs, binding),
         (PatternKind::Variable(var), PatternKind::Bound) => {
-            let var = var.set_current(lhs_age);
-            let val = binding.get(&var).unwrap();
+            let val = binding.get(var).unwrap();
             match val.kind() {
                 PatternKind::Variable(..) => None,
                 _ => Some((val, binding)),
@@ -103,8 +98,7 @@ fn unify_patterns_inner(
             unify_patterns_inner(rhs, lhs, binding)
         }
         (PatternKind::Variable(var), PatternKind::Unbound) => {
-            let var = var.set_current(lhs_age);
-            let val = binding.get(&var).unwrap();
+            let val = binding.get(var).unwrap();
             match val.kind() {
                 PatternKind::Variable(..) => Some((val, binding)),
                 _ => None,
@@ -114,15 +108,14 @@ fn unify_patterns_inner(
         // unify. If that succeeds, the x is replaced with the binding.
         (.., PatternKind::Variable(..)) => unify_patterns_inner(rhs, lhs, binding),
         (PatternKind::Variable(var), ..) => {
-            let var = var.set_current(lhs_age);
             let var_pat = binding.get(&var).unwrap();
             match var_pat.kind() {
-                PatternKind::Variable(pat_var) if pat_var == &var => {
-                    if rhs.variables(rhs_age).any(|occurred| var == occurred) {
+                PatternKind::Variable(pat_var) if pat_var == var => {
+                    if rhs.variables(rhs_age).any(|occurred| var == &occurred) {
                         return None;
                     }
                     let mut binding = binding;
-                    binding.to_mut().set(var, rhs.clone());
+                    binding.to_mut().set(var.clone(), rhs.clone());
                     Some((rhs, binding))
                 }
                 _ => {
@@ -194,7 +187,7 @@ fn unify_patterns_inner(
         (PatternKind::List(head, Some(tail)), PatternKind::List(full, None)) => {
             match tail.kind() {
                 PatternKind::Variable(variable) => {
-                    let variable = variable.set_current(lhs_age);
+                    let variable = variable;
                     let (output, tail, binding) = unify_full_prefix(
                         head.iter().map(|pat| pat.default_age(lhs_age)).collect(),
                         full.iter().map(|pat| pat.default_age(rhs_age)).collect(),
@@ -270,7 +263,6 @@ fn unify_patterns_inner(
         (PatternKind::Record(head, Some(tail)), PatternKind::Record(full, None)) => {
             match tail.kind() {
                 PatternKind::Variable(ident) => {
-                    let ident = ident.set_current(lhs_age);
                     let (output, tail, binding) = unify_fields_partial(
                         head.iter()
                             .map(|(k, v)| (k.clone(), v.default_age(lhs_age)))
