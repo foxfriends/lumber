@@ -38,6 +38,18 @@ impl Binding {
         }
     }
 
+    pub fn associate_value(&mut self, value: Option<Value>) -> Pattern {
+        let pattern: Pattern = value.into();
+        let age = Some(self.generation());
+        self.variables.extend(
+            pattern
+                .variables()
+                .map(|var| var.set_current(age))
+                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
+        );
+        pattern.default_age(age)
+    }
+
     pub fn generation(&self) -> usize {
         *self.generations.last().unwrap()
     }
@@ -110,13 +122,7 @@ impl Binding {
             .find(|var| var.name() == name && var.generation().unwrap_or(generation) == generation)
             .unwrap()
             .clone();
-        let pattern: Pattern = Some(value).into();
-        self.variables.extend(
-            pattern
-                .variables()
-                .map(|var| var.set_current(Some(generation)))
-                .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
-        );
+        let pattern = self.associate_value(Some(value));
         *self.variables.get_mut(&var).unwrap() = pattern;
     }
 
@@ -197,7 +203,7 @@ impl Binding {
                     })
                     .transpose()?
                     .flatten();
-                PatternKind::Record(fields, rest)
+                PatternKind::record(fields, rest)
             }
             PatternKind::Struct(crate::program::evaltree::Struct { name, contents }) => {
                 let contents = contents

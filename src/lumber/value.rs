@@ -266,7 +266,7 @@ impl Into<Pattern> for Option<Value> {
                     Some(Pattern::wildcard())
                 },
             ),
-            Some(Value::Record(Record { fields, complete })) => PatternKind::Record(
+            Some(Value::Record(Record { fields, complete })) => PatternKind::record(
                 fields
                     .into_iter()
                     .map(|(key, value)| (key, value.into()))

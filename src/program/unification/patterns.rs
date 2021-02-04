@@ -286,7 +286,7 @@ fn unify_patterns_inner(
                     .collect(),
                 binding,
             )?;
-            Some((Pattern::from(PatternKind::Record(fields, None)), binding))
+            Some((Pattern::from(PatternKind::record(fields, None)), binding))
         }
         // If only one record has a tail, the tail unifies with whatever the head does
         // not already cover.
@@ -307,20 +307,17 @@ fn unify_patterns_inner(
                     )?;
                     let tail_pat = binding.get(&ident.set_current(lhs_age)).unwrap();
                     let (tail, binding) = unify_patterns_inner(
-                        Pattern::from(PatternKind::Record(tail, None)),
+                        Pattern::from(PatternKind::record(tail, None)),
                         tail_pat,
                         binding,
                     )?;
                     Some((
-                        Pattern::from(PatternKind::Record(output, Some(tail))),
+                        Pattern::from(PatternKind::record(output, Some(tail))),
                         binding,
                     ))
                 }
-                PatternKind::Record(cont, tail) => {
-                    let mut combined = head.clone();
-                    combined.append(&mut cont.clone());
-                    let lhs = Pattern::from(PatternKind::Record(combined, tail.clone()));
-                    unify_patterns_inner(lhs, rhs, binding)
+                PatternKind::Record(..) => {
+                    panic!("should not reach here... the tails should always be variables")
                 }
                 // If the tail cannot unify with a record, then there is a problem.
                 _ => None,
@@ -330,15 +327,16 @@ fn unify_patterns_inner(
         // a record formed from the remaining elements of the other is unified with each tail in
         // turn.
         (PatternKind::Record(lhs, Some(lhs_tail)), PatternKind::Record(rhs, Some(rhs_tail))) => {
-            let (intersection, mut lhs_rest, mut rhs_rest, mut binding) = unify_fields_difference(
-                lhs.iter()
-                    .map(|(k, v)| (k.clone(), v.default_age(lhs_age)))
-                    .collect(),
-                rhs.iter()
-                    .map(|(k, v)| (k.clone(), v.default_age(rhs_age)))
-                    .collect(),
-                binding,
-            )?;
+            let (mut intersection, mut lhs_rest, mut rhs_rest, mut binding) =
+                unify_fields_difference(
+                    lhs.iter()
+                        .map(|(k, v)| (k.clone(), v.default_age(lhs_age)))
+                        .collect(),
+                    rhs.iter()
+                        .map(|(k, v)| (k.clone(), v.default_age(rhs_age)))
+                        .collect(),
+                    binding,
+                )?;
             if intersection.is_empty() {
                 let (tail, binding) = unify_patterns_inner(
                     lhs_tail.default_age(lhs_age),
@@ -346,28 +344,28 @@ fn unify_patterns_inner(
                     binding,
                 )?;
                 return Some((
-                    Pattern::from(PatternKind::Record(intersection, Some(tail))),
+                    Pattern::from(PatternKind::record(intersection, Some(tail))),
                     binding,
                 ));
             }
             let unknown_tail =
                 Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
-            let new_rhs_tail = Pattern::from(PatternKind::Record(
+            let new_rhs_tail = Pattern::from(PatternKind::record(
                 lhs_rest.clone(),
                 Some(unknown_tail.clone()),
             ));
-            let new_lhs_tail = Pattern::from(PatternKind::Record(
+            let new_lhs_tail = Pattern::from(PatternKind::record(
                 rhs_rest.clone(),
                 Some(unknown_tail.clone()),
             ));
-            lhs_rest.append(&mut rhs_rest);
-            let out_tail = Pattern::from(PatternKind::Record(lhs_rest, Some(unknown_tail)));
             let (_, binding) =
                 unify_patterns_inner(lhs_tail.default_age(lhs_age), new_lhs_tail, binding)?;
             let (_, binding) =
                 unify_patterns_inner(rhs_tail.default_age(rhs_age), new_rhs_tail, binding)?;
+            intersection.append(&mut lhs_rest);
+            intersection.append(&mut rhs_rest);
             Some((
-                Pattern::from(PatternKind::Record(intersection, Some(out_tail))),
+                Pattern::from(PatternKind::record(intersection, Some(unknown_tail))),
                 binding,
             ))
         }

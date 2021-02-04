@@ -30,6 +30,46 @@ pub(crate) enum PatternKind {
     All(Vec<Pattern>),
 }
 
+impl PatternKind {
+    pub fn record(mut fields: Fields, tail: Option<Pattern>) -> Self {
+        match tail.as_ref().map(|pat| pat.kind()) {
+            None | Some(PatternKind::Variable(..)) => PatternKind::Record(fields, tail),
+            Some(PatternKind::Record(cont, tail)) => {
+                fields.append(&mut cont.clone());
+                PatternKind::record(fields, tail.clone())
+            }
+            // If the tail cannot unify with a record, then there is a problem.
+            _ => panic!("illegal construction of record"),
+        }
+    }
+
+    /// All variables in this pattern
+    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
+        match self {
+            Self::Struct(s) => Box::new(s.variables()),
+            Self::Variable(variable) => Box::new(std::iter::once(variable.clone())),
+            Self::List(head, tail) => Box::new(
+                head.iter()
+                    .flat_map(move |pattern| pattern.variables())
+                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
+            ),
+            Self::Record(head, tail) => Box::new(
+                head.iter()
+                    .flat_map(move |(_, pattern)| pattern.variables())
+                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
+            ),
+            Self::All(patterns) => {
+                Box::new(patterns.iter().flat_map(move |pattern| pattern.variables()))
+            }
+            _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    pub fn is_container(&self) -> bool {
+        matches!(self, Self::List(..) | Self::Record(..))
+    }
+}
+
 impl Eq for PatternKind {}
 impl PartialEq for PatternKind {
     fn eq(&self, other: &Self) -> bool {
@@ -65,34 +105,6 @@ impl Hash for PatternKind {
             PatternKind::Unbound => "unbound".hash(hasher),
             PatternKind::All(patterns) => ("all", patterns).hash(hasher),
         }
-    }
-}
-
-impl PatternKind {
-    /// All variables in this pattern
-    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
-        match self {
-            Self::Struct(s) => Box::new(s.variables()),
-            Self::Variable(variable) => Box::new(std::iter::once(variable.clone())),
-            Self::List(head, tail) => Box::new(
-                head.iter()
-                    .flat_map(move |pattern| pattern.variables())
-                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
-            ),
-            Self::Record(head, tail) => Box::new(
-                head.iter()
-                    .flat_map(move |(_, pattern)| pattern.variables())
-                    .chain(tail.iter().flat_map(move |pattern| pattern.variables())),
-            ),
-            Self::All(patterns) => {
-                Box::new(patterns.iter().flat_map(move |pattern| pattern.variables()))
-            }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    pub fn is_container(&self) -> bool {
-        matches!(self, Self::List(..) | Self::Record(..))
     }
 }
 
@@ -154,7 +166,7 @@ impl From<ast::Pattern> for PatternKind {
                 rest.map(|pat| Pattern::from(*pat)),
             ),
             ast::Pattern::Record(record, rest) => {
-                Self::Record(Fields::from(record), rest.map(|pat| Pattern::from(*pat)))
+                Self::record(Fields::from(record), rest.map(|pat| Pattern::from(*pat)))
             }
             ast::Pattern::Wildcard => {
                 Self::Variable(Variable::new_generationless(Identifier::wildcard("_")))

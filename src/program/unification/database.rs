@@ -287,13 +287,13 @@ impl Database<'_> {
             DatabaseDefinition::Native(native_function) => {
                 let values = args.iter().map(|p| binding.extract(p).unwrap()).collect();
                 Box::new(native_function.call(values).filter_map(move |values| {
-                    values
-                        .into_iter()
-                        .map(Into::into)
-                        .zip(args.clone().into_iter())
-                        .try_fold(binding.clone(), |binding, (lhs, rhs)| {
+                    args.iter().cloned().zip(values.into_iter()).try_fold(
+                        binding.clone(),
+                        |mut binding, (lhs, rhs)| {
+                            let rhs = binding.to_mut().associate_value(rhs);
                             unify_patterns(lhs, rhs, binding)
-                        })
+                        },
+                    )
                 }))
             }
             _ => unreachable!(),
@@ -477,10 +477,11 @@ impl Database<'_> {
             Term::ListAggregation(pattern, body) => {
                 let solutions = self
                     .unify_body(body, binding.clone(), public)
-                    .map(move |binding| binding.apply(&pattern).unwrap())
+                    .map(move |binding| binding.extract(&pattern).unwrap())
+                    .map(|value| binding.to_mut().associate_value(value))
                     .collect();
                 Some((
-                    Pattern::from(PatternKind::List(solutions, None)),
+                    Pattern::new(PatternKind::List(solutions, None), binding.generation()),
                     Box::new(std::iter::once(binding)),
                 ))
             }
