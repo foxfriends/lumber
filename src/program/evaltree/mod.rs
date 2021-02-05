@@ -12,7 +12,6 @@ mod pattern_kind;
 mod procession;
 mod query;
 mod step;
-mod r#struct;
 mod term;
 mod variable;
 
@@ -28,7 +27,6 @@ pub(crate) use pattern::Pattern;
 pub(crate) use pattern_kind::PatternKind;
 pub(crate) use procession::Procession;
 pub(crate) use query::Query;
-pub(crate) use r#struct::Struct;
 pub(crate) use step::Step;
 pub(crate) use term::Term;
 pub(crate) use variable::Variable;

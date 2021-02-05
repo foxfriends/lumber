@@ -156,36 +156,20 @@ fn unify_patterns_inner(
         }
         (PatternKind::Literal(..), PatternKind::Literal(..)) => None,
         // Structs must match in name, and then their contents must match
-        (PatternKind::Struct(lhs_str), PatternKind::Struct(rhs_str))
-            if lhs_str.name == rhs_str.name
-                && lhs_str.contents.is_none()
-                && rhs_str.contents.is_none() =>
-        {
+        (PatternKind::Struct(lname, None), PatternKind::Struct(rname, None)) if lname == rname => {
             Some((lhs, binding))
         }
-        (PatternKind::Struct(lhs_str), PatternKind::Struct(rhs_str))
-            if lhs_str.name == rhs_str.name
-                && lhs_str.contents.is_some()
-                && rhs_str.contents.is_some() =>
-        {
+        (
+            PatternKind::Struct(lname, Some(lcontents)),
+            PatternKind::Struct(rname, Some(rcontents)),
+        ) if lname == rname => {
             let (contents, binding) = unify_patterns_inner(
-                lhs_str
-                    .contents
-                    .as_ref()
-                    .map(|contents| contents.default_age(lhs_age))
-                    .unwrap(),
-                rhs_str
-                    .contents
-                    .as_ref()
-                    .map(|contents| contents.default_age(rhs_age))
-                    .unwrap(),
+                lcontents.default_age(lhs_age),
+                rcontents.default_age(rhs_age),
                 binding,
             )?;
             Some((
-                Pattern::from(PatternKind::Struct(Struct {
-                    name: lhs_str.name.clone(),
-                    contents: Some(contents),
-                })),
+                Pattern::from(PatternKind::Struct(lname.clone(), Some(contents))),
                 binding,
             ))
         }
@@ -537,10 +521,7 @@ mod test {
     }
 
     fn atom(name: &str) -> Pattern {
-        Pattern::from(PatternKind::Struct(Struct::from_parts(
-            Atom::from(name),
-            None,
-        )))
+        Pattern::from(PatternKind::Struct(Atom::from(name), None))
     }
 
     fn var(binding: &mut Binding) -> Pattern {
@@ -576,10 +557,10 @@ mod test {
         (
             $name:ident ($contents:expr)
         ) => {
-            Pattern::from(PatternKind::Struct(Struct::from_parts(
+            Pattern::from(PatternKind::Struct(
                 Atom::from(stringify!($name)),
                 Some($contents.clone()),
-            )))
+            ))
         };
     }
 

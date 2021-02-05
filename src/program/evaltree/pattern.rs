@@ -85,7 +85,7 @@ impl Pattern {
             ),
             Some(Value::Struct(Struct { name, contents })) => {
                 let contents = contents.map(|contents| Pattern::from_value(*contents, age));
-                PatternKind::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
+                PatternKind::Struct(name, contents)
             }
             Some(Value::Any(any)) => PatternKind::Any(any),
         };

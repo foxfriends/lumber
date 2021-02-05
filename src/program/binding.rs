@@ -140,7 +140,7 @@ impl Binding {
                 PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
                 PatternKind::List(..) => "list".to_owned(),
                 PatternKind::Record(..) => "record".to_owned(),
-                PatternKind::Struct(s) => format!("struct {}", s.name),
+                PatternKind::Struct(name, ..) => format!("struct {}", name),
                 PatternKind::Literal(..) => "literal".to_owned(),
                 PatternKind::All(..) => "all".to_owned(),
                 PatternKind::Any(..) => "any".to_owned(),
@@ -206,15 +206,12 @@ impl Binding {
                     .flatten();
                 PatternKind::record(fields, rest)
             }
-            PatternKind::Struct(crate::program::evaltree::Struct { name, contents }) => {
+            PatternKind::Struct(name, contents) => {
                 let contents = contents
                     .as_ref()
                     .map(|pattern| self.apply(&pattern.default_age(age)))
                     .transpose()?;
-                PatternKind::Struct(crate::program::evaltree::Struct {
-                    name: name.clone(),
-                    contents,
-                })
+                PatternKind::Struct(name.clone(), contents)
             }
             PatternKind::Literal(..) => return Ok(pattern.clone()),
             PatternKind::Any(..) => return Ok(pattern.clone()),

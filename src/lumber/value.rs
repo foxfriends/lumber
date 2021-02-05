@@ -241,9 +241,9 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::Record(Record { fields, complete }))
             }
-            PatternKind::Struct(structure) => {
-                let contents = structure.contents.map(Into::into).map(Box::new);
-                Some(Value::Struct(Struct::raw(structure.name, contents)))
+            PatternKind::Struct(name, contents) => {
+                let contents = contents.map(Into::into).map(Box::new);
+                Some(Value::Struct(Struct::raw(name, contents)))
             }
             PatternKind::Any(any) => Some(Value::Any(any)),
             PatternKind::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),

@@ -10,7 +10,7 @@ use std::rc::Rc;
 #[derive(Clone, Debug)]
 pub(crate) enum PatternKind {
     /// A structured pattern (unifies structurally with another query of the same name).
-    Struct(Struct),
+    Struct(Atom, Option<Pattern>),
     /// A single variable (unifies with anything but only once).
     Variable(Variable),
     /// A literal value (unifies only with itself).
@@ -58,7 +58,9 @@ impl PatternKind {
     /// All variables in this pattern
     pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Struct(s) => Box::new(s.variables()),
+            Self::Struct(.., contents) => {
+                Box::new(contents.iter().flat_map(|contents| contents.variables()))
+            }
             Self::Variable(variable) => Box::new(std::iter::once(variable.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()
@@ -86,7 +88,9 @@ impl Eq for PatternKind {}
 impl PartialEq for PatternKind {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (PatternKind::Struct(lhs), PatternKind::Struct(rhs)) => lhs == rhs,
+            (PatternKind::Struct(lname, lcontents), PatternKind::Struct(rname, rcontents)) => {
+                lname == rname && lcontents == rcontents
+            }
             (PatternKind::Variable(lhs), PatternKind::Variable(rhs)) => lhs == rhs,
             (PatternKind::Literal(lhs), PatternKind::Literal(rhs)) => lhs == rhs,
             (PatternKind::List(lhs, ltail), PatternKind::List(rhs, rtail)) => {
@@ -107,7 +111,7 @@ impl PartialEq for PatternKind {
 impl Hash for PatternKind {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
-            PatternKind::Struct(value) => ("struct", value).hash(hasher),
+            PatternKind::Struct(name, contents) => ("struct", name, contents).hash(hasher),
             PatternKind::Variable(value) => ("variable", value).hash(hasher),
             PatternKind::Literal(value) => ("literal", value).hash(hasher),
             PatternKind::List(value, tail) => ("list", value, tail).hash(hasher),
@@ -150,7 +154,11 @@ impl Display for PatternKind {
                     None => write!(f, " }}"),
                 }
             }
-            PatternKind::Struct(structure) => structure.fmt(f),
+            PatternKind::Struct(name, None) => write!(f, "{}", name),
+            PatternKind::Struct(name, Some(contents)) if contents.kind().is_container() => {
+                write!(f, "{} {}", name, contents)
+            }
+            PatternKind::Struct(name, Some(contents)) => write!(f, "{} ({})", name, contents),
             PatternKind::Any(any) => write!(f, "[{:?}]", Rc::as_ptr(any)),
             PatternKind::Variable(var) => var.fmt(f),
             PatternKind::Bound => "!".fmt(f),
@@ -172,7 +180,9 @@ impl From<ast::Pattern> for PatternKind {
             ast::Pattern::Variable(id) => {
                 Self::Variable(Variable::new_generationless(Identifier::from(id)))
             }
-            ast::Pattern::Struct(st) => Self::Struct(Struct::from(st)),
+            ast::Pattern::Struct(st) => {
+                Self::Struct(st.name, st.contents.map(|pat| Pattern::from(*pat)))
+            }
             ast::Pattern::List(list, rest) => Self::list(
                 list.into_iter().map(Pattern::from).collect(),
                 rest.map(|pat| Pattern::from(*pat)),
