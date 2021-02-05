@@ -31,7 +31,7 @@ pub(crate) enum PatternKind {
 }
 
 impl PatternKind {
-    pub fn record(mut fields: Fields, tail: Option<Pattern>) -> Self {
+    pub(super) fn record(mut fields: Fields, tail: Option<Pattern>) -> Self {
         match tail.as_ref().map(|pat| pat.kind()) {
             None | Some(PatternKind::Variable(..)) => PatternKind::Record(fields, tail),
             Some(PatternKind::Record(cont, tail)) => {
@@ -43,7 +43,7 @@ impl PatternKind {
         }
     }
 
-    pub fn list(mut items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
+    pub(super) fn list(mut items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
         match tail.as_ref().map(|pat| pat.kind()) {
             None | Some(PatternKind::Variable(..)) => PatternKind::List(items, tail),
             Some(PatternKind::List(cont, tail)) => {
@@ -51,7 +51,7 @@ impl PatternKind {
                 PatternKind::list(items, tail.clone())
             }
             // If the tail cannot unify with a list, then there is a problem.
-            _ => panic!("illegal construction of record"),
+            _ => panic!("illegal construction of list"),
         }
     }
 

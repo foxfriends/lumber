@@ -49,6 +49,20 @@ impl Pattern {
         self.pattern.variables()
     }
 
+    pub fn record(fields: Fields, rest: Option<Pattern>) -> Self {
+        if fields.is_empty() && rest.is_some() {
+            return rest.unwrap();
+        }
+        Self::from(PatternKind::record(fields, rest))
+    }
+
+    pub fn list(items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
+        if items.is_empty() && tail.is_some() {
+            return tail.unwrap();
+        }
+        Self::from(PatternKind::list(items, tail))
+    }
+
     pub fn from_value(value: Option<Value>, age: usize) -> Self {
         let kind = match value {
             None => PatternKind::Variable(Variable::new(Identifier::wildcard("_"), age)),

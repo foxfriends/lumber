@@ -187,7 +187,7 @@ fn unify_patterns_inner(
                     .collect(),
                 binding,
             )?;
-            Some((Pattern::from(PatternKind::list(fields, None)), binding))
+            Some((Pattern::list(fields, None), binding))
         }
         // If only one list has a tail, the tail unifies with whatever the head does
         // not already cover.
@@ -203,15 +203,9 @@ fn unify_patterns_inner(
                         binding,
                     )?;
                     let tail_pat = binding.get(&variable.set_current(lhs_age)).unwrap();
-                    let (tail, binding) = unify_patterns_inner(
-                        Pattern::from(PatternKind::list(tail, None)),
-                        tail_pat,
-                        binding,
-                    )?;
-                    Some((
-                        Pattern::from(PatternKind::list(output, Some(tail))),
-                        binding,
-                    ))
+                    let (tail, binding) =
+                        unify_patterns_inner(tail_pat, Pattern::list(tail, None), binding)?;
+                    Some((Pattern::list(output, Some(tail)), binding))
                 }
                 PatternKind::List(..) => {
                     panic!("should not reach here... the tails should always be variables")
@@ -233,28 +227,19 @@ fn unify_patterns_inner(
             let (suffix, binding) = if lhs.len() < rhs.len() {
                 unify_patterns_inner(
                     lhs_tail.default_age(lhs_age),
-                    Pattern::from(PatternKind::list(
-                        remaining,
-                        Some(rhs_tail.default_age(rhs_age)),
-                    )),
+                    Pattern::list(remaining, Some(rhs_tail.default_age(rhs_age))),
                     binding,
                 )?
             } else {
                 unify_patterns_inner(
-                    Pattern::from(PatternKind::list(
-                        remaining,
-                        Some(lhs_tail.default_age(lhs_age)),
-                    )),
+                    Pattern::list(remaining, Some(lhs_tail.default_age(lhs_age))),
                     rhs_tail.default_age(rhs_age),
                     binding,
                 )?
             };
-            Some((
-                Pattern::from(PatternKind::list(unified, Some(suffix))),
-                binding,
-            ))
+            Some((Pattern::list(unified, Some(suffix)), binding))
         }
-        // If neither record has a tail, the heads must match like a struct
+        // If neither record has a tail, the heads must match.
         (PatternKind::Record(lhs, None), PatternKind::Record(rhs, None)) => {
             let (fields, binding) = unify_fields(
                 lhs.iter()
@@ -265,7 +250,7 @@ fn unify_patterns_inner(
                     .collect(),
                 binding,
             )?;
-            Some((Pattern::from(PatternKind::record(fields, None)), binding))
+            Some((Pattern::record(fields, None), binding))
         }
         // If only one record has a tail, the tail unifies with whatever the head does
         // not already cover.
@@ -285,15 +270,9 @@ fn unify_patterns_inner(
                         binding,
                     )?;
                     let tail_pat = binding.get(&ident.set_current(lhs_age)).unwrap();
-                    let (tail, binding) = unify_patterns_inner(
-                        Pattern::from(PatternKind::record(tail, None)),
-                        tail_pat,
-                        binding,
-                    )?;
-                    Some((
-                        Pattern::from(PatternKind::record(output, Some(tail))),
-                        binding,
-                    ))
+                    let (tail, binding) =
+                        unify_patterns_inner(tail_pat, Pattern::record(tail, None), binding)?;
+                    Some((Pattern::record(output, Some(tail)), binding))
                 }
                 PatternKind::Record(..) => {
                     panic!("should not reach here... the tails should always be variables")
@@ -305,48 +284,31 @@ fn unify_patterns_inner(
         // If both records have tails, unify the heads to remove common elements of both, then
         // a record formed from the remaining elements of the other is unified with each tail in
         // turn.
-        (PatternKind::Record(lhs, Some(lhs_tail)), PatternKind::Record(rhs, Some(rhs_tail))) => {
-            let (mut intersection, mut lhs_rest, mut rhs_rest, mut binding) =
-                unify_fields_difference(
-                    lhs.iter()
-                        .map(|(k, v)| (k.clone(), v.default_age(lhs_age)))
-                        .collect(),
-                    rhs.iter()
-                        .map(|(k, v)| (k.clone(), v.default_age(rhs_age)))
-                        .collect(),
-                    binding,
-                )?;
-            if intersection.is_empty() {
-                let (tail, binding) = unify_patterns_inner(
-                    lhs_tail.default_age(lhs_age),
-                    rhs_tail.default_age(rhs_age),
-                    binding,
-                )?;
-                return Some((
-                    Pattern::from(PatternKind::record(intersection, Some(tail))),
-                    binding,
-                ));
-            }
-            let unknown_tail =
-                Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
-            let new_rhs_tail = Pattern::from(PatternKind::record(
-                lhs_rest.clone(),
-                Some(unknown_tail.clone()),
-            ));
-            let new_lhs_tail = Pattern::from(PatternKind::record(
-                rhs_rest.clone(),
-                Some(unknown_tail.clone()),
-            ));
-            let (_, binding) =
-                unify_patterns_inner(lhs_tail.default_age(lhs_age), new_lhs_tail, binding)?;
-            let (_, binding) =
-                unify_patterns_inner(rhs_tail.default_age(rhs_age), new_rhs_tail, binding)?;
-            intersection.append(&mut lhs_rest);
-            intersection.append(&mut rhs_rest);
-            Some((
-                Pattern::from(PatternKind::record(intersection, Some(unknown_tail))),
+        (
+            PatternKind::Record(lhead, Some(lhs_tail)),
+            PatternKind::Record(rhead, Some(rhs_tail)),
+        ) => {
+            let (intersection, lhs_rest, rhs_rest, mut binding) = unify_fields_difference(
+                lhead
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.default_age(lhs_age)))
+                    .collect(),
+                rhead
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.default_age(rhs_age)))
+                    .collect(),
                 binding,
-            ))
+            )?;
+            let shared_tail =
+                Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
+            let mut not_intersection = lhs_rest.clone();
+            not_intersection.append(&mut rhs_rest.clone());
+            let complete_tail = Pattern::record(not_intersection, Some(shared_tail));
+            let new_lhs_tail = Pattern::record(lhs_rest, Some(lhs_tail.default_age(lhs_age)));
+            let new_rhs_tail = Pattern::record(rhs_rest, Some(rhs_tail.default_age(rhs_age)));
+            let (_, binding) = unify_patterns_inner(new_lhs_tail, complete_tail.clone(), binding)?;
+            let (_, binding) = unify_patterns_inner(new_rhs_tail, complete_tail.clone(), binding)?;
+            Some((Pattern::record(intersection, Some(complete_tail)), binding))
         }
         // Otherwise, it's a failure!
         _ => None,
@@ -548,9 +510,9 @@ mod test {
     }
 
     macro_rules! list {
-        () => (Pattern::from(PatternKind::list(vec![], None)));
-        ($($item:expr),+) => (Pattern::from(PatternKind::list(vec![$($item.clone()),+], None)));
-        ($($item:expr),+ ; $rest:expr) => (Pattern::from(PatternKind::list(vec![$($item.clone()),+], Some($rest.clone()))));
+        () => (Pattern::list(vec![], None));
+        ($($item:expr),+) => (Pattern::list(vec![$($item.clone()),+], None));
+        ($($item:expr),+ ; $rest:expr) => (Pattern::list(vec![$($item.clone()),+], Some($rest.clone())));
     }
 
     macro_rules! structure {
@@ -568,7 +530,7 @@ mod test {
         (
             @ [$fields:ident] (.. $rest:expr)
         ) => {{
-            Pattern::from(PatternKind::Record($fields.into(), Some($rest.clone())))
+            Pattern::record($fields.into(), Some($rest.clone()))
         }};
 
         (
@@ -581,7 +543,7 @@ mod test {
         (
             @ [$fields:ident] ()
         ) => {{
-            Pattern::from(PatternKind::Record($fields.into(), None))
+            Pattern::record($fields.into(), None)
         }};
 
         ($($field:tt)+) => {{
@@ -590,7 +552,7 @@ mod test {
             record!(@[fields] ($($field)+))
         }};
 
-        () => { Pattern::from(PatternKind::Record(Default::default(), None)) }
+        () => { Pattern::record(Default::default(), None) }
     }
 
     macro_rules! all {
@@ -689,7 +651,7 @@ mod test {
         );
         yes!(
             record! { a: int(1), b: int(2), ..x },
-            record! { a: int(1), ..x },
+            record! { a: int(1), ..y },
             binding,
         );
         yes!(

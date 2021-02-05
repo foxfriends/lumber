@@ -182,7 +182,7 @@ impl Binding {
                     })
                     .transpose()?
                     .flatten();
-                PatternKind::List(patterns, rest)
+                return Ok(Pattern::list(patterns, rest));
             }
             PatternKind::Record(fields, rest) => {
                 let mut fields = fields
@@ -204,7 +204,7 @@ impl Binding {
                     })
                     .transpose()?
                     .flatten();
-                PatternKind::record(fields, rest)
+                return Ok(Pattern::record(fields, rest));
             }
             PatternKind::Struct(name, contents) => {
                 let contents = contents
