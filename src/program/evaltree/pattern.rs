@@ -1,5 +1,6 @@
 use super::*;
 use crate::ast;
+use crate::{List, Record, Struct, Value};
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -19,12 +20,6 @@ impl Pattern {
             pattern: Rc::new(kind),
             age: Some(age),
         }
-    }
-
-    pub fn wildcard() -> Self {
-        Self::from(PatternKind::Variable(Variable::new_generationless(
-            Identifier::wildcard("_"),
-        )))
     }
 
     pub fn kind(&self) -> &PatternKind {
@@ -52,6 +47,49 @@ impl Pattern {
 
     pub fn variables(&self) -> Box<dyn Iterator<Item = Variable> + '_> {
         self.pattern.variables()
+    }
+
+    pub fn from_value(value: Option<Value>, age: usize) -> Self {
+        let kind = match value {
+            None => PatternKind::Variable(Variable::new(Identifier::wildcard("_"), age)),
+            Some(Value::Integer(int)) => PatternKind::Literal(Literal::Integer(int)),
+            Some(Value::Rational(rat)) => PatternKind::Literal(Literal::Rational(rat)),
+            Some(Value::String(string)) => PatternKind::Literal(Literal::String(string)),
+            Some(Value::List(List { values, complete })) => PatternKind::list(
+                values
+                    .into_iter()
+                    .map(|value| Pattern::from_value(value, age))
+                    .collect(),
+                if complete {
+                    None
+                } else {
+                    Some(Pattern::new(
+                        PatternKind::Variable(Variable::new(Identifier::wildcard("_"), age)),
+                        age,
+                    ))
+                },
+            ),
+            Some(Value::Record(Record { fields, complete })) => PatternKind::record(
+                fields
+                    .into_iter()
+                    .map(|(key, value)| (key, Pattern::from_value(value, age)))
+                    .collect(),
+                if complete {
+                    None
+                } else {
+                    Some(Pattern::new(
+                        PatternKind::Variable(Variable::new(Identifier::wildcard("_"), age)),
+                        age,
+                    ))
+                },
+            ),
+            Some(Value::Struct(Struct { name, contents })) => {
+                let contents = contents.map(|contents| Pattern::from_value(*contents, age));
+                PatternKind::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
+            }
+            Some(Value::Any(any)) => PatternKind::Any(any),
+        };
+        Pattern::new(kind, age)
     }
 }
 

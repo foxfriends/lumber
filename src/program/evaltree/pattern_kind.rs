@@ -43,6 +43,18 @@ impl PatternKind {
         }
     }
 
+    pub fn list(mut items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
+        match tail.as_ref().map(|pat| pat.kind()) {
+            None | Some(PatternKind::Variable(..)) => PatternKind::List(items, tail),
+            Some(PatternKind::List(cont, tail)) => {
+                items.append(&mut cont.clone());
+                PatternKind::list(items, tail.clone())
+            }
+            // If the tail cannot unify with a list, then there is a problem.
+            _ => panic!("illegal construction of record"),
+        }
+    }
+
     /// All variables in this pattern
     pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
@@ -161,7 +173,7 @@ impl From<ast::Pattern> for PatternKind {
                 Self::Variable(Variable::new_generationless(Identifier::from(id)))
             }
             ast::Pattern::Struct(st) => Self::Struct(Struct::from(st)),
-            ast::Pattern::List(list, rest) => Self::List(
+            ast::Pattern::List(list, rest) => Self::list(
                 list.into_iter().map(Pattern::from).collect(),
                 rest.map(|pat| Pattern::from(*pat)),
             ),

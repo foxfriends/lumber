@@ -45,7 +45,10 @@ impl Variable {
 
 impl Display for Variable {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        self.identifier.fmt(f)
+        match self.generation {
+            Some(gen) => write!(f, "{}@{}", self.identifier, gen),
+            None => write!(f, "{}@_", self.identifier),
+        }
     }
 }
 

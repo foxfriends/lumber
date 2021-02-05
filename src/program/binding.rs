@@ -39,15 +39,14 @@ impl Binding {
     }
 
     pub fn associate_value(&mut self, value: Option<Value>) -> Pattern {
-        let pattern: Pattern = value.into();
-        let age = Some(self.generation());
+        let age = self.generation();
+        let pattern = Pattern::from_value(value, age);
         self.variables.extend(
             pattern
                 .variables()
-                .map(|var| var.set_current(age))
                 .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
         );
-        pattern.default_age(age)
+        pattern
     }
 
     pub fn generation(&self) -> usize {
@@ -100,8 +99,10 @@ impl Binding {
     }
 
     pub fn set(&mut self, var: Variable, pattern: Pattern) {
-        self.variables
-            .insert(var.set_current(Some(self.generation())), pattern);
+        self.variables.insert(
+            var.set_current(Some(self.generation())),
+            pattern.default_age(Some(self.generation())),
+        );
     }
 
     pub fn fresh_variable(&mut self) -> Variable {

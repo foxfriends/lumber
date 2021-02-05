@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_allocation)]
 use super::{List, Record, Struct};
-use crate::program::evaltree::{Identifier, Literal, Pattern, PatternKind, Variable};
+use crate::program::evaltree::{Literal, Pattern, PatternKind};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -248,42 +248,6 @@ impl From<Pattern> for Option<Value> {
             PatternKind::Any(any) => Some(Value::Any(any)),
             PatternKind::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
         }
-    }
-}
-
-impl Into<Pattern> for Option<Value> {
-    fn into(self) -> Pattern {
-        let kind = match self {
-            None => PatternKind::Variable(Variable::new_generationless(Identifier::wildcard("_"))),
-            Some(Value::Integer(int)) => PatternKind::Literal(Literal::Integer(int)),
-            Some(Value::Rational(rat)) => PatternKind::Literal(Literal::Rational(rat)),
-            Some(Value::String(string)) => PatternKind::Literal(Literal::String(string)),
-            Some(Value::List(List { values, complete })) => PatternKind::List(
-                values.into_iter().map(Into::into).collect(),
-                if complete {
-                    None
-                } else {
-                    Some(Pattern::wildcard())
-                },
-            ),
-            Some(Value::Record(Record { fields, complete })) => PatternKind::record(
-                fields
-                    .into_iter()
-                    .map(|(key, value)| (key, value.into()))
-                    .collect(),
-                if complete {
-                    None
-                } else {
-                    Some(Pattern::wildcard())
-                },
-            ),
-            Some(Value::Struct(Struct { name, contents })) => {
-                let contents = contents.map(|contents| (*contents).into());
-                PatternKind::Struct(crate::program::evaltree::Struct::from_parts(name, contents))
-            }
-            Some(Value::Any(any)) => PatternKind::Any(any),
-        };
-        Pattern::from(kind)
     }
 }
 

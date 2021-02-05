@@ -481,7 +481,7 @@ impl Database<'_> {
                     .map(|value| binding.to_mut().associate_value(value))
                     .collect();
                 Some((
-                    Pattern::new(PatternKind::List(solutions, None), binding.generation()),
+                    Pattern::new(PatternKind::list(solutions, None), binding.generation()),
                     Box::new(std::iter::once(binding)),
                 ))
             }

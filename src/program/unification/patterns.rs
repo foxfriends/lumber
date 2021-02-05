@@ -88,19 +88,17 @@ fn unify_patterns_inner(
             let lhs_pat = binding.get(&lhs_var).unwrap();
             let rhs_pat = binding.get(&rhs_var).unwrap();
             let (pattern, mut binding) = match (lhs_pat.kind(), rhs_pat.kind()) {
-                (PatternKind::Variable(lvar), PatternKind::Variable(rvar)) if lvar <= rvar => {
-                    (lhs_pat, binding)
+                (PatternKind::Variable(lvar), PatternKind::Variable(rvar)) => {
+                    if lvar < rvar {
+                        (lhs_pat, binding)
+                    } else {
+                        (rhs_pat, binding)
+                    }
                 }
-                (PatternKind::Variable(..), PatternKind::Variable(..)) => (rhs_pat, binding),
                 _ => unify_patterns_inner(lhs_pat, rhs_pat, binding)?,
             };
-            if lhs_var <= rhs_var {
-                binding.to_mut().set(lhs_var.clone(), pattern.clone());
-                binding.to_mut().set(rhs_var.clone(), lhs);
-            } else {
-                binding.to_mut().set(rhs_var.clone(), pattern.clone());
-                binding.to_mut().set(lhs_var.clone(), rhs);
-            }
+            binding.to_mut().set(lhs_var.clone(), pattern.clone());
+            binding.to_mut().set(rhs_var.clone(), pattern.clone());
             Some((pattern, binding))
         }
         // The "bound" pattern requires the other value to already be bound, so this is the only way
@@ -130,12 +128,12 @@ fn unify_patterns_inner(
         (PatternKind::Variable(var), ..) => {
             let var_pat = binding.get(&var).unwrap();
             match var_pat.kind() {
-                PatternKind::Variable(pat_var) if pat_var == var => {
-                    if occurs(var, rhs.clone(), binding.as_ref()) {
+                PatternKind::Variable(pat_var) => {
+                    if occurs(pat_var, rhs.clone(), binding.as_ref()) {
                         return None;
                     }
                     let mut binding = binding;
-                    binding.to_mut().set(var.clone(), rhs.clone());
+                    binding.to_mut().set(pat_var.clone(), rhs.clone());
                     Some((rhs, binding))
                 }
                 _ => {
@@ -205,7 +203,7 @@ fn unify_patterns_inner(
                     .collect(),
                 binding,
             )?;
-            Some((Pattern::from(PatternKind::List(fields, None)), binding))
+            Some((Pattern::from(PatternKind::list(fields, None)), binding))
         }
         // If only one list has a tail, the tail unifies with whatever the head does
         // not already cover.
@@ -222,20 +220,17 @@ fn unify_patterns_inner(
                     )?;
                     let tail_pat = binding.get(&variable.set_current(lhs_age)).unwrap();
                     let (tail, binding) = unify_patterns_inner(
-                        Pattern::from(PatternKind::List(tail, None)),
+                        Pattern::from(PatternKind::list(tail, None)),
                         tail_pat,
                         binding,
                     )?;
                     Some((
-                        Pattern::from(PatternKind::List(output, Some(tail))),
+                        Pattern::from(PatternKind::list(output, Some(tail))),
                         binding,
                     ))
                 }
-                PatternKind::List(cont, tail) => {
-                    let mut combined = head.to_owned();
-                    combined.extend_from_slice(&cont);
-                    let lhs = Pattern::from(PatternKind::List(combined, tail.clone()));
-                    unify_patterns_inner(lhs, rhs, binding)
+                PatternKind::List(..) => {
+                    panic!("should not reach here... the tails should always be variables")
                 }
                 // If the tail cannot unify with a list, then there is a problem.
                 _ => None,
@@ -254,7 +249,7 @@ fn unify_patterns_inner(
             let (suffix, binding) = if lhs.len() < rhs.len() {
                 unify_patterns_inner(
                     lhs_tail.default_age(lhs_age),
-                    Pattern::from(PatternKind::List(
+                    Pattern::from(PatternKind::list(
                         remaining,
                         Some(rhs_tail.default_age(rhs_age)),
                     )),
@@ -262,7 +257,7 @@ fn unify_patterns_inner(
                 )?
             } else {
                 unify_patterns_inner(
-                    Pattern::from(PatternKind::List(
+                    Pattern::from(PatternKind::list(
                         remaining,
                         Some(lhs_tail.default_age(lhs_age)),
                     )),
@@ -271,7 +266,7 @@ fn unify_patterns_inner(
                 )?
             };
             Some((
-                Pattern::from(PatternKind::List(unified, Some(suffix))),
+                Pattern::from(PatternKind::list(unified, Some(suffix))),
                 binding,
             ))
         }
@@ -572,9 +567,9 @@ mod test {
     }
 
     macro_rules! list {
-        () => (Pattern::from(PatternKind::List(vec![], None)));
-        ($($item:expr),+) => (Pattern::from(PatternKind::List(vec![$($item.clone()),+], None)));
-        ($($item:expr),+ ; $rest:expr) => (Pattern::from(PatternKind::List(vec![$($item.clone()),+], Some($rest.clone()))));
+        () => (Pattern::from(PatternKind::list(vec![], None)));
+        ($($item:expr),+) => (Pattern::from(PatternKind::list(vec![$($item.clone()),+], None)));
+        ($($item:expr),+ ; $rest:expr) => (Pattern::from(PatternKind::list(vec![$($item.clone()),+], Some($rest.clone()))));
     }
 
     macro_rules! structure {
