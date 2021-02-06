@@ -58,9 +58,7 @@ impl PatternKind {
     /// All variables in this pattern
     pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
-            Self::Struct(.., contents) => {
-                Box::new(contents.iter().flat_map(|contents| contents.variables()))
-            }
+            Self::Struct(.., Some(contents)) => contents.variables(),
             Self::Variable(variable) => Box::new(std::iter::once(variable.clone())),
             Self::List(head, tail) => Box::new(
                 head.iter()
@@ -75,7 +73,11 @@ impl PatternKind {
             Self::All(patterns) => {
                 Box::new(patterns.iter().flat_map(move |pattern| pattern.variables()))
             }
-            _ => Box::new(std::iter::empty()),
+            Self::Any(..)
+            | Self::Unbound
+            | Self::Bound
+            | Self::Literal(..)
+            | Self::Struct(.., None) => Box::new(std::iter::empty()),
         }
     }
 

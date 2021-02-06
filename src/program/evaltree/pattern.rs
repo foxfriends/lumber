@@ -46,7 +46,12 @@ impl Pattern {
     }
 
     pub fn variables(&self) -> Box<dyn Iterator<Item = Variable> + '_> {
-        self.pattern.variables()
+        let age = self.age;
+        Box::new(
+            self.pattern
+                .variables()
+                .map(move |var| var.set_current(age)),
+        )
     }
 
     pub fn record(fields: Fields, rest: Option<Pattern>) -> Self {

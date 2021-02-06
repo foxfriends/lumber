@@ -46,6 +46,7 @@ macro_rules! test {
 }
 
 mod accessibility;
+mod aggregation;
 mod bindings;
 mod conjunction;
 mod disjunction;
