@@ -1,25 +1,12 @@
 use super::*;
+use crate::ast;
 use crate::climb::*;
-use crate::parser::Rule;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Clone, Debug)]
-pub(crate) struct Expression(pub Vec<Op<Atom, Term>>);
+pub(crate) struct Expression(Vec<Op<Atom, Term>>);
 
 impl Expression {
-    pub fn new(pair: crate::Pair, context: &mut Context) -> Option<Self> {
-        assert_eq!(Rule::expression, pair.as_rule());
-        let operation = pair
-            .into_inner()
-            .map(|pair| match pair.as_rule() {
-                Rule::operator => Some(Op::Rator(Atom::from(pair.as_str()))),
-                Rule::term => Some(Op::Rand(Term::new(pair, context)?)),
-                _ => unreachable!(),
-            })
-            .collect::<Option<_>>()?;
-        Some(Self(operation))
-    }
-
     pub fn handles_mut<'a>(&'a mut self) -> Box<dyn Iterator<Item = &mut Handle> + 'a> {
         Box::new(
             self.0
@@ -33,7 +20,7 @@ impl Expression {
         )
     }
 
-    pub fn identifiers<'a>(&'a self) -> Box<dyn Iterator<Item = Identifier> + 'a> {
+    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         Box::new(
             self.0
                 .iter()
@@ -41,19 +28,8 @@ impl Expression {
                     Op::Rand(term) => Some(term),
                     _ => None,
                 })
-                .flat_map(|term| term.identifiers()),
+                .flat_map(|term| term.variables()),
         )
-    }
-
-    pub fn resolve_operators<F: FnMut(&OpKey) -> Option<Operator>>(&mut self, resolve: F) {
-        if let Some(term) = self.climb_operators(
-            resolve,
-            Clone::clone,
-            Term::prefix_operator,
-            Term::infix_operator,
-        ) {
-            self.0 = vec![Op::Rand(term)];
-        }
     }
 
     pub fn climb_operators<
@@ -115,5 +91,19 @@ where
 {
     fn from(value: T) -> Self {
         Self(vec![Op::Rand(Term::from(value))])
+    }
+}
+
+impl From<ast::Expression> for Expression {
+    fn from(ast: ast::Expression) -> Self {
+        Self(
+            ast.0
+                .into_iter()
+                .map(|op| match op {
+                    Op::Rator(o) => Op::Rator(o),
+                    Op::Rand(t) => Op::Rand(Term::from(t)),
+                })
+                .collect(),
+        )
     }
 }

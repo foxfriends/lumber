@@ -1,7 +1,8 @@
-use crate::ast::*;
+use super::{Answer, Value};
+use crate::ast::{self, Context};
 use crate::parser::*;
-use crate::{Binding, Value};
-use std::collections::BTreeMap;
+use crate::program::evaltree::Body;
+use crate::program::Binding;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 
@@ -15,8 +16,9 @@ pub struct Question {
 }
 
 impl Question {
-    pub(crate) fn new(body: Body) -> Self {
-        let initial_binding = body.identifiers().collect();
+    pub(crate) fn new(body: impl Into<Body>) -> Self {
+        let body = body.into();
+        let initial_binding = Binding::new(&body);
         Self {
             body,
             initial_binding,
@@ -61,15 +63,16 @@ impl Question {
     }
 
     /// Uses a binding to extract the answer to this question.
-    pub fn answer(&self, binding: &Binding) -> Option<BTreeMap<String, Option<Value>>> {
+    pub(crate) fn answer(&self, binding: &Binding) -> Answer {
         self.body
-            .identifiers()
-            .filter(|ident| !ident.is_wildcard())
-            .map(|identifier| {
-                Some((
-                    identifier.name().to_owned(),
-                    binding.extract(binding.get(&identifier)?.as_ref()).ok()?,
-                ))
+            .variables()
+            .filter(|variable| !variable.is_wildcard())
+            .map(|var| var.set_current(Some(0)))
+            .map(|variable| {
+                (
+                    variable.name().to_owned(),
+                    binding.extract(&binding.get(&variable).unwrap()).unwrap(),
+                )
             })
             .collect()
     }
@@ -104,8 +107,8 @@ impl TryFrom<&str> for Question {
         let mut pairs = pair.into_inner();
         let pair = pairs.next().unwrap();
         let mut context = Context::default();
-        match Body::new(pair, &mut context) {
-            Some(body) => Ok(Self::new(body)),
+        match ast::Body::new(pair, &mut context) {
+            Some(body) => Ok(Self::new(Body::from(body))),
             None => Err(crate::Error::parse(&format!(
                 "invalid syntax in question: {}",
                 src

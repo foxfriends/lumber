@@ -650,7 +650,7 @@ mod test {
         struct Test {
             value: &'static str,
             second: i32,
-        };
+        }
         assert_eq!(
             to_value(&Test {
                 value: "Hello",

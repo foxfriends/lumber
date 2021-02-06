@@ -32,16 +32,13 @@ impl Head {
     }
 
     pub fn check_variables(&self, context: &mut Context) {
-        let counts = self
-            .identifiers()
-            .filter(|ident| !ident.is_wildcard())
-            .fold(
-                HashMap::<Identifier, usize>::default(),
-                |mut map, identifier| {
-                    *map.entry(identifier).or_default() += 1;
-                    map
-                },
-            );
+        let counts = self.identifiers().fold(
+            HashMap::<Identifier, usize>::default(),
+            |mut map, identifier| {
+                *map.entry(identifier).or_default() += 1;
+                map
+            },
+        );
 
         for (identifier, count) in counts {
             if count <= 1 {

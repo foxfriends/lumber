@@ -7,6 +7,7 @@ edition = "2018"
 [features]
 builtin-sets = [] # Builtin sets is not implemented, but may be attempted in future?
 test-perf = ["flame", "flamer"] # For debugging performance. Not for use.
+serde = ["libserde", "im-rc/serde"]
 
 [dependencies]
 paw = "1.0"
@@ -15,7 +16,8 @@ pest_derive = "2.1"
 ramp = "0.5"
 structopt = { version = "0.3", features = ["paw"] }
 weak-table = "0.3"
-serde = { version = "1.0", features = ["derive"], optional = true }
+libserde = { package = "serde", version = "1.0", features = ["derive"], optional = true }
+im-rc = "15.0"
 
 flame = { version = "0.2", optional = true }
 flamer = { version = "0.4", optional = true }

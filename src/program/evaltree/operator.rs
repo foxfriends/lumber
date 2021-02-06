@@ -1,8 +1,61 @@
 use super::*;
-use crate::climb::*;
 use crate::parser::Rule;
 use ramp::Int;
 use std::fmt::{self, Debug, Display, Formatter};
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub(crate) enum Associativity {
+    Left,
+    Right,
+}
+
+impl Display for Associativity {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Left => write!(f, "left"),
+            Self::Right => write!(f, "right"),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub(crate) enum OpArity {
+    Binary,
+    Unary,
+}
+
+impl Display for OpArity {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Binary => write!(f, "binary"),
+            Self::Unary => write!(f, "unary"),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum OpKey {
+    Relation(Atom, OpArity),
+    Expression(Atom, OpArity),
+}
+
+impl OpKey {
+    pub fn all_types(name: Atom) -> impl Iterator<Item = OpKey> {
+        vec![
+            OpKey::Relation(name.clone(), OpArity::Unary),
+            OpKey::Relation(name.clone(), OpArity::Binary),
+            OpKey::Expression(name.clone(), OpArity::Unary),
+            OpKey::Expression(name, OpArity::Binary),
+        ]
+        .into_iter()
+    }
+
+    pub fn name(&self) -> Atom {
+        match self {
+            Self::Relation(name, ..) | Self::Expression(name, ..) => name.clone(),
+        }
+    }
+}
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct Operator {
@@ -87,7 +140,7 @@ impl Operator {
     }
 }
 
-impl Climbable for Operator {
+impl OpTrait for Operator {
     fn assoc(&self) -> Associativity {
         self.assoc
     }
@@ -100,6 +153,14 @@ impl Climbable for Operator {
 impl Display for Operator {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", self.key)
+    }
+}
+
+impl Display for OpKey {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Relation(atom, ..) | Self::Expression(atom, ..) => write!(f, "{}", atom.as_ref()),
+        }
     }
 }
 

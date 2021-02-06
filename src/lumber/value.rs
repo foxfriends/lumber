@@ -1,8 +1,6 @@
 #![allow(clippy::redundant_allocation)]
-#[cfg(feature = "builtin-sets")]
-use super::Set;
 use super::{List, Record, Struct};
-use crate::ast::{Identifier, Literal, Pattern};
+use crate::program::evaltree::{Literal, Pattern, PatternKind};
 use ramp::{int::Int, rational::Rational};
 use std::any::Any;
 use std::collections::HashMap;
@@ -18,9 +16,6 @@ pub enum Value {
     Rational(Rational),
     /// A string value.
     String(String),
-    /// An unordered, duplicate-free collection of values.
-    #[cfg(feature = "builtin-sets")]
-    Set(Set),
     /// An ordered collection of values, which may contain duplicates.
     List(List),
     /// A set of key value(s) pairs.
@@ -38,8 +33,6 @@ impl PartialEq for Value {
             (Value::Integer(lhs), Value::Integer(rhs)) => lhs == rhs,
             (Value::Rational(lhs), Value::Rational(rhs)) => lhs == rhs,
             (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
-            #[cfg(feature = "builtin-sets")]
-            (Value::Set(lhs), Value::Set(rhs)) => lhs == rhs,
             (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
             (Value::Struct(lhs), Value::Struct(rhs)) => lhs == rhs,
             (Value::Record(lhs), Value::Record(rhs)) => lhs == rhs,
@@ -229,25 +222,18 @@ where
 
 impl From<Pattern> for Option<Value> {
     fn from(pattern: Pattern) -> Self {
-        match pattern {
-            Pattern::Variable(..) => None,
-            Pattern::Wildcard(..) => None,
-            Pattern::Bound | Pattern::Unbound => None,
-            Pattern::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
-            Pattern::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
-            Pattern::Literal(Literal::String(string)) => Some(Value::String(string)),
-            Pattern::List(patterns, rest) => {
+        match pattern.kind().clone() {
+            PatternKind::Variable(..) => None,
+            PatternKind::Bound | PatternKind::Unbound => None,
+            PatternKind::Literal(Literal::Integer(int)) => Some(Value::Integer(int)),
+            PatternKind::Literal(Literal::Rational(rat)) => Some(Value::Rational(rat)),
+            PatternKind::Literal(Literal::String(string)) => Some(Value::String(string)),
+            PatternKind::List(patterns, rest) => {
                 let values = patterns.into_iter().map(Into::into).collect();
                 let complete = rest.is_none();
                 Some(Value::List(List { values, complete }))
             }
-            #[cfg(feature = "builtin-sets")]
-            Pattern::Set(patterns, rest) => {
-                let values = patterns.into_iter().map(Into::into).collect();
-                let complete = rest.is_none();
-                Some(Value::Set(Set::new(values, complete)))
-            }
-            Pattern::Record(fields, rest) => {
+            PatternKind::Record(fields, rest) => {
                 let fields = fields
                     .into_iter()
                     .map(|(key, pattern)| (key, pattern.into()))
@@ -255,55 +241,12 @@ impl From<Pattern> for Option<Value> {
                 let complete = rest.is_none();
                 Some(Value::Record(Record { fields, complete }))
             }
-            Pattern::Struct(structure) => {
-                let contents = structure
-                    .contents
-                    .map(|contents| Box::new((*contents).into()));
-                Some(Value::Struct(Struct::raw(structure.name, contents)))
+            PatternKind::Struct(name, contents) => {
+                let contents = contents.map(Into::into).map(Box::new);
+                Some(Value::Struct(Struct::raw(name, contents)))
             }
-            Pattern::Any(any) => Some(Value::Any(any)),
-            Pattern::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
-        }
-    }
-}
-
-impl Into<Pattern> for Option<Value> {
-    fn into(self) -> Pattern {
-        match self {
-            None => Pattern::Wildcard(Identifier::wildcard("_from_none")),
-            Some(Value::Integer(int)) => Pattern::Literal(Literal::Integer(int)),
-            Some(Value::Rational(rat)) => Pattern::Literal(Literal::Rational(rat)),
-            Some(Value::String(string)) => Pattern::Literal(Literal::String(string)),
-            Some(Value::List(List { values, complete })) => Pattern::List(
-                values.into_iter().map(Into::into).collect(),
-                if complete {
-                    None
-                } else {
-                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
-                        "_from_list_tail",
-                    ))))
-                },
-            ),
-            #[cfg(feature = "builtin-sets")]
-            Some(Value::Set(..)) => todo!(),
-            Some(Value::Record(Record { fields, complete })) => Pattern::Record(
-                fields
-                    .into_iter()
-                    .map(|(key, value)| (key, value.into()))
-                    .collect(),
-                if complete {
-                    None
-                } else {
-                    Some(Box::new(Pattern::Wildcard(Identifier::wildcard(
-                        "_from_record_tail",
-                    ))))
-                },
-            ),
-            Some(Value::Struct(Struct { name, contents })) => {
-                let contents = contents.map(|contents| Box::new((*contents).into()));
-                Pattern::Struct(crate::ast::Struct::from_parts(name, contents))
-            }
-            Some(Value::Any(any)) => Pattern::Any(any),
+            PatternKind::Any(any) => Some(Value::Any(any)),
+            PatternKind::All(patterns) => patterns.into_iter().find_map(|pattern| pattern.into()),
         }
     }
 }
@@ -314,8 +257,6 @@ impl Display for Value {
             Value::Integer(int) => int.fmt(f),
             Value::Rational(rat) => rat.to_f64().fmt(f),
             Value::String(string) => write!(f, "{:?}", string),
-            #[cfg(feature = "builtin-sets")]
-            Value::Set(set) => set.fmt(f),
             Value::List(list) => list.fmt(f),
             Value::Record(record) => record.fmt(f),
             Value::Struct(structure) => structure.fmt(f),

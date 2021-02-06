@@ -10,25 +10,19 @@ use std::path::Path;
 mod macros;
 
 mod answer;
-mod binding;
 mod builder;
 mod list;
 mod question;
 mod record;
-#[cfg(feature = "builtin-sets")]
-mod set;
 mod r#struct;
 mod value;
 
-pub use answer::FromBinding;
-pub use binding::Binding;
+pub use answer::Answer;
 pub use builder::LumberBuilder;
 pub use list::List;
 pub use question::Question;
 pub use r#struct::Struct;
 pub use record::Record;
-#[cfg(feature = "builtin-sets")]
-pub use set::Set;
 pub use value::Value;
 
 /// A Lumber program, for use either as a full program, or linked to by another Lumber program
@@ -126,26 +120,17 @@ impl<'p> Lumber<'p> {
         Self { modules, database }
     }
 
-    /// Ask a question, returning an iterator over all possible answers, attempting to
-    /// deserialize the answer from each output binding. If an answer could not be instantiated
-    /// fully (for example, due to a field required to deserialize the result remaining unbound),
-    /// the result will be an `Err` containing the rest of the bindings, in an unstructured form.
-    pub fn query<'a, A: FromBinding + 'a>(
-        &'a self,
-        query: &'a Question,
-    ) -> impl Iterator<Item = Result<A, Binding>> + 'a {
-        self.database.unify_question(query).map(A::from_binding)
-    }
-
-    /// Ask a question, returning an iterator over all possible answers, in raw binding form.
-    pub fn ask<'a>(&'a self, query: &'a Question) -> impl Iterator<Item = Binding> + 'a {
-        self.database.unify_question(query)
+    /// Ask a question, returning an iterator over all possible answers.
+    pub fn ask<'a>(&'a self, query: &'a Question) -> impl Iterator<Item = Answer> + 'a {
+        self.database
+            .unify_question(query)
+            .map(move |binding| query.answer(&binding))
     }
 
     /// Ask a question, checking whether an answer exists. An answer, if it exists, may not
     /// necessarily be fully bound.
     pub fn check<'a>(&'a self, query: &'a Question) -> bool {
-        self.ask(query).next().is_some()
+        self.database.unify_question(query).next().is_some()
     }
 
     pub(crate) fn into_library(self, name: &str) -> (HashMap<Scope, ModuleHeader>, Database<'p>) {

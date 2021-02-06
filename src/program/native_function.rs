@@ -5,7 +5,6 @@ use std::rc::Rc;
 type NativeFn<'p> =
     Rc<dyn Fn(Vec<Option<Value>>) -> Box<dyn Iterator<Item = Vec<Option<Value>>>> + 'p>;
 
-// TODO: figure out the parameter/return type of this function
 #[derive(Clone)]
 pub struct NativeFunction<'p> {
     function: NativeFn<'p>,
