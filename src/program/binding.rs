@@ -136,7 +136,7 @@ impl Binding {
 
         #[cfg(feature = "test-perf")]
         let _guard = {
-            let name = match pattern {
+            let name = match pattern.kind() {
                 PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
                 PatternKind::List(..) => "list".to_owned(),
                 PatternKind::Record(..) => "record".to_owned(),
