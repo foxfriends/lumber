@@ -23,8 +23,6 @@ fn occurs(variable: &Variable, pattern: Pattern, binding: &Binding) -> bool {
         flame::start_guard(format!("occurs {} <- {}", variable, name))
     };
     pattern.variables().any(|ref var| {
-        #[cfg(feature = "test-perf")]
-        flame::start_guard(format!("var {}", var));
         if var == variable {
             return true;
         }
@@ -79,32 +77,6 @@ fn unify_patterns_inner(
 ) -> Option<(Pattern, Cow<'_, Binding>)> {
     let lhs_age = lhs.age();
     let rhs_age = rhs.age();
-
-    #[cfg(feature = "test-perf")]
-    let _guard = {
-        let lname = match lhs.kind() {
-            PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
-            PatternKind::List(..) => "list".to_owned(),
-            PatternKind::Record(..) => "record".to_owned(),
-            PatternKind::Struct(name, ..) => format!("struct {}", name),
-            PatternKind::Literal(..) => "literal".to_owned(),
-            PatternKind::All(..) => "all".to_owned(),
-            PatternKind::Any(..) => "any".to_owned(),
-            _ => format!("{}", lhs),
-        };
-
-        let rname = match rhs.kind() {
-            PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
-            PatternKind::List(..) => "list".to_owned(),
-            PatternKind::Record(..) => "record".to_owned(),
-            PatternKind::Struct(name, ..) => format!("struct {}", name),
-            PatternKind::Literal(..) => "literal".to_owned(),
-            PatternKind::All(..) => "all".to_owned(),
-            PatternKind::Any(..) => "any".to_owned(),
-            _ => format!("{}", rhs),
-        };
-        flame::start_guard(format!("{} =:= {}", lname, rname))
-    };
 
     match (lhs.kind(), rhs.kind()) {
         // The All pattern just... unifies all of them

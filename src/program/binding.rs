@@ -84,13 +84,11 @@ impl Binding {
         )
     }
 
-    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub fn end_generation(mut self) -> Self {
         self.generations.pop();
         self
     }
 
-    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub fn get(&self, var: &Variable) -> Option<Pattern> {
         let pattern = self.variables.get(var)?;
         match pattern.kind() {

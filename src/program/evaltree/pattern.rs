@@ -46,15 +46,6 @@ impl Pattern {
         }
     }
 
-    pub fn variables(&self) -> Box<dyn Iterator<Item = Variable> + '_> {
-        let age = self.age;
-        Box::new(
-            self.pattern
-                .variables()
-                .map(move |var| var.set_current(age)),
-        )
-    }
-
     pub fn record(fields: OrdMap<Atom, Pattern>, rest: Option<Pattern>) -> Self {
         if fields.is_empty() {
             if let Some(rest) = rest {
@@ -144,6 +135,31 @@ impl From<PatternKind> for Pattern {
                 pattern: Rc::new(kind),
                 age: None,
             },
+        }
+    }
+}
+
+pub(crate) struct PatternVariables<'a> {
+    inner: PatternKindVariables<'a>,
+    age: Option<usize>,
+}
+
+impl Iterator for PatternVariables<'_> {
+    type Item = Variable;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let var = self.inner.next()?;
+        Some(var.set_current(self.age))
+    }
+}
+
+impl<'a> Variables<'a> for Pattern {
+    type VarIter = PatternVariables<'a>;
+
+    fn variables(&'a self) -> Self::VarIter {
+        PatternVariables {
+            inner: self.pattern.variables(),
+            age: self.age,
         }
     }
 }

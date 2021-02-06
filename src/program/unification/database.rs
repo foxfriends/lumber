@@ -3,12 +3,17 @@ use super::evaltree::*;
 use super::{unify_patterns, Binding, Bindings};
 use crate::Question;
 use std::borrow::Cow;
+#[cfg(feature = "test-perf")]
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 type Evaluation<'a> = (Pattern, Bindings<'a>);
 type MultipleEvaluations<'a> = (Vec<Pattern>, Cow<'a, Binding>);
 
 #[cfg(feature = "test-perf")]
-struct FlameIterator<I>(String, I, usize);
+struct FlameIterator<I>(String, I, usize, usize);
+
+#[cfg(feature = "test-perf")]
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[cfg(feature = "test-perf")]
 impl<I> Iterator for FlameIterator<I>
@@ -20,13 +25,16 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         use std::io::Write;
 
-        self.2 += 1;
+        self.3 += 1;
         flame::clear();
         flame::start("FlameIterator::next");
+        let start = std::time::Instant::now();
         let output = self.1.next();
+        let end = std::time::Instant::now();
+        eprintln!("{}.{} = {:?} ({})", self.2, self.3, end - start, self.0);
         flame::end("FlameIterator::next");
-        flame::dump_html(std::fs::File::create(format!("Flame-{}.html", self.2)).unwrap()).unwrap();
-        let mut question_file = std::fs::File::create(format!("Question-{}.txt", self.2)).unwrap();
+        flame::dump_html(std::fs::File::create(format!("Flame-{}.{}.html", self.2, self.3)).unwrap()).unwrap();
+        let mut question_file = std::fs::File::create(format!("Question-{}.{}.txt", self.2, self.3)).unwrap();
         writeln!(question_file, "{}", self.0).unwrap();
         output
     }
@@ -44,7 +52,12 @@ impl Database<'_> {
             .map(|cow| cow.into_owned()); // TODO: do we even need to owned it here?
         #[cfg(feature = "test-perf")]
         {
-            FlameIterator(question.to_string(), answers, 0)
+            FlameIterator(
+                question.to_string(),
+                answers,
+                COUNTER.fetch_add(1, Ordering::SeqCst),
+                0,
+            )
         }
         #[cfg(not(feature = "test-perf"))]
         {

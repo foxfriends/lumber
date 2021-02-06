@@ -31,7 +31,7 @@ impl Term {
     pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
         match self {
             Self::Expression(expression) => expression.variables(),
-            Self::Value(pattern) => pattern.variables(),
+            Self::Value(pattern) => Box::new(pattern.variables()),
             Self::PrefixOp(.., term) => term.variables(),
             Self::InfixOp(lhs, .., rhs) => Box::new(lhs.variables().chain(rhs.variables())),
             Self::ListAggregation(pattern, body) => {
