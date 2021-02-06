@@ -626,6 +626,7 @@ mod test {
 
     #[test]
     fn serialize_newtype_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         struct NewType(&'static str);
         assert_eq!(
@@ -636,6 +637,7 @@ mod test {
 
     #[test]
     fn serialize_tuple_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         struct Tuple(&'static str, i32);
         assert_eq!(
@@ -646,6 +648,7 @@ mod test {
 
     #[test]
     fn serialize_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         struct Test {
             value: &'static str,
@@ -666,6 +669,7 @@ mod test {
 
     #[test]
     fn serialize_enum_unit() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         enum Test {
             Variant,
@@ -678,6 +682,7 @@ mod test {
 
     #[test]
     fn serialize_enum_tuple() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         enum Test {
             Variant(i32, i32),
@@ -693,6 +698,7 @@ mod test {
 
     #[test]
     fn serialize_enum_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Serialize)]
         enum Test {
             Variant { first: i32, second: &'static str },

@@ -582,6 +582,7 @@ mod test {
 
     #[test]
     fn deserialize_newtype_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct NewType(bool);
 
@@ -598,6 +599,7 @@ mod test {
 
     #[test]
     fn deserialize_option() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct OptionWrapper(Option<bool>);
 
@@ -636,6 +638,7 @@ mod test {
 
     #[test]
     fn deserialize_tuple_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct Tuple(i32, u32);
 
@@ -664,6 +667,7 @@ mod test {
 
     #[test]
     fn deserialize_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct TestStruct {
             first: i32,
@@ -724,6 +728,7 @@ mod test {
 
     #[test]
     fn deserialize_unit_struct() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         struct TestUnit;
 
@@ -737,6 +742,7 @@ mod test {
 
     #[test]
     fn deserialize_unit_enum() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         enum Enum {
             First,
@@ -779,6 +785,7 @@ mod test {
 
     #[test]
     fn deserialize_newtype_enum() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         enum Enum {
             First(String),
@@ -845,6 +852,7 @@ mod test {
 
     #[test]
     fn deserialize_tuple_enum() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         enum Enum {
             First(String, String),
@@ -883,6 +891,7 @@ mod test {
 
     #[test]
     fn deserialize_fields_enum() {
+        #[serde(crate = "libserde")]
         #[derive(Deserialize, Debug, Eq, PartialEq)]
         enum Enum {
             First { a: String, b: String },
