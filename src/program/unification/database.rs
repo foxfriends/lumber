@@ -8,7 +8,7 @@ type Evaluation<'a> = (Pattern, Bindings<'a>);
 type MultipleEvaluations<'a> = (Vec<Pattern>, Cow<'a, Binding>);
 
 #[cfg(feature = "test-perf")]
-struct FlameIterator<I>(I, usize);
+struct FlameIterator<I>(String, I, usize);
 
 #[cfg(feature = "test-perf")]
 impl<I> Iterator for FlameIterator<I>
@@ -18,12 +18,16 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.1 += 1;
-        flame::start("FlameIterator::next");
-        let output = self.0.next();
-        flame::end("FlameIterator::next");
-        flame::dump_html(std::fs::File::create(format!("Flame-{}.html", self.1)).unwrap()).unwrap();
+        use std::io::Write;
+
+        self.2 += 1;
         flame::clear();
+        flame::start("FlameIterator::next");
+        let output = self.1.next();
+        flame::end("FlameIterator::next");
+        flame::dump_html(std::fs::File::create(format!("Flame-{}.html", self.2)).unwrap()).unwrap();
+        let mut question_file = std::fs::File::create(format!("Question-{}.txt", self.2)).unwrap();
+        writeln!(question_file, "{}", self.0).unwrap();
         output
     }
 }
@@ -40,7 +44,7 @@ impl Database<'_> {
             .map(|cow| cow.into_owned()); // TODO: do we even need to owned it here?
         #[cfg(feature = "test-perf")]
         {
-            FlameIterator(answers, 0)
+            FlameIterator(question.to_string(), answers, 0)
         }
         #[cfg(not(feature = "test-perf"))]
         {
@@ -243,6 +247,7 @@ impl Database<'_> {
         }
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn evaluate_expressions<'a>(
         &'a self,
         expressions: &'a [Expression],
@@ -265,6 +270,7 @@ impl Database<'_> {
         )
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     fn unify_query<'a>(
         &'a self,
         handle: &Handle,

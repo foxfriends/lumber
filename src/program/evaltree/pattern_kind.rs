@@ -1,6 +1,7 @@
 #![allow(clippy::redundant_allocation)]
 use super::*;
 use crate::ast;
+use im_rc::{OrdMap, Vector};
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -17,9 +18,9 @@ pub(crate) enum PatternKind {
     Literal(Literal),
     /// A list of patterns (unifies with a list of the same length where the patterns each
     /// unify in order).
-    List(Vec<Pattern>, Option<Pattern>),
+    List(Vector<Pattern>, Option<Pattern>),
     /// A record, containing a set of fields.
-    Record(Fields, Option<Pattern>),
+    Record(OrdMap<Atom, Pattern>, Option<Pattern>),
     /// An unknown Rust value.
     Any(Rc<Box<dyn Any>>),
     /// A value that must already be bound, at the time of checking (not wildcard)
@@ -31,11 +32,11 @@ pub(crate) enum PatternKind {
 }
 
 impl PatternKind {
-    pub(super) fn record(mut fields: Fields, tail: Option<Pattern>) -> Self {
+    pub(super) fn record(mut fields: OrdMap<Atom, Pattern>, tail: Option<Pattern>) -> Self {
         match tail.as_ref().map(|pat| pat.kind()) {
             None | Some(PatternKind::Variable(..)) => PatternKind::Record(fields, tail),
             Some(PatternKind::Record(cont, tail)) => {
-                fields.append(&mut cont.clone());
+                fields.extend(cont.clone());
                 PatternKind::record(fields, tail.clone())
             }
             // If the tail cannot unify with a record, then there is a problem.
@@ -43,11 +44,11 @@ impl PatternKind {
         }
     }
 
-    pub(super) fn list(mut items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
+    pub(super) fn list(mut items: Vector<Pattern>, tail: Option<Pattern>) -> Self {
         match tail.as_ref().map(|pat| pat.kind()) {
             None | Some(PatternKind::Variable(..)) => PatternKind::List(items, tail),
             Some(PatternKind::List(cont, tail)) => {
-                items.append(&mut cont.clone());
+                items.append(cont.clone());
                 PatternKind::list(items, tail.clone())
             }
             // If the tail cannot unify with a list, then there is a problem.
@@ -189,9 +190,10 @@ impl From<ast::Pattern> for PatternKind {
                 list.into_iter().map(Pattern::from).collect(),
                 rest.map(|pat| Pattern::from(*pat)),
             ),
-            ast::Pattern::Record(record, rest) => {
-                Self::record(Fields::from(record), rest.map(|pat| Pattern::from(*pat)))
-            }
+            ast::Pattern::Record(record, rest) => Self::record(
+                record.into_iter().collect(),
+                rest.map(|pat| Pattern::from(*pat)),
+            ),
             ast::Pattern::Wildcard => {
                 Self::Variable(Variable::new_generationless(Identifier::wildcard("_")))
             }

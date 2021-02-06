@@ -1,27 +1,43 @@
 use super::evaltree::*;
 use super::Binding;
+use im_rc::{vector, OrdMap, Vector};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 
+type Fields = OrdMap<Atom, Pattern>;
+
 fn occurs(variable: &Variable, pattern: Pattern, binding: &Binding) -> bool {
-    pattern
-        .variables()
-        .map(|var| var.set_current(pattern.age()))
-        .any(|ref var| {
-            if var == variable {
-                return true;
-            }
-            if var.generation().is_none() {
-                return false; // a real wildcard is not bound to anything, so it can't contain anything...
-            }
-            let pattern = binding.get(var).unwrap();
-            match pattern.kind() {
-                PatternKind::Variable(v) if v == variable => true,
-                PatternKind::Variable(..) => false,
-                _ => occurs(variable, pattern.clone(), binding),
-            }
-        })
+    #[cfg(feature = "test-perf")]
+    let _guard = {
+        let name = match pattern.kind() {
+            PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
+            PatternKind::List(..) => "list".to_owned(),
+            PatternKind::Record(..) => "record".to_owned(),
+            PatternKind::Struct(name, ..) => format!("struct {}", name),
+            PatternKind::Literal(..) => "literal".to_owned(),
+            PatternKind::All(..) => "all".to_owned(),
+            PatternKind::Any(..) => "any".to_owned(),
+            _ => format!("{}", pattern),
+        };
+        flame::start_guard(format!("occurs {} <- {}", variable, name))
+    };
+    pattern.variables().any(|ref var| {
+        #[cfg(feature = "test-perf")]
+        flame::start_guard(format!("var {}", var));
+        if var == variable {
+            return true;
+        }
+        if var.generation().is_none() {
+            return false; // a real wildcard is not bound to anything, so it can't contain anything...
+        }
+        let pattern = binding.get(var).unwrap();
+        match pattern.kind() {
+            PatternKind::Variable(v) if v == variable => true,
+            PatternKind::Variable(..) => false,
+            _ => occurs(variable, pattern, binding),
+        }
+    })
 }
 
 #[cfg_attr(feature = "test-perf", flamer::flame)]
@@ -56,7 +72,6 @@ pub(crate) fn unify_patterns_new_generation(
     )
 }
 
-#[cfg_attr(feature = "test-perf", flamer::flame)]
 fn unify_patterns_inner(
     lhs: Pattern,
     rhs: Pattern,
@@ -64,6 +79,32 @@ fn unify_patterns_inner(
 ) -> Option<(Pattern, Cow<'_, Binding>)> {
     let lhs_age = lhs.age();
     let rhs_age = rhs.age();
+
+    #[cfg(feature = "test-perf")]
+    let _guard = {
+        let lname = match lhs.kind() {
+            PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
+            PatternKind::List(..) => "list".to_owned(),
+            PatternKind::Record(..) => "record".to_owned(),
+            PatternKind::Struct(name, ..) => format!("struct {}", name),
+            PatternKind::Literal(..) => "literal".to_owned(),
+            PatternKind::All(..) => "all".to_owned(),
+            PatternKind::Any(..) => "any".to_owned(),
+            _ => format!("{}", lhs),
+        };
+
+        let rname = match rhs.kind() {
+            PatternKind::Variable(identifier) => format!("var {}", identifier.name()),
+            PatternKind::List(..) => "list".to_owned(),
+            PatternKind::Record(..) => "record".to_owned(),
+            PatternKind::Struct(name, ..) => format!("struct {}", name),
+            PatternKind::Literal(..) => "literal".to_owned(),
+            PatternKind::All(..) => "all".to_owned(),
+            PatternKind::Any(..) => "any".to_owned(),
+            _ => format!("{}", rhs),
+        };
+        flame::start_guard(format!("{} =:= {}", lname, rname))
+    };
 
     match (lhs.kind(), rhs.kind()) {
         // The All pattern just... unifies all of them
@@ -302,7 +343,7 @@ fn unify_patterns_inner(
             let shared_tail =
                 Pattern::from(PatternKind::Variable(binding.to_mut().fresh_variable()));
             let mut not_intersection = lhs_rest.clone();
-            not_intersection.append(&mut rhs_rest.clone());
+            not_intersection.extend(rhs_rest.clone());
             let complete_tail = Pattern::record(not_intersection, Some(shared_tail));
             let new_lhs_tail = Pattern::record(lhs_rest, Some(lhs_tail.default_age(lhs_age)));
             let new_rhs_tail = Pattern::record(rhs_rest, Some(rhs_tail.default_age(rhs_age)));
@@ -320,15 +361,15 @@ fn unify_sequence(
     lhs: Vec<Pattern>,
     rhs: Vec<Pattern>,
     binding: Cow<'_, Binding>,
-) -> Option<(Vec<Pattern>, Cow<'_, Binding>)> {
+) -> Option<(Vector<Pattern>, Cow<'_, Binding>)> {
     if lhs.len() != rhs.len() {
         return None;
     }
     lhs.into_iter().zip(rhs.into_iter()).try_fold(
-        (vec![], binding),
+        (vector![], binding),
         |(mut patterns, binding), (lhs, rhs)| {
             let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding)?;
-            patterns.push(pattern);
+            patterns.push_back(pattern);
             Some((patterns, binding))
         },
     )
@@ -414,20 +455,20 @@ fn unify_prefix(
     mut lhs: Vec<Pattern>,
     mut rhs: Vec<Pattern>,
     binding: Cow<'_, Binding>,
-) -> Option<(Vec<Pattern>, Vec<Pattern>, Cow<'_, Binding>)> {
+) -> Option<(Vector<Pattern>, Vector<Pattern>, Cow<'_, Binding>)> {
     let min_len = usize::min(lhs.len(), rhs.len());
     let (head, binding) = lhs.drain(..min_len).zip(rhs.drain(..min_len)).try_fold(
-        (vec![], binding),
+        (vector![], binding),
         |(mut patterns, binding), (lhs, rhs)| {
             let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding)?;
-            patterns.push(pattern);
+            patterns.push_back(pattern);
             Some((patterns, binding))
         },
     )?;
     if lhs.is_empty() {
-        Some((head, rhs, binding))
+        Some((head, rhs.into(), binding))
     } else {
-        Some((head, lhs, binding))
+        Some((head, lhs.into(), binding))
     }
 }
 
@@ -436,19 +477,19 @@ fn unify_full_prefix(
     lhs: Vec<Pattern>,
     mut rhs: Vec<Pattern>,
     binding: Cow<'_, Binding>,
-) -> Option<(Vec<Pattern>, Vec<Pattern>, Cow<'_, Binding>)> {
+) -> Option<(Vector<Pattern>, Vector<Pattern>, Cow<'_, Binding>)> {
     if lhs.len() > rhs.len() {
         return None;
     }
     let (head, binding) = rhs.drain(..lhs.len()).zip(lhs.into_iter()).try_fold(
-        (vec![], binding),
+        (vector![], binding),
         |(mut patterns, binding), (rhs, lhs)| {
             let (pattern, binding) = unify_patterns_inner(lhs, rhs, binding)?;
-            patterns.push(pattern);
+            patterns.push_back(pattern);
             Some((patterns, binding))
         },
     )?;
-    Some((head, rhs, binding))
+    Some((head, rhs.into(), binding))
 }
 
 #[cfg(test)]
@@ -510,9 +551,9 @@ mod test {
     }
 
     macro_rules! list {
-        () => (Pattern::list(vec![], None));
-        ($($item:expr),+) => (Pattern::list(vec![$($item.clone()),+], None));
-        ($($item:expr),+ ; $rest:expr) => (Pattern::list(vec![$($item.clone()),+], Some($rest.clone())));
+        () => (Pattern::list(vector![], None));
+        ($($item:expr),+) => (Pattern::list(vector![$($item.clone()),+], None));
+        ($($item:expr),+ ; $rest:expr) => (Pattern::list(vector![$($item.clone()),+], Some($rest.clone())));
     }
 
     macro_rules! structure {

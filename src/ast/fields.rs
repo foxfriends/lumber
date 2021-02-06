@@ -26,3 +26,12 @@ impl Fields {
         self.fields.iter()
     }
 }
+
+impl IntoIterator for Fields {
+    type Item = <BTreeMap<Atom, Pattern> as IntoIterator>::Item;
+    type IntoIter = <BTreeMap<Atom, Pattern> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.fields.into_iter()
+    }
+}

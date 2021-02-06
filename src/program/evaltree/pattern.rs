@@ -1,6 +1,7 @@
 use super::*;
 use crate::ast;
 use crate::{List, Record, Struct, Value};
+use im_rc::{OrdMap, Vector};
 use std::fmt::{self, Display, Formatter};
 use std::rc::Rc;
 
@@ -54,7 +55,7 @@ impl Pattern {
         )
     }
 
-    pub fn record(fields: Fields, rest: Option<Pattern>) -> Self {
+    pub fn record(fields: OrdMap<Atom, Pattern>, rest: Option<Pattern>) -> Self {
         if fields.is_empty() {
             if let Some(rest) = rest {
                 return rest;
@@ -63,7 +64,7 @@ impl Pattern {
         Self::from(PatternKind::record(fields, rest))
     }
 
-    pub fn list(items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
+    pub fn list(items: Vector<Pattern>, tail: Option<Pattern>) -> Self {
         if items.is_empty() {
             if let Some(tail) = tail {
                 return tail;
@@ -72,6 +73,7 @@ impl Pattern {
         Self::from(PatternKind::list(items, tail))
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub fn from_value(value: Option<Value>, age: usize) -> Self {
         let kind = match value {
             None => PatternKind::Variable(Variable::new(Identifier::wildcard("_"), age)),

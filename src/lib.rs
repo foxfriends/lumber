@@ -3,6 +3,8 @@
 //! More info will be available soon.
 
 #![feature(bindings_after_at, generators, generator_trait, hash_drain_filter)]
+#[cfg(feature = "serde")]
+extern crate libserde as serde;
 
 #[macro_use]
 mod lumber;

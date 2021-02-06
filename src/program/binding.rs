@@ -1,8 +1,8 @@
 use super::unification::unify_patterns_new_generation;
 use crate::program::evaltree::*;
 use crate::Value;
+use im_rc::{HashMap, OrdMap, Vector};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 /// A binding of variables. Not all of the variables are necessarily bound, but together they
@@ -90,6 +90,7 @@ impl Binding {
         self
     }
 
+    #[cfg_attr(feature = "test-perf", flamer::flame)]
     pub fn get(&self, var: &Variable) -> Option<Pattern> {
         let pattern = self.variables.get(var)?;
         match pattern.kind() {
@@ -144,7 +145,7 @@ impl Binding {
                 PatternKind::Literal(..) => "literal".to_owned(),
                 PatternKind::All(..) => "all".to_owned(),
                 PatternKind::Any(..) => "any".to_owned(),
-                _ => format!("{:?}", pattern.to_owned()),
+                _ => format!("{}", pattern),
             };
             flame::start_guard(format!("apply({})", name))
         };
@@ -166,14 +167,14 @@ impl Binding {
                 let mut patterns = patterns
                     .iter()
                     .map(|pattern| self.apply(&pattern.default_age(age)))
-                    .collect::<crate::Result<Vec<_>>>()?;
+                    .collect::<crate::Result<Vector<_>>>()?;
                 let rest = rest
                     .as_ref()
                     .map(|pattern| -> crate::Result<Option<Pattern>> {
                         let pattern = self.apply(&pattern.default_age(age))?;
                         match pattern.kind() {
                             PatternKind::List(head, rest) => {
-                                patterns.append(&mut head.clone());
+                                patterns.append(head.clone());
                                 Ok(rest.clone())
                             }
                             PatternKind::Variable(..) => Ok(Some(pattern)),
@@ -188,14 +189,14 @@ impl Binding {
                 let mut fields = fields
                     .iter()
                     .map(|(key, pattern)| Ok((key.clone(), self.apply(&pattern.default_age(age))?)))
-                    .collect::<crate::Result<Fields>>()?;
+                    .collect::<crate::Result<OrdMap<Atom, Pattern>>>()?;
                 let rest = rest
                     .as_ref()
                     .map(|pattern| -> crate::Result<Option<Pattern>> {
                         let pattern = self.apply(&pattern.default_age(age))?;
                         match pattern.kind() {
                             PatternKind::Record(head, rest) => {
-                                fields.append(&mut head.clone());
+                                fields.extend(head.clone());
                                 Ok(rest.clone())
                             }
                             PatternKind::Variable(..) => Ok(Some(pattern)),
