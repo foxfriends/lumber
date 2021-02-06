@@ -55,15 +55,19 @@ impl Pattern {
     }
 
     pub fn record(fields: Fields, rest: Option<Pattern>) -> Self {
-        if fields.is_empty() && rest.is_some() {
-            return rest.unwrap();
+        if fields.is_empty() {
+            if let Some(rest) = rest {
+                return rest;
+            }
         }
         Self::from(PatternKind::record(fields, rest))
     }
 
     pub fn list(items: Vec<Pattern>, tail: Option<Pattern>) -> Self {
-        if items.is_empty() && tail.is_some() {
-            return tail.unwrap();
+        if items.is_empty() {
+            if let Some(tail) = tail {
+                return tail;
+            }
         }
         Self::from(PatternKind::list(items, tail))
     }
