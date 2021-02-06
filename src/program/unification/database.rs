@@ -33,8 +33,12 @@ where
         let end = std::time::Instant::now();
         eprintln!("{}.{} = {:?} ({})", self.2, self.3, end - start, self.0);
         flame::end("FlameIterator::next");
-        flame::dump_html(std::fs::File::create(format!("Flame-{}.{}.html", self.2, self.3)).unwrap()).unwrap();
-        let mut question_file = std::fs::File::create(format!("Question-{}.{}.txt", self.2, self.3)).unwrap();
+        flame::dump_html(
+            std::fs::File::create(format!("Flame-{}.{}.html", self.2, self.3)).unwrap(),
+        )
+        .unwrap();
+        let mut question_file =
+            std::fs::File::create(format!("Question-{}.{}.txt", self.2, self.3)).unwrap();
         writeln!(question_file, "{}", self.0).unwrap();
         output
     }
