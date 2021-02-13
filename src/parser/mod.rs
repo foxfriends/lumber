@@ -1,4 +1,7 @@
 //! Handles parsing of Lumber source files.
+
+#![allow(clippy::upper_case_acronyms)]
+
 use pest::Parser as _;
 
 /// A PEG parser for the Lumber language.
