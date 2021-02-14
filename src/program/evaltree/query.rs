@@ -11,10 +11,6 @@ pub(crate) struct Query {
 }
 
 impl Query {
-    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.args.iter().flat_map(|pattern| pattern.variables())
-    }
-
     pub fn handle(&self) -> &Handle {
         &self.handle
     }
@@ -73,6 +69,14 @@ impl From<ast::Query> for Query {
         Self {
             handle: ast.handle,
             args: ast.args.into_iter().map(Expression::from).collect(),
+        }
+    }
+}
+
+impl Variables for Query {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        for arg in &self.args {
+            arg.variables(vars);
         }
     }
 }

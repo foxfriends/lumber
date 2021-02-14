@@ -27,18 +27,6 @@ impl Term {
             Self::ListAggregation(.., body) => Box::new(body.handles_mut()),
         }
     }
-
-    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
-        match self {
-            Self::Expression(expression) => expression.variables(),
-            Self::Value(pattern) => Box::new(pattern.variables()),
-            Self::PrefixOp(.., term) => term.variables(),
-            Self::InfixOp(lhs, .., rhs) => Box::new(lhs.variables().chain(rhs.variables())),
-            Self::ListAggregation(pattern, body) => {
-                Box::new(pattern.variables().chain(body.variables()))
-            }
-        }
-    }
 }
 
 impl Display for Term {
@@ -70,6 +58,24 @@ impl From<ast::Term> for Term {
             ast::Term::Value(pattern) => Self::Value(Pattern::from(pattern)),
             ast::Term::ListAggregation(pattern, body) => {
                 Self::ListAggregation(Pattern::from(pattern), Body::from(body))
+            }
+        }
+    }
+}
+
+impl Variables for Term {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        match self {
+            Self::Expression(expression) => expression.variables(vars),
+            Self::Value(pattern) => pattern.variables(vars),
+            Self::PrefixOp(.., term) => term.variables(vars),
+            Self::InfixOp(lhs, .., rhs) => {
+                lhs.variables(vars);
+                rhs.variables(vars);
+            }
+            Self::ListAggregation(pattern, body) => {
+                pattern.variables(vars);
+                body.variables(vars);
             }
         }
     }

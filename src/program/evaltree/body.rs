@@ -10,10 +10,6 @@ impl Body {
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.0.handles_mut()
     }
-
-    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.0.variables()
-    }
 }
 
 impl Display for Body {
@@ -25,5 +21,11 @@ impl Display for Body {
 impl From<ast::Body> for Body {
     fn from(ast: ast::Body) -> Self {
         Self(Disjunction::from(ast.0))
+    }
+}
+
+impl Variables for Body {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        self.0.variables(vars)
     }
 }

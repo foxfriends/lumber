@@ -25,11 +25,6 @@ impl Disjunction {
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.conjunctions_mut().flat_map(Conjunction::handles_mut)
     }
-
-    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.conjunctions()
-            .flat_map(|conjunction| conjunction.variables())
-    }
 }
 
 impl Display for Disjunction {
@@ -55,6 +50,14 @@ impl From<ast::Disjunction> for Disjunction {
                 .into_iter()
                 .map(|(head, tail)| (Conjunction::from(head), tail.map(Conjunction::from)))
                 .collect(),
+        }
+    }
+}
+
+impl Variables for Disjunction {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        for conjunction in self.conjunctions() {
+            conjunction.variables(vars);
         }
     }
 }

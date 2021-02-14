@@ -22,7 +22,7 @@ fn occurs(variable: &Variable, pattern: Pattern, binding: &Binding) -> bool {
         };
         flame::start_guard(format!("occurs {} <- {}", variable, name))
     };
-    pattern.variables().any(|ref var| {
+    pattern.get_variables().into_iter().any(|ref var| {
         if var == variable {
             return true;
         }

@@ -1,7 +1,7 @@
 use super::{Answer, Value};
 use crate::ast::{self, Context};
 use crate::parser::*;
-use crate::program::evaltree::Body;
+use crate::program::evaltree::{Body, Variables};
 use crate::program::Binding;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
@@ -65,7 +65,8 @@ impl Question {
     /// Uses a binding to extract the answer to this question.
     pub(crate) fn answer(&self, binding: &Binding) -> Answer {
         self.body
-            .variables()
+            .get_variables()
+            .into_iter()
             .filter(|variable| !variable.is_wildcard())
             .map(|var| var.set_current(Some(0)))
             .map(|variable| {

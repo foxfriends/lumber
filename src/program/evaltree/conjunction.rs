@@ -13,10 +13,6 @@ impl Conjunction {
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.terms.iter_mut().flat_map(|term| term.handles_mut())
     }
-
-    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.terms.iter().flat_map(|term| term.variables())
-    }
 }
 
 impl Display for Conjunction {
@@ -35,6 +31,14 @@ impl From<ast::Conjunction> for Conjunction {
     fn from(ast: ast::Conjunction) -> Self {
         Self {
             terms: ast.terms.into_iter().map(Procession::from).collect(),
+        }
+    }
+}
+
+impl Variables for Conjunction {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        for term in &self.terms {
+            term.variables(vars);
         }
     }
 }

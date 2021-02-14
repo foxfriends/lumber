@@ -1,7 +1,11 @@
 use super::*;
 
-pub(crate) trait Variables<'a> {
-    type VarIter: Iterator<Item = Variable> + 'a;
+pub(crate) trait Variables {
+    fn variables(&self, vars: &mut Vec<Variable>);
 
-    fn variables(&'a self) -> Self::VarIter;
+    fn get_variables(&self) -> Vec<Variable> {
+        let mut vec = vec![];
+        self.variables(&mut vec);
+        vec
+    }
 }

@@ -20,18 +20,6 @@ impl Expression {
         )
     }
 
-    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
-        Box::new(
-            self.0
-                .iter()
-                .filter_map(|op| match op {
-                    Op::Rand(term) => Some(term),
-                    _ => None,
-                })
-                .flat_map(|term| term.variables()),
-        )
-    }
-
     pub fn climb_operators<
         'a,
         Out,
@@ -105,5 +93,15 @@ impl From<ast::Expression> for Expression {
                 })
                 .collect(),
         )
+    }
+}
+
+impl Variables for Expression {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        for term in &self.0 {
+            if let Op::Rand(term) = term {
+                term.variables(vars);
+            }
+        }
     }
 }
