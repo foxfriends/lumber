@@ -142,5 +142,8 @@ impl From<PatternKind> for Pattern {
 impl Variables for Pattern {
     fn variables(&self, vars: &mut Vec<Variable>) {
         self.pattern.variables(vars);
+        for var in vars {
+            var.set_current(self.age);
+        }
     }
 }
