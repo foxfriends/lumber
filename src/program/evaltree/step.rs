@@ -28,21 +28,6 @@ impl Step {
             Self::Unification(lhs, rhs) => Box::new(lhs.handles_mut().chain(rhs.handles_mut())),
         }
     }
-
-    pub fn variables<'a>(&'a self) -> Box<dyn Iterator<Item = Variable> + 'a> {
-        match self {
-            Self::Query(query) => Box::new(query.variables()),
-            Self::Body(body) => Box::new(body.variables()),
-            Self::Relation(lhs, _, rhs) => Box::new(
-                lhs.iter()
-                    .flat_map(|term| term.variables())
-                    .chain(rhs.variables()),
-            ),
-            Self::Unification(pattern, expression) => {
-                Box::new(pattern.variables().chain(expression.variables()))
-            }
-        }
-    }
 }
 
 impl Display for Step {
@@ -67,6 +52,25 @@ impl From<ast::Step> for Step {
             }
             ast::Step::Unification(lhs, rhs) => {
                 Self::Unification(Expression::from(lhs), Expression::from(rhs))
+            }
+        }
+    }
+}
+
+impl Variables for Step {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        match self {
+            Self::Query(query) => query.variables(vars),
+            Self::Body(body) => body.variables(vars),
+            Self::Relation(lhs, _, rhs) => {
+                for pattern in lhs {
+                    pattern.variables(vars);
+                }
+                rhs.variables(vars);
+            }
+            Self::Unification(lhs, rhs) => {
+                lhs.variables(vars);
+                rhs.variables(vars);
             }
         }
     }

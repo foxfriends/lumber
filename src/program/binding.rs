@@ -29,7 +29,8 @@ impl Binding {
     pub fn new(body: &Body) -> Self {
         Self {
             variables: body
-                .variables()
+                .get_variables()
+                .into_iter()
                 .map(|var| var.set_current(Some(0)))
                 .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var))))
                 .collect(),
@@ -43,7 +44,8 @@ impl Binding {
         let pattern = Pattern::from_value(value, age);
         self.variables.extend(
             pattern
-                .variables()
+                .get_variables()
+                .into_iter()
                 .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
         );
         pattern
@@ -71,8 +73,11 @@ impl Binding {
         binding.variables.extend(
             destination
                 .iter()
-                .flat_map(|pat| pat.variables())
-                .chain(body.into_iter().flat_map(|body| body.variables()))
+                .flat_map(|pat| pat.get_variables().into_iter())
+                .chain(
+                    body.into_iter()
+                        .flat_map(|body| body.get_variables().into_iter()),
+                )
                 .map(|var| var.set_current(Some(generation)))
                 .map(|var| (var.clone(), Pattern::from(PatternKind::Variable(var)))),
         );

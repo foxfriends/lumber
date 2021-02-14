@@ -180,69 +180,31 @@ impl From<ast::Pattern> for PatternKind {
     }
 }
 
-pub(crate) enum PatternKindVariables<'a> {
-    Empty,
-    Var(Variable),
-    Defer(Box<PatternVariables<'a>>),
-    DeferMany(Box<dyn Iterator<Item = Variable> + 'a>),
-}
-
-impl Iterator for PatternKindVariables<'_> {
-    type Item = Variable;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        use PatternKindVariables::*;
-
-        match std::mem::replace(self, Empty) {
-            Empty => None,
-            Var(var) => Some(var),
-            Defer(mut iter) => {
-                let var = iter.next();
-                *self = Defer(iter);
-                var
-            }
-            DeferMany(mut iter) => {
-                let var = iter.next();
-                *self = DeferMany(iter);
-                var
-            }
-        }
-    }
-}
-
-impl<'a> Variables<'a> for PatternKind {
-    type VarIter = PatternKindVariables<'a>;
-
-    fn variables(&'a self) -> Self::VarIter {
-        use PatternKindVariables::*;
-
+impl Variables for PatternKind {
+    fn variables(&self, vars: &mut Vec<Variable>) {
         match self {
             Self::Any(..)
             | Self::Unbound
             | Self::Bound
             | Self::Literal(..)
-            | Self::Struct(.., None) => PatternKindVariables::Empty,
-            Self::Variable(variable) => Var(variable.clone()),
-            Self::Struct(.., Some(contents)) => Defer(Box::new(contents.variables())),
-            Self::List(head, Some(tail)) => DeferMany(Box::new(
-                head.iter()
-                    .flat_map(|pattern| pattern.variables())
-                    .chain(tail.variables()),
-            )),
-            Self::List(head, None) => DeferMany(Box::new(
-                head.iter().flat_map(|pattern| pattern.variables()),
-            )),
-            Self::Record(head, Some(tail)) => DeferMany(Box::new(
-                head.iter()
-                    .flat_map(|(_, pattern)| pattern.variables())
-                    .chain(tail.variables()),
-            )),
-            Self::Record(head, None) => DeferMany(Box::new(
-                head.iter().flat_map(|(_, pattern)| pattern.variables()),
-            )),
-            Self::All(patterns) => DeferMany(Box::new(
-                patterns.iter().flat_map(|pattern| pattern.variables()),
-            )),
+            | Self::Struct(.., None) => {}
+            Self::Variable(variable) => vars.push(variable.clone()),
+            Self::Struct(.., Some(contents)) => contents.variables(vars),
+            Self::List(head, tail) => {
+                for pattern in head.iter().chain(tail.iter()) {
+                    pattern.variables(vars);
+                }
+            }
+            Self::Record(head, tail) => {
+                for pattern in head.values().chain(tail.iter()) {
+                    pattern.variables(vars);
+                }
+            }
+            Self::All(patterns) => {
+                for pattern in patterns {
+                    pattern.variables(vars);
+                }
+            }
         }
     }
 }

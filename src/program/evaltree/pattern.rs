@@ -139,27 +139,11 @@ impl From<PatternKind> for Pattern {
     }
 }
 
-pub(crate) struct PatternVariables<'a> {
-    inner: PatternKindVariables<'a>,
-    age: Option<usize>,
-}
-
-impl Iterator for PatternVariables<'_> {
-    type Item = Variable;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let var = self.inner.next()?;
-        Some(var.set_current(self.age))
-    }
-}
-
-impl<'a> Variables<'a> for Pattern {
-    type VarIter = PatternVariables<'a>;
-
-    fn variables(&'a self) -> Self::VarIter {
-        PatternVariables {
-            inner: self.pattern.variables(),
-            age: self.age,
+impl Variables for Pattern {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        self.pattern.variables(vars);
+        for var in vars {
+            var.set_current(self.age);
         }
     }
 }

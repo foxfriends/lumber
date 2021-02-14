@@ -13,10 +13,6 @@ impl Procession {
     pub fn handles_mut(&mut self) -> impl Iterator<Item = &mut Handle> {
         self.steps.iter_mut().flat_map(|step| step.handles_mut())
     }
-
-    pub fn variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.steps.iter().flat_map(|step| step.variables())
-    }
 }
 
 impl Display for Procession {
@@ -35,6 +31,14 @@ impl From<ast::Procession> for Procession {
     fn from(ast: ast::Procession) -> Procession {
         Procession {
             steps: ast.steps.into_iter().map(Step::from).collect(),
+        }
+    }
+}
+
+impl Variables for Procession {
+    fn variables(&self, vars: &mut Vec<Variable>) {
+        for step in &self.steps {
+            step.variables(vars)
         }
     }
 }
