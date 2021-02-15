@@ -20,3 +20,7 @@ Non-goals:
     not be a copy of Prolog which I find confusing at times.
 2.  Incredible performance: I just want Lumber to work and be usable, performance
     of the runtime can come later.
+
+## Language Reference
+
+See [the documentation](./GUIDE.md).
