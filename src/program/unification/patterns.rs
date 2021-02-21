@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 type Fields = OrdMap<Atom, Pattern>;
 
+#[cfg(feature = "occurs")]
 fn occurs(variable: &Variable, pattern: Pattern, binding: &Binding) -> bool {
     #[cfg(feature = "test-perf")]
     let _guard = {
@@ -142,6 +143,7 @@ fn unify_patterns_inner(
             let var_pat = binding.get(&var).unwrap();
             match var_pat.kind() {
                 PatternKind::Variable(pat_var) => {
+                    #[cfg(feature = "occurs")]
                     if occurs(pat_var, rhs.clone(), binding.as_ref()) {
                         return None;
                     }
@@ -755,6 +757,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "occurs")]
     fn no_unify_variable_occurs() {
         let mut binding = Binding::default();
         let x = var(&mut binding);

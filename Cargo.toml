@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 builtin-sets = [] # Builtin sets is not implemented, but may be attempted in future?
+occurs = [] # Occurs check is disabled for its significant performance cost, but can be included if needed
 test-perf = ["flame", "flamer"] # For debugging performance. Not for use.
 serde = ["libserde", "im-rc/serde"]
 
