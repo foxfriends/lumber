@@ -3,16 +3,28 @@ use serde::de::{self, Deserialize, DeserializeSeed, IntoDeserializer, Visitor};
 use std::ops::Index;
 
 pub struct Deserializer<'de> {
+    path: Vec<String>,
     input: Option<&'de Value>,
 }
 
 impl<'de> Deserializer<'de> {
     pub fn from_value(input: &'de Value) -> Self {
-        Self { input: Some(input) }
+        Self::from_value_inner(vec![], input)
+    }
+
+    fn from_value_inner(path: Vec<String>, input: &'de Value) -> Self {
+        Self {
+            path,
+            input: Some(input),
+        }
     }
 
     pub fn from_optional(input: Option<&'de Value>) -> Self {
-        Self { input }
+        Self::from_optional_inner(vec![], input)
+    }
+
+    fn from_optional_inner(path: Vec<String>, input: Option<&'de Value>) -> Self {
+        Self { path, input }
     }
 }
 
@@ -34,7 +46,7 @@ macro_rules! deserialize_int {
             let int = self
                 .input
                 .and_then(Value::as_integer)
-                .ok_or_else(|| Error::de("expected integer"))?;
+                .ok_or_else(|| self.error("expected integer"))?;
             visitor.$visit(int.into())
         }
     };
@@ -49,10 +61,16 @@ macro_rules! deserialize_rat {
             let rat = self
                 .input
                 .and_then(Value::as_rational)
-                .ok_or_else(|| Error::de("expected rational"))?;
+                .ok_or_else(|| self.error("expected rational"))?;
             visitor.$visit(rat.to_f64() as $t)
         }
     };
+}
+
+impl<'de> Deserializer<'de> {
+    fn error(&self, msg: impl std::fmt::Display) -> Error {
+        Error::de(msg, &self.path)
+    }
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
@@ -73,11 +91,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
             Value::List(..) => self.deserialize_seq(visitor),
             Value::Struct(st) if st.is_atom() => match st.as_atom().unwrap() {
                 "true" | "false" => self.deserialize_bool(visitor),
-                _ => Err(Error::de("cannot deserialize arbitrary structs")),
+                _ => Err(self.error("cannot deserialize arbitrary structs")),
             },
-            Value::Struct(..) => Err(Error::de("cannot deserialize arbitrary structs")),
+            Value::Struct(..) => Err(self.error("cannot deserialize arbitrary structs")),
             Value::Record(..) => self.deserialize_map(visitor),
-            Value::Any(..) => Err(Error::de("cannot deserialize an `Any` value")),
+            Value::Any(..) => Err(self.error("cannot deserialize an `Any` value")),
         }
     }
 
@@ -89,11 +107,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
             .input
             .and_then(Value::as_struct)
             .and_then(Struct::as_atom)
-            .ok_or_else(|| Error::de("expected boolean"))?;
+            .ok_or_else(|| self.error("expected boolean"))?;
         match b {
             "true" => visitor.visit_bool(true),
             "false" => visitor.visit_bool(false),
-            _ => Err(Error::de("expected boolean")),
+            _ => Err(self.error("expected boolean")),
         }
     }
 
@@ -118,15 +136,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let mut chars = self
             .input
             .and_then(Value::as_string)
-            .ok_or_else(|| Error::de("expected string"))?
+            .ok_or_else(|| self.error("expected string"))?
             .chars();
         let result = visitor.visit_char(
             chars
                 .next()
-                .ok_or_else(|| Error::de("expected non-empty string"))?,
+                .ok_or_else(|| self.error("expected non-empty string"))?,
         );
         if chars.next().is_some() {
-            return Err(Error::de("expected a single character"));
+            return Err(self.error("expected a single character"));
         }
         result
     }
@@ -138,7 +156,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let s = self
             .input
             .and_then(Value::as_string)
-            .ok_or_else(|| Error::de("expected string"))?;
+            .ok_or_else(|| self.error("expected string"))?;
         visitor.visit_borrowed_str(s)
     }
 
@@ -153,14 +171,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        Err(Error::de("not implemented: cannot deserialize bytes"))
+        Err(self.error("not implemented: cannot deserialize bytes"))
     }
 
     fn deserialize_byte_buf<V>(self, _visitor: V) -> crate::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::de("not implemented: cannot deserialize byte_buf"))
+        Err(self.error("not implemented: cannot deserialize byte_buf"))
     }
 
     fn deserialize_option<V>(self, visitor: V) -> crate::Result<V::Value>
@@ -189,9 +207,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
             .input
             .and_then(Value::as_struct)
             .and_then(Struct::as_atom)
-            .ok_or_else(|| Error::de("expected atom"))?;
+            .ok_or_else(|| self.error("expected atom"))?;
         if atom != name {
-            return Err(Error::de(format!("expected {} found {}", name, atom)));
+            return Err(self.error(format!("expected {} found {}", name, atom)));
         }
         visitor.visit_unit()
     }
@@ -207,17 +225,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let st = self
             .input
             .and_then(Value::as_struct)
-            .ok_or_else(|| Error::de("expected struct"))?;
+            .ok_or_else(|| self.error("expected struct"))?;
         if st.name() != name {
-            return Err(Error::de(format!("expected {} found {}", name, st.name())));
+            return Err(self.error(format!("expected {} found {}", name, st.name())));
         }
         match st.contents() {
-            None => Err(Error::de(
-                "expected a newtype wrapper around a variant struct",
+            None => Err(self.error("expected a newtype wrapper around a variant struct")),
+            Some(contents) => visitor.visit_newtype_struct(&Deserializer::from_optional_inner(
+                self.path.clone(),
+                contents.as_ref(),
             )),
-            Some(contents) => {
-                visitor.visit_newtype_struct(&Deserializer::from_optional(contents.as_ref()))
-            }
         }
     }
 
@@ -228,8 +245,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let list = self
             .input
             .and_then(Value::as_list)
-            .ok_or_else(|| Error::de("expected list"))?;
+            .ok_or_else(|| self.error("expected list"))?;
         visitor.visit_seq(&mut SeqDeserializer {
+            path: self.path.clone(),
             input: list,
             index: 0,
             max: list.len(),
@@ -243,15 +261,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let list = self
             .input
             .and_then(Value::as_list)
-            .ok_or_else(|| Error::de("expected list"))?;
+            .ok_or_else(|| self.error("expected list"))?;
         if list.len() != len {
-            return Err(Error::de(format!(
+            return Err(self.error(format!(
                 "expected a tuple of length {}, got {}",
                 len,
                 list.len()
             )));
         }
         visitor.visit_seq(&mut SeqDeserializer {
+            path: self.path.clone(),
             input: list,
             index: 0,
             max: len,
@@ -270,24 +289,22 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let st = self
             .input
             .and_then(Value::as_struct)
-            .ok_or_else(|| Error::de("expected struct"))?;
+            .ok_or_else(|| self.error("expected struct"))?;
         if st.name() != name {
-            return Err(Error::de(format!("expected {} found {}", name, st.name())));
+            return Err(self.error(format!("expected {} found {}", name, st.name())));
         }
         match st.contents() {
             Some(Some(contents))
                 if contents.as_list().map(|list| list.len()).unwrap_or(0) == len =>
             {
                 visitor.visit_seq(&mut SeqDeserializer {
+                    path: self.path.clone(),
                     input: contents.as_list().unwrap(),
                     index: 0,
                     max: len,
                 })
             }
-            _ => Err(Error::de(format!(
-                "expected a tuple struct of length {}",
-                len
-            ))),
+            _ => Err(self.error(format!("expected a tuple struct of length {}", len))),
         }
     }
 
@@ -298,8 +315,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let record = self
             .input
             .and_then(Value::as_record)
-            .ok_or_else(|| Error::de("expected record"))?;
+            .ok_or_else(|| self.error("expected record"))?;
         visitor.visit_map(&mut MapDeserializer {
+            path: self.path.clone(),
             input: record,
             index: 0,
         })
@@ -317,22 +335,23 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let st = self
             .input
             .and_then(Value::as_struct)
-            .ok_or_else(|| Error::de("expected struct"))?;
+            .ok_or_else(|| self.error("expected struct"))?;
         if st.name() != name {
-            return Err(Error::de(format!("expected {} found {}", name, st.name())));
+            return Err(self.error(format!("expected {} found {}", name, st.name())));
         }
         match st.contents() {
             Some(Some(contents)) if contents.is_record() => {
                 let record = contents.as_record().unwrap();
                 if !record.iter().all(|(key, _)| fields.contains(&key)) {
-                    return Err(Error::de("fields of serialized value do not match struct"));
+                    return Err(self.error("fields of serialized value do not match struct"));
                 }
                 visitor.visit_map(&mut MapDeserializer {
+                    path: self.path.clone(),
                     input: record,
                     index: 0,
                 })
             }
-            _ => Err(Error::de("expected a struct containing a record")),
+            _ => Err(self.error("expected a struct containing a record")),
         }
     }
 
@@ -348,22 +367,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a Deserializer<'de> {
         let st = self
             .input
             .and_then(Value::as_struct)
-            .ok_or_else(|| Error::de("expected struct"))?;
+            .ok_or_else(|| self.error("expected struct"))?;
         if st.name() != name {
-            return Err(Error::de(format!("expected {} found {}", name, st.name())));
+            return Err(self.error(format!("expected {} found {}", name, st.name())));
         }
         match st.contents() {
             Some(Some(value)) => {
                 let variant_value = value
                     .as_struct()
-                    .ok_or_else(|| Error::de("expected a variant struct"))?;
+                    .ok_or_else(|| self.error("expected a variant struct"))?;
                 visitor.visit_enum(&mut EnumDeserializer {
+                    path: self.path.clone(),
                     input: variant_value,
                 })
             }
-            _ => Err(Error::de(
-                "expected a newtype wrapper around a variant struct",
-            )),
+            _ => Err(self.error("expected a newtype wrapper around a variant struct")),
         }
     }
 
@@ -386,6 +404,7 @@ struct SeqDeserializer<'de, I>
 where
     I: Index<usize, Output = Option<Value>>,
 {
+    path: Vec<String>,
     input: &'de I,
     index: usize,
     max: usize,
@@ -404,7 +423,10 @@ where
         if self.index == self.max {
             Ok(None)
         } else {
-            let output = seed.deserialize(&Deserializer::from_optional(
+            let mut path = self.path.clone();
+            path.push(self.index.to_string());
+            let output = seed.deserialize(&Deserializer::from_optional_inner(
+                path,
                 self.input[self.index].as_ref(),
             ))?;
             self.index += 1;
@@ -414,6 +436,7 @@ where
 }
 
 struct MapDeserializer<'de> {
+    path: Vec<String>,
     input: &'de Record,
     index: usize,
 }
@@ -440,7 +463,11 @@ impl<'de, 'a> de::MapAccess<'de> for &'a mut MapDeserializer<'de> {
             .input
             .iter()
             .nth(self.index)
-            .map(|(_, value)| seed.deserialize(&Deserializer::from_optional(value.as_ref())))
+            .map(|(key, value)| {
+                let mut path = self.path.clone();
+                path.push(key.to_owned());
+                seed.deserialize(&Deserializer::from_optional_inner(path, value.as_ref()))
+            })
             .unwrap();
         self.index += 1;
         element
@@ -448,7 +475,14 @@ impl<'de, 'a> de::MapAccess<'de> for &'a mut MapDeserializer<'de> {
 }
 
 struct EnumDeserializer<'de> {
+    path: Vec<String>,
     input: &'de Struct,
+}
+
+impl<'de> EnumDeserializer<'de> {
+    fn error(&self, msg: impl std::fmt::Display) -> Error {
+        Error::de(msg, &self.path)
+    }
 }
 
 impl<'de, 'a> de::EnumAccess<'de> for &'a mut EnumDeserializer<'de> {
@@ -473,7 +507,7 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
         if self.input.is_atom() {
             Ok(())
         } else {
-            Err(Error::de("expected an atom"))
+            Err(self.error("expected an atom"))
         }
     }
 
@@ -482,8 +516,11 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
         T: DeserializeSeed<'de>,
     {
         match self.input.contents() {
-            None => Err(Error::de("expected a newtype struct")),
-            Some(value) => seed.deserialize(&Deserializer::from_optional(value.as_ref())),
+            None => Err(self.error("expected a newtype struct")),
+            Some(value) => seed.deserialize(&Deserializer::from_optional_inner(
+                self.path.clone(),
+                value.as_ref(),
+            )),
         }
     }
 
@@ -496,15 +533,13 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
                 if contents.as_list().map(|list| list.len()).unwrap_or(0) == len =>
             {
                 visitor.visit_seq(&mut SeqDeserializer {
+                    path: self.path.clone(),
                     input: contents.as_list().unwrap(),
                     index: 0,
                     max: len,
                 })
             }
-            _ => Err(Error::de(format!(
-                "expected a tuple struct of length {}",
-                len
-            ))),
+            _ => Err(self.error(format!("expected a tuple struct of length {}", len))),
         }
     }
 
@@ -519,11 +554,12 @@ impl<'de, 'a> de::VariantAccess<'de> for &'a mut EnumDeserializer<'de> {
         match self.input.contents() {
             Some(Some(contents)) if contents.is_record() => {
                 visitor.visit_map(&mut MapDeserializer {
+                    path: self.path.clone(),
                     input: contents.as_record().unwrap(),
                     index: 0,
                 })
             }
-            _ => Err(Error::de("expected a struct containing a record")),
+            _ => Err(self.error("expected a struct containing a record")),
         }
     }
 }

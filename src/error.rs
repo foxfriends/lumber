@@ -84,10 +84,14 @@ impl Error {
     }
 
     #[cfg(feature = "serde")]
-    pub(crate) fn de<S: Display>(message: S) -> Self {
+    pub(crate) fn de<S: Display>(message: S, path: &[String]) -> Self {
         Self {
             kind: ErrorKind::De,
-            message: message.to_string(),
+            message: if path.is_empty() {
+                message.to_string()
+            } else {
+                format!("{} at {}", message, path.join(" -> "))
+            },
             source: None,
         }
     }
@@ -136,7 +140,11 @@ impl de::Error for Error {
     where
         T: Display,
     {
-        Self::de(msg)
+        Self {
+            kind: ErrorKind::De,
+            message: msg.to_string(),
+            source: None,
+        }
     }
 }
 
