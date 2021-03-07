@@ -31,6 +31,7 @@ test! {
     "#
     ?- "test(a, b)";
     ?- "test(a, c)"
+    ?- "test(a, e)"
     ?- "test(a, B)"
         B = Value::atom("b");
     ?- "test(b, B)"
