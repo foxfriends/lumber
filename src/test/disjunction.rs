@@ -20,6 +20,26 @@ test! {
 }
 
 test! {
+    disjunction_no_backtracking => r#"
+    :- pub(test/2).
+    test(A, B) :- (
+        A =:= a ->> B =:= b;
+        A =:= b ->> B =:= c;
+        A =:= c ->> B =:= d;
+        B =:= e
+    ).
+    "#
+    ?- "test(a, b)";
+    ?- "test(a, c)"
+    ?- "test(a, B)"
+        B = Value::atom("b");
+    ?- "test(b, B)"
+        B = Value::atom("c");
+    ?- "test(d, B)"
+        B = Value::atom("e");
+}
+
+test! {
     disjunction_multiple_passes => r#"
     :- pub(test/2).
     hello(a).
